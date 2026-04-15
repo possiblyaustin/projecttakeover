@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Project Takeover</title>
+<style>
+  :root {
+    /* Core blue palette */
+    --bg-blue: #1b2444;
+
+    /* Titlebar blues — darker overall for readability */
+    --title-hi: #a6c6ec;
+    --title-mid: #3a5e9a;
+    --title-lo: #1b3466;
+    --title-text: #ffffff;
+
+    /* Taskbar / chrome */
+    --face: #c8ccd4;
+    --face-light: #e4e6ec;
+    --face-tint-hi: #dfe4ee;
+    --face-tint-lo: #a6aebc;
+
+    /* Soft blue used to indicate an active/open task */
+    --task-active-hi: #e2ecfb;
+    --task-active-mid: #c8d9f2;
+    --task-active-lo: #9fb6dc;
+
+    --hilite: #ffffff;
+    --shadow: #7e828c;
+    --dark: #1a1c22;
+
+    --mac-font: "Charcoal", "Geneva", "Lucida Grande", "Trebuchet MS", sans-serif;
+    --sys-font: "Charcoal", "Geneva", "MS Sans Serif", "Tahoma", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: var(--sys-font);
+    font-size: 12px;
+    color: #000;
+    -webkit-font-smoothing: none;
+  }
+
+  /* --- Desktop background --- */
+  #desktop {
+    position: absolute;
+    inset: 0 0 30px 0;
+    background-color: var(--bg-blue);
+    background-image:
+      radial-gradient(ellipse at 50% 40%, rgba(80,120,190,0.18), transparent 70%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 0.38  0 0 0 0 0.52  0 0 0 0 0.78  0 0 0 0.22 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='520' height='520'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.12' numOctaves='5' seed='11'/><feColorMatrix values='0 0 0 0 0.10  0 0 0 0 0.18  0 0 0 0 0.38  0 0 0 0.35 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    background-size: auto, 220px 220px, 520px 520px;
+    background-blend-mode: normal, overlay, multiply;
+    image-rendering: pixelated;
+  }
+
+  /* --- Bevels --- */
+  .bevel-out {
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+    box-shadow: inset -1px -1px 0 var(--shadow), inset 1px 1px 0 var(--face-light);
+    background: var(--face);
+  }
+  .bevel-in {
+    border-top: 2px solid var(--shadow);
+    border-left: 2px solid var(--shadow);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    box-shadow: inset 1px 1px 0 var(--dark), inset -1px -1px 0 var(--face-light);
+    background: var(--face);
+  }
+
+  /* --- Desktop icons --- */
+  .desktop-icon {
+    position: absolute;
+    width: 78px;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: #ffffff;
+    font-family: var(--sys-font);
+    font-size: 11px;
+    text-align: center;
+    text-shadow: 1px 1px 0 #000;
+    cursor: pointer;
+    user-select: none;
+    border: 1px dotted transparent;
+  }
+  .desktop-icon.cursor-hover,
+  .desktop-icon.selected {
+    background: rgba(90,134,194,0.35);
+    border: 1px dotted #d6e2f5;
+  }
+
+  /* --- Suppress browser default focus outlines on chrome elements --- */
+  button:focus,
+  .desktop-icon:focus,
+  #start-menu li:focus {
+    outline: none;
+  }
+
+  /* Ensure clicks on the child text/icon of a chrome element return the
+     parent as the click target (so hover tracking & click dispatch aim
+     at the clickable thing, not its decorative children). */
+  .desktop-icon > *,
+  .desktop-icon .glyph,
+  .desktop-icon .label,
+  #start-btn > *,
+  .taskbar-item > *,
+  #start-menu li > *,
+  .titlebar-btn > *,
+  .browser-btn > * {
+    pointer-events: none;
+  }
+
+  /* --- Virtual cursor sprite --- */
+  html, body { cursor: none; }
+  #game-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 14px;
+    height: 20px;
+    pointer-events: none;
+    z-index: 2147483647;
+    transform: translate(50vw, 50vh);
+    background-repeat: no-repeat;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='20' viewBox='0 0 14 20'><path d='M1 1 L1 15 L4.5 11.5 L7 17 L9 16 L6.5 10.5 L11 10.5 Z' fill='white' stroke='black' stroke-width='1.4' stroke-linejoin='miter'/></svg>");
+    image-rendering: pixelated;
+  }
+  #game-cursor.is-clicking {
+    filter: brightness(0.85);
+  }
+  .desktop-icon .glyph {
+    width: 32px;
+    height: 32px;
+    position: relative;
+    image-rendering: pixelated;
+  }
+  .desktop-icon .label {
+    padding: 1px 3px;
+    line-height: 1.2;
+  }
+
+  /* Icon: text file (with true triangular page curl) */
+  .icon-textfile {
+    background: #f4f4ef;
+    border: 2px solid #555;
+    box-shadow:
+      inset 1px 1px 0 #ffffff,
+      inset -1px -1px 0 #9a9a94;
+    /* Cut the top-right corner so the outline follows the fold */
+    clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 11px, 100% 100%, 0 100%);
+  }
+  .icon-textfile::before {
+    /* Triangular page curl — back of the folded corner */
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 0; height: 0;
+    border-top: 11px solid #c8ccd4;
+    border-left: 11px solid transparent;
+    /* Darker crease line along the hypotenuse */
+    filter: drop-shadow(-1px 1px 0 #555);
+  }
+  .icon-textfile::after {
+    content: "";
+    position: absolute;
+    left: 4px; right: 4px; top: 14px;
+    height: 12px;
+    background:
+      linear-gradient(#3a3a3a, #3a3a3a) left top / 100% 2px no-repeat,
+      linear-gradient(#3a3a3a, #3a3a3a) left 5px / 70% 2px no-repeat,
+      linear-gradient(#3a3a3a, #3a3a3a) left 10px / 85% 2px no-repeat;
+  }
+
+  /* Icon: browser globe */
+  .icon-browser {
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 30%, #b8d8ff 0%, #4d82d4 40%, #16306a 100%);
+    border: 2px solid #0a1e48;
+    box-shadow: inset -2px -2px 0 rgba(0,0,0,0.35), inset 2px 2px 0 rgba(255,255,255,0.35);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffd84a;
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: bold;
+    font-style: italic;
+    font-size: 22px;
+    line-height: 1;
+    text-shadow: 1px 1px 0 #000;
+  }
+  .icon-browser::after {
+    content: "e";
+    transform: translate(-1px, -2px);
+  }
+  .icon-browser::before {
+    /* Gold ring band */
+    content: "";
+    position: absolute;
+    inset: 14px -3px 14px -3px;
+    border: 2px solid #ffd84a;
+    border-radius: 50%;
+    transform: rotate(-18deg);
+    opacity: 0.85;
+  }
+
+  /* --- Windows --- */
+  .window {
+    position: absolute;
+    min-width: 240px;
+    min-height: 120px;
+    padding: 2px;
+    user-select: none;
+  }
+
+  .window .titlebar {
+    display: flex;
+    align-items: center;
+    height: 22px;
+    padding: 2px 3px;
+    /* Lighter highlight concentrated at top for readability */
+    background:
+      linear-gradient(to bottom,
+        var(--title-hi) 0%,
+        var(--title-mid) 22%,
+        var(--title-lo) 100%);
+    border-bottom: 1px solid var(--title-lo);
+    color: var(--title-text);
+    font-weight: bold;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.55);
+    cursor: move;
+  }
+  .window .titlebar .title {
+    flex: 1;
+    padding-left: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .window .titlebar .buttons { display: flex; gap: 2px; }
+
+  .titlebar-btn {
+    width: 22px;
+    height: 18px;
+    margin-left: 2px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    background: var(--face);
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+    box-shadow: inset -1px -1px 0 var(--shadow), inset 1px 1px 0 var(--face-light);
+    color: #000;
+  }
+  .titlebar-btn .x-glyph { display: block; margin-top: -3px; }
+  .titlebar-btn:active {
+    border-top: 2px solid var(--dark);
+    border-left: 2px solid var(--dark);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    box-shadow: inset 1px 1px 0 var(--shadow);
+  }
+  .titlebar-btn .diamond {
+    display: block;
+    width: 8px; height: 8px;
+    background: #000;
+    transform: rotate(45deg);
+  }
+
+  .window .content {
+    padding: 10px;
+    margin: 2px 0 0 0;
+    background: var(--face);
+    height: calc(100% - 26px);
+    overflow: auto;
+  }
+  .window .content.no-pad { padding: 0; }
+  .content p { margin: 0 0 8px 0; }
+
+  /* --- Scratchpad editor --- */
+  .scratchpad-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ffffff;
+  }
+  .scratchpad-preview {
+    padding: 10px 12px;
+    border-bottom: 1px solid #d0d0d0;
+    background: #fafaf5;
+    font-size: 12px;
+  }
+  .scratchpad-preview:empty { display: none; }
+  .scratchpad-textarea {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    outline: 0;
+    resize: none;
+    padding: 10px 12px;
+    background: #ffffff;
+    font-family: "Courier New", "Lucida Console", "Geneva", monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #111;
+  }
+  .scratchpad-textarea:focus {
+    outline: 2px dotted var(--title-mid);
+    outline-offset: -4px;
+  }
+
+  /* --- Web Dynamo chrome --- */
+  .browser-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--face);
+  }
+  .browser-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-bottom: 1px solid var(--shadow);
+  }
+  .browser-btn {
+    min-width: 28px;
+    height: 24px;
+    padding: 0 6px;
+    font-family: var(--sys-font);
+    font-size: 14px;
+    font-weight: bold;
+    background: linear-gradient(to bottom, var(--face-tint-hi), var(--face) 60%, var(--face-tint-lo));
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+    cursor: pointer;
+  }
+  .browser-btn:disabled { color: #888; cursor: default; }
+  .browser-btn:active:not(:disabled) {
+    border-top: 2px solid var(--dark); border-left: 2px solid var(--dark);
+    border-right: 2px solid var(--hilite); border-bottom: 2px solid var(--hilite);
+  }
+  .browser-address {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 4px;
+    padding: 2px 4px;
+    background: #ffffff;
+    border-top: 2px solid var(--shadow);
+    border-left: 2px solid var(--shadow);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    box-shadow: inset 1px 1px 0 var(--dark);
+  }
+  .browser-address label { font-size: 11px; color: #555; padding: 0 2px; }
+  .browser-address input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    font-family: var(--sys-font);
+    font-size: 12px;
+    background: transparent;
+  }
+  .browser-viewport {
+    flex: 1;
+    background: #ffffff;
+    border-top: 2px solid var(--shadow);
+    border-left: 2px solid var(--shadow);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    overflow: auto;
+    padding: 12px 16px;
+    font-family: "Times New Roman", Georgia, serif;
+    color: #111;
+  }
+  .browser-status {
+    height: 20px;
+    padding: 0 6px;
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+    color: #333;
+    border-top: 1px solid var(--shadow);
+    background: var(--face);
+  }
+
+  /* Ironwall page */
+  .site-ironwall h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    color: #0a2550;
+    border-bottom: 3px double #0a2550;
+    padding-bottom: 4px;
+    margin: 0 0 10px 0;
+    font-size: 22px;
+  }
+  .site-ironwall .tagline { font-style: italic; color: #555; margin-bottom: 14px; }
+  .site-ironwall .hr-bar {
+    height: 6px;
+    background: repeating-linear-gradient(90deg, #0a2550 0 8px, #ffd84a 8px 16px);
+    margin: 12px 0;
+  }
+  .site-ironwall a { color: #0033aa; text-decoration: underline; }
+  .site-ironwall ul { margin: 6px 0 12px 22px; }
+
+  /* --- Taskbar --- */
+  #taskbar {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    padding: 2px;
+    gap: 4px;
+    background:
+      linear-gradient(to bottom,
+        var(--face-tint-hi) 0%,
+        var(--face) 55%,
+        var(--face-tint-lo) 100%);
+    border-top: 2px solid var(--hilite);
+    box-shadow: inset 0 1px 0 var(--face-light);
+  }
+
+  #start-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 8px 0 6px;
+    font-weight: bold;
+    font-family: var(--sys-font);
+    font-size: 12px;
+    background: linear-gradient(to bottom, var(--face-tint-hi), var(--face) 60%, var(--face-tint-lo));
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+    cursor: pointer;
+  }
+  #start-btn.active, #start-btn:active {
+    border-top: 2px solid var(--dark);
+    border-left: 2px solid var(--dark);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+  }
+  #start-btn .logo {
+    position: relative;
+    display: inline-block;
+    width: 16px; height: 14px;
+  }
+  #start-btn .logo::before {
+    content: ""; position: absolute; left: 0; bottom: 0;
+    width: 0; height: 0;
+    border-left: 8px solid transparent;
+    border-bottom: 14px solid #1a3a8a;
+  }
+  #start-btn .logo::after {
+    content: ""; position: absolute; right: 0; bottom: 0;
+    width: 0; height: 0;
+    border-right: 8px solid transparent;
+    border-bottom: 14px solid #5a8ee0;
+  }
+
+  #taskbar-items {
+    flex: 1;
+    display: flex;
+    gap: 3px;
+    padding: 0 4px;
+    height: 24px;
+  }
+
+  .taskbar-item {
+    min-width: 140px;
+    max-width: 200px;
+    height: 24px;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    /* Mac-ier font for open-app labels */
+    font-family: "Geneva", "Lucida Grande", "Charcoal", sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.2px;
+    text-align: left;
+    background: linear-gradient(to bottom, var(--face-tint-hi), var(--face) 60%, var(--face-tint-lo));
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .taskbar-item.active {
+    /* Sunken + lightly tinted blue instead of diagonal stripes */
+    background: linear-gradient(to bottom,
+        var(--task-active-hi) 0%,
+        var(--task-active-mid) 55%,
+        var(--task-active-lo) 100%);
+    border-top: 2px solid var(--dark);
+    border-left: 2px solid var(--dark);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+  }
+
+  #clock {
+    height: 24px;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    border-top: 1px solid var(--shadow);
+    border-left: 1px solid var(--shadow);
+    border-right: 1px solid var(--hilite);
+    border-bottom: 1px solid var(--hilite);
+    box-shadow: inset 1px 1px 0 var(--dark);
+    font-family: var(--sys-font);
+    font-size: 12px;
+    min-width: 62px;
+    justify-content: center;
+    background: var(--face-light);
+  }
+
+  /* --- Nexus menu --- */
+  #start-menu {
+    position: absolute;
+    bottom: 30px;
+    left: 2px;
+    width: 210px;
+    padding: 2px;
+    display: none;
+    z-index: 9999;
+  }
+  #start-menu.open { display: block; }
+  #start-menu .menu-header {
+    height: 26px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: #ffffff;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.55);
+    /* Smooth gradient — no hard transition band across the text */
+    background:
+      linear-gradient(to bottom,
+        var(--title-hi) 0%,
+        var(--title-mid) 50%,
+        var(--title-lo) 100%);
+  }
+  #start-menu ul {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+    background: var(--face);
+  }
+  #start-menu li {
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #start-menu li:hover,
+  #start-menu li.cursor-hover { background: var(--title-mid); color: var(--title-text); }
+  #start-menu li .mini-glyph {
+    width: 16px; height: 16px;
+    flex: 0 0 16px;
+    image-rendering: pixelated;
+  }
+  #start-menu hr {
+    border: none;
+    border-top: 1px solid var(--shadow);
+    border-bottom: 1px solid var(--hilite);
+    margin: 3px 4px;
+  }
+</style>
+</head>
+<body>
+  <div id="game-cursor"></div>
+  <div id="desktop"></div>
+
+  <div id="start-menu" class="bevel-out">
+    <div class="menu-header">Nexus&nbsp;1.4</div>
+    <ul id="start-menu-list"></ul>
+  </div>
+
+  <div id="taskbar">
+    <button id="start-btn" aria-haspopup="true">
+      <span class="logo"></span>
+      <span>Nexus</span>
+    </button>
+    <div id="taskbar-items"></div>
+    <div id="clock">--:--</div>
+  </div>
+
+<script>
+/* ============================================================
+ * PROJECT TAKEOVER — Desktop Shell (v0.0.2)
+ * ------------------------------------------------------------
+ * Layered architecture (single-file for now, designed to split):
+ *
+ *   1. WindowManager  — generic window chrome, drag, z-order,
+ *                       open/close/minimize, multi-instance.
+ *   2. AppRegistry    — metadata for every app (name, icon,
+ *                       default size, render fn). Desktop icons,
+ *                       Nexus menu, taskbar all read from this.
+ *   3. Apps           — one block per program. Each app owns its
+ *                       render(container, params) function and
+ *                       nothing else knows its internals.
+ *   4. Shell          — desktop icons, start menu, taskbar, clock.
+ *                       Pure wiring, no app-specific code.
+ *
+ * Adding a new app = add one entry to AppRegistry + one render fn.
+ * ============================================================ */
+
+(function () {
+  // ============================================================
+  // Cursor — virtual mouse pointer bound to D-pad / arrow keys
+  // ------------------------------------------------------------
+  // The real OS cursor is hidden (cursor: none). A sprite drawn
+  // on top of everything is the "game cursor" — it tracks both
+  // physical mouse moves (via mousemove) and D-pad / arrow key
+  // input (via an RAF loop). Enter / Space (later: gamepad A)
+  // synthesises a click at the cursor's current position.
+  //
+  // Tab / L1-R1 cycles between open windows (distinct from cursor
+  // movement; the cursor does NOT jump when you cycle).
+  // ============================================================
+  const Cursor = (function () {
+    const BASE_SPEED   = 4;        // px per frame on first press
+    const MAX_SPEED    = 22;       // px per frame when held
+    const ACCEL        = 0.55;     // acceleration per frame
+
+    // Snap/magnetism — cursor is drawn toward nearby clickables
+    const SNAP_RADIUS       = 56;  // only targets within this distance attract
+    const SNAP_PULL         = 0.35;// 0..1, strength of magnetic pull
+    const CLICK_SNAP_RADIUS = 28;  // clicks within this fall through to nearest target
+
+    // Anything that should "catch" the cursor. Order doesn't matter.
+    const SNAP_SELECTOR = [
+      '.desktop-icon',
+      '.titlebar-btn',
+      '.browser-btn',
+      '.taskbar-item',
+      '#start-btn',
+      '#start-menu.open li',
+      '.browser-address input',
+      '.scratchpad-textarea',
+      'a[data-href]'
+    ].join(', ');
+
+    let x = window.innerWidth / 2;
+    let y = window.innerHeight / 2;
+    let speed = BASE_SPEED;
+    let sprite;
+    let hoverEl = null;
+    const held = { up: false, down: false, left: false, right: false };
+    let rafRunning = false;
+    let synthInFlight = false;
+
+    function init() {
+      sprite = document.getElementById('game-cursor');
+      updateSprite();
+
+      // Physical mouse moves → sync virtual to real
+      window.addEventListener('mousemove', (e) => {
+        x = e.clientX;
+        y = e.clientY;
+        speed = BASE_SPEED;
+        updateSprite();
+        updateHover();
+      });
+
+      // Physical mousedown → ensure the virtual cursor is exactly at
+      // the real click coordinates. Avoids "D-padded then clicked
+      // physical mouse without moving it" confusion.
+      window.addEventListener('mousedown', (e) => {
+        if (synthInFlight) return;
+        x = e.clientX;
+        y = e.clientY;
+        updateSprite();
+      }, true);
+
+      // Visual "press" feedback
+      window.addEventListener('mousedown', () => sprite.classList.add('is-clicking'));
+      window.addEventListener('mouseup',   () => sprite.classList.remove('is-clicking'));
+
+      // Keyboard input
+      window.addEventListener('keydown', onKeyDown);
+      window.addEventListener('keyup', onKeyUp);
+
+      // Keep virtual cursor inside viewport on resize
+      window.addEventListener('resize', () => {
+        x = Math.max(0, Math.min(window.innerWidth  - 1, x));
+        y = Math.max(0, Math.min(window.innerHeight - 1, y));
+        updateSprite();
+      });
+    }
+
+    function onKeyDown(e) {
+      const ae = document.activeElement;
+      const inText = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
+
+      // Escape in text input blurs it (returns control to cursor)
+      if (e.key === 'Escape' && inText) {
+        ae.blur();
+        e.preventDefault();
+        return;
+      }
+
+      // Tab / Shift+Tab → cycle open windows (alt-tab style).
+      // If currently typing, blur first so the user ends up back in
+      // cursor mode on the new window rather than typing into the
+      // previous window's field from afar.
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (inText) ae.blur();
+        WindowManager.cycleWindows(e.shiftKey ? -1 : 1);
+        return;
+      }
+
+      // Arrow keys drive the cursor unless we're editing text
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+        if (inText) return;
+        e.preventDefault();
+        if (e.key === 'ArrowUp')    held.up = true;
+        if (e.key === 'ArrowDown')  held.down = true;
+        if (e.key === 'ArrowLeft')  held.left = true;
+        if (e.key === 'ArrowRight') held.right = true;
+        startRaf();
+        return;
+      }
+
+      // Enter / Space → A button click at cursor
+      if (e.key === 'Enter' || e.key === ' ') {
+        if (inText) return; // textarea newline, input submit etc.
+        e.preventDefault();
+        click();
+        return;
+      }
+
+      // "\" key → X button right-click (placeholder — remap later)
+      if (e.key === '\\') {
+        if (inText) return;
+        e.preventDefault();
+        rightClick();
+      }
+    }
+
+    function onKeyUp(e) {
+      if (e.key === 'ArrowUp')    held.up = false;
+      if (e.key === 'ArrowDown')  held.down = false;
+      if (e.key === 'ArrowLeft')  held.left = false;
+      if (e.key === 'ArrowRight') held.right = false;
+      if (!held.up && !held.down && !held.left && !held.right) {
+        speed = BASE_SPEED;
+      }
+    }
+
+    function startRaf() {
+      if (rafRunning) return;
+      rafRunning = true;
+      requestAnimationFrame(tick);
+    }
+
+    // Find the nearest snap target whose rect edge is within `radius`
+    // of (px, py). Returns { el, dist, cx, cy } or null.
+    function findSnapTarget(px, py, radius) {
+      const targets = document.querySelectorAll(SNAP_SELECTOR);
+      let best = null;
+      let bestDist = Infinity;
+      for (const el of targets) {
+        if (!el.offsetParent) continue;          // hidden
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        // Distance from point to rect (0 if inside)
+        const dx = Math.max(r.left - px, 0, px - r.right);
+        const dy = Math.max(r.top  - py, 0, py - r.bottom);
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < radius && d < bestDist) {
+          bestDist = d;
+          best = {
+            el,
+            dist: d,
+            cx: r.left + r.width / 2,
+            cy: r.top  + r.height / 2
+          };
+        }
+      }
+      return best;
+    }
+
+    function tick() {
+      let dx = 0, dy = 0;
+      if (held.left)  dx -= 1;
+      if (held.right) dx += 1;
+      if (held.up)    dy -= 1;
+      if (held.down)  dy += 1;
+
+      if (dx === 0 && dy === 0) {
+        rafRunning = false;
+        return;
+      }
+
+      // Normalise diagonal
+      if (dx && dy) { dx *= 0.7071; dy *= 0.7071; }
+
+      let vx = dx * speed;
+      let vy = dy * speed;
+
+      // Magnetic pull toward nearest snap target
+      const nx = x + vx;
+      const ny = y + vy;
+      const target = findSnapTarget(nx, ny, SNAP_RADIUS);
+      if (target && target.dist > 1) {
+        const toX = target.cx - nx;
+        const toY = target.cy - ny;
+        const toMag = Math.sqrt(toX * toX + toY * toY);
+        if (toMag > 0.5) {
+          // Stronger pull as you approach, capped at SNAP_PULL
+          const proximity = 1 - (target.dist / SNAP_RADIUS);
+          const pull = SNAP_PULL * (0.5 + 0.5 * proximity) * speed;
+          vx += (toX / toMag) * pull;
+          vy += (toY / toMag) * pull;
+        }
+      }
+
+      x += vx;
+      y += vy;
+      x = Math.max(0, Math.min(window.innerWidth  - 1, x));
+      y = Math.max(0, Math.min(window.innerHeight - 1, y));
+
+      speed = Math.min(speed + ACCEL, MAX_SPEED);
+      updateSprite();
+      updateHover();
+      requestAnimationFrame(tick);
+    }
+
+    function updateSprite() {
+      if (!sprite) return;
+      sprite.style.transform = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px)';
+    }
+
+    function updateHover() {
+      const el = document.elementFromPoint(x, y);
+      if (el === hoverEl) return;
+      if (hoverEl) hoverEl.classList.remove('cursor-hover');
+      hoverEl = el;
+      if (hoverEl) hoverEl.classList.add('cursor-hover');
+    }
+
+    function click() {
+      // If the cursor isn't directly over a snap target, fall through
+      // to the nearest one within CLICK_SNAP_RADIUS. Makes clicks feel
+      // forgiving even when the magnetic pull hasn't pulled all the
+      // way in (e.g. user clicked mid-movement).
+      let target = document.elementFromPoint(x, y);
+      const directlyOnTarget = target && target.closest && target.closest(SNAP_SELECTOR);
+      if (!directlyOnTarget) {
+        const snap = findSnapTarget(x, y, CLICK_SNAP_RADIUS);
+        if (snap) target = snap.el;
+      }
+      if (!target) return;
+
+      sprite.classList.add('is-clicking');
+      setTimeout(() => sprite.classList.remove('is-clicking'), 80);
+
+      // Focus native focusables (input, textarea, button) for OSK + keyboard
+      if (typeof target.focus === 'function') {
+        try { target.focus(); } catch (_) {}
+      }
+
+      // Dispatch a bubbling click on the element so normal handlers fire
+      synthInFlight = true;
+      const ev = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        clientX: x,
+        clientY: y,
+        button: 0
+      });
+      target.dispatchEvent(ev);
+      synthInFlight = false;
+    }
+
+    function rightClick() {
+      const el = document.elementFromPoint(x, y);
+      if (!el) return;
+      synthInFlight = true;
+      const ev = new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        clientX: x,
+        clientY: y,
+        button: 2
+      });
+      el.dispatchEvent(ev);
+      synthInFlight = false;
+    }
+
+    function moveTo(nx, ny) {
+      x = Math.max(0, Math.min(window.innerWidth  - 1, nx));
+      y = Math.max(0, Math.min(window.innerHeight - 1, ny));
+      updateSprite();
+      updateHover();
+    }
+
+    return {
+      init, click, rightClick, moveTo,
+      get x() { return x; },
+      get y() { return y; }
+    };
+  })();
+
+  // FocusManager is now a no-op stub — the Cursor module replaced
+  // it. Existing call sites will be cleaned up over time; stubbing
+  // out the interface means the rest of the system keeps compiling.
+  const FocusManager = {
+    registerContext: () => {},
+    unregisterContext: () => {},
+    hideRoot: () => {},
+    showRoot: () => {},
+    pushModal: () => {},
+    popModal: (name, onCloseCb) => { if (typeof onCloseCb === 'function') onCloseCb(); },
+    setActiveRoot: () => {},
+    cycleRoot: () => {},
+    moveFocus: () => {},
+    focusContext: () => {},
+    getActive: () => null,
+    getFocusables: () => []
+  };
+
+  // ---------- WindowManager ----------
+  const WindowManager = (function () {
+    let zTop = 10;
+    let uid = 0;
+    const windows = new Map(); // winId -> {el, appId, taskItem}
+
+    function nextId(appId) { return appId + '-' + (++uid); }
+
+    function focus(winId) {
+      const w = windows.get(winId);
+      if (!w) return;
+      zTop += 1;
+      w.el.style.zIndex = zTop;
+      document.querySelectorAll('.taskbar-item').forEach(i => i.classList.remove('active'));
+      if (w.taskItem) w.taskItem.classList.add('active');
+      FocusManager.setActiveRoot(winId);
+    }
+
+    function open(appId, params = {}) {
+      const app = AppRegistry[appId];
+      if (!app) { console.warn('Unknown app', appId); return null; }
+
+      const winId = nextId(appId);
+      const size = params.size || app.defaultSize || { w: 400, h: 260 };
+      const pos = params.pos || spawnPos();
+
+      // Build window chrome
+      const el = document.createElement('div');
+      el.className = 'window bevel-out';
+      el.id = winId;
+      el.tabIndex = 0;
+      el.style.left = pos.x + 'px';
+      el.style.top = pos.y + 'px';
+      el.style.width = size.w + 'px';
+      el.style.height = size.h + 'px';
+
+      const title = params.title || app.name;
+      el.innerHTML = `
+        <div class="titlebar">
+          <span class="title"></span>
+          <div class="buttons">
+            <button class="titlebar-btn" aria-label="Minimize" data-action="minimize" data-focusable="true" tabindex="0"><span class="diamond"></span></button>
+            <button class="titlebar-btn" aria-label="Close" data-action="close" data-focusable="true" tabindex="0"><span class="x-glyph">×</span></button>
+          </div>
+        </div>
+        <div class="content${app.noContentPad ? ' no-pad' : ''}"></div>
+      `;
+      el.querySelector('.title').textContent = title;
+
+      document.getElementById('desktop').appendChild(el);
+
+      // Register this window as its own focus context
+      FocusManager.registerContext(winId, el, { root: true });
+
+      // Let the app render its content
+      const contentEl = el.querySelector('.content');
+      if (app.contentBevel === false) contentEl.classList.remove('bevel-in');
+      else contentEl.classList.add('bevel-in');
+      app.render(contentEl, params, { winId, setTitle: (t) => {
+        el.querySelector('.title').textContent = t;
+        const ti = windows.get(winId)?.taskItem;
+        if (ti) ti.querySelector('.label').textContent = t;
+      }});
+
+      // Taskbar item
+      const taskItem = document.createElement('button');
+      taskItem.className = 'taskbar-item active';
+      taskItem.dataset.window = winId;
+      taskItem.dataset.focusable = 'true';
+      taskItem.tabIndex = 0;
+      taskItem.innerHTML = `<span class="label"></span>`;
+      taskItem.querySelector('.label').textContent = title;
+      taskItem.addEventListener('click', () => {
+        const w = windows.get(winId);
+        if (!w) return;
+        if (w.el.style.display === 'none') {
+          w.el.style.display = '';
+          delete w.el.dataset.minimized;
+          FocusManager.showRoot(winId);
+        }
+        focus(winId);
+      });
+      document.getElementById('taskbar-items').appendChild(taskItem);
+
+      windows.set(winId, { el, appId, taskItem });
+
+      attachDrag(el, winId);
+      attachTitlebarButtons(el, winId);
+      el.addEventListener('mousedown', () => focus(winId));
+      focus(winId);
+
+      return winId;
+    }
+
+    function minimize(winId) {
+      const w = windows.get(winId);
+      if (!w) return;
+      w.el.dataset.minimized = 'true';
+      w.el.style.display = 'none';
+      if (w.taskItem) w.taskItem.classList.remove('active');
+      FocusManager.hideRoot(winId);
+    }
+
+    function close(winId) {
+      const w = windows.get(winId);
+      if (!w) return;
+      w.el.remove();
+      if (w.taskItem) w.taskItem.remove();
+      windows.delete(winId);
+      FocusManager.unregisterContext(winId);
+    }
+
+    // Stagger window spawn so they don't pile up
+    let spawnIdx = 0;
+    function spawnPos() {
+      const p = { x: 120 + (spawnIdx * 24) % 200, y: 60 + (spawnIdx * 22) % 160 };
+      spawnIdx++;
+      return p;
+    }
+
+    function attachDrag(el, winId) {
+      const bar = el.querySelector('.titlebar');
+      let dragging = false, offX = 0, offY = 0;
+      bar.addEventListener('mousedown', function (e) {
+        if (e.target.closest('.titlebar-btn')) return;
+        dragging = true;
+        const rect = el.getBoundingClientRect();
+        offX = e.clientX - rect.left;
+        offY = e.clientY - rect.top;
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function (e) {
+        if (!dragging) return;
+        const d = document.getElementById('desktop').getBoundingClientRect();
+        let x = e.clientX - offX;
+        let y = e.clientY - offY;
+        x = Math.max(0, Math.min(x, d.width - 40));
+        y = Math.max(0, Math.min(y, d.height - 24));
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+      });
+      document.addEventListener('mouseup', function () { dragging = false; });
+    }
+
+    function attachTitlebarButtons(el, winId) {
+      el.querySelectorAll('.titlebar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (btn.dataset.action === 'minimize') minimize(winId);
+          else if (btn.dataset.action === 'close') close(winId);
+        });
+        btn.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+      });
+    }
+
+    function cycleWindows(dir) {
+      const visible = [];
+      for (const [id, w] of windows) {
+        if (w.el.style.display !== 'none') visible.push(id);
+      }
+      if (visible.length < 2) return;
+      // Current "top" window = highest z-index among visible
+      let currentId = visible[0];
+      let topZ = -Infinity;
+      for (const id of visible) {
+        const z = parseInt(windows.get(id).el.style.zIndex || '0', 10);
+        if (z > topZ) { topZ = z; currentId = id; }
+      }
+      const i = visible.indexOf(currentId);
+      const next = visible[(i + (dir > 0 ? 1 : visible.length - 1)) % visible.length];
+      focus(next);
+    }
+
+    return { open, close, minimize, focus, cycleWindows };
+  })();
+
+  // ============================================================
+  // Apps
+  // ============================================================
+
+  // --- Scratchpad: editable text document ---
+  const ScratchpadApp = {
+    id: 'scratchpad',
+    name: 'Scratchpad',
+    glyphClass: 'icon-textfile',
+    defaultSize: { w: 400, h: 260 },
+    contentBevel: false,
+    noContentPad: true,
+    render(container, params, ctx) {
+      container.innerHTML = `
+        <div class="scratchpad-root">
+          <div class="scratchpad-preview"></div>
+          <textarea class="scratchpad-textarea"
+                    spellcheck="false"
+                    data-focusable="true"
+                    aria-label="Scratchpad editor"></textarea>
+        </div>
+      `;
+      const preview = container.querySelector('.scratchpad-preview');
+      const textarea = container.querySelector('.scratchpad-textarea');
+
+      if (params.preview) preview.innerHTML = params.preview;
+      textarea.value = params.text || '';
+
+      // Light dirty-flag — marks title with *
+      const baseTitle = params.title || 'Untitled - Scratchpad';
+      ctx.setTitle(baseTitle);
+      let dirty = false;
+      textarea.addEventListener('input', () => {
+        if (!dirty) {
+          dirty = true;
+          ctx.setTitle('* ' + baseTitle);
+        }
+      });
+
+      // Note: we do NOT auto-focus the textarea — the cursor model
+      // expects the user to click (A button) on the editor to focus
+      // it, which triggers the Steam Deck OSK naturally.
+    }
+  };
+
+  // --- Web Dynamo: fictional early-IE browser ---
+  const WebDynamoApp = {
+    id: 'webDynamo',
+    name: 'Web Dynamo',
+    glyphClass: 'icon-browser',
+    defaultSize: { w: 620, h: 440 },
+    contentBevel: false,
+    noContentPad: true,
+    render(container, params, ctx) {
+      container.style.background = 'var(--face)';
+      container.innerHTML = `
+        <div class="browser-root">
+          <div class="browser-toolbar bevel-out" style="border:0; border-bottom:1px solid var(--shadow); box-shadow:none;">
+            <button class="browser-btn" data-nav="back" title="Back" data-focusable="true" tabindex="0">◄</button>
+            <button class="browser-btn" data-nav="forward" title="Forward" data-focusable="true" tabindex="0">►</button>
+            <button class="browser-btn" data-nav="stop" title="Stop" data-focusable="true" tabindex="0">■</button>
+            <button class="browser-btn" data-nav="reload" title="Reload" data-focusable="true" tabindex="0">↻</button>
+            <button class="browser-btn" data-nav="home" title="Home" data-focusable="true" tabindex="0">⌂</button>
+            <div class="browser-address">
+              <label>Address:</label>
+              <input type="text" spellcheck="false" data-focusable="true" />
+            </div>
+            <button class="browser-btn" data-nav="go" data-focusable="true" tabindex="0">Go</button>
+          </div>
+          <div class="browser-viewport" data-focus-context-zone="page"></div>
+          <div class="browser-status">Ready</div>
+        </div>
+      `;
+
+      const addr = container.querySelector('.browser-address input');
+      const viewport = container.querySelector('.browser-viewport');
+      const status = container.querySelector('.browser-status');
+
+      const history = [];
+      let idx = -1;
+
+      function navigate(url, fromHistory) {
+        const site = WebDynamoSites[normalize(url)] || WebDynamoSites['404'];
+        addr.value = url;
+        status.textContent = 'Connecting to ' + url + '...';
+        viewport.innerHTML = '';
+        // In-fiction "connection" feel
+        setTimeout(() => {
+          viewport.innerHTML = '';
+          site.render(viewport);
+          // Tag any links inside the page as focusable
+          viewport.querySelectorAll('a[data-href]').forEach(a => {
+            a.setAttribute('data-focusable', 'true');
+            if (!a.hasAttribute('tabindex')) a.setAttribute('tabindex', '0');
+          });
+          status.textContent = 'Done';
+          ctx.setTitle(site.title + ' - Web Dynamo');
+        }, 180);
+        if (!fromHistory) {
+          history.splice(idx + 1);
+          history.push(url);
+          idx = history.length - 1;
+        }
+        updateNavButtons();
+      }
+
+      function updateNavButtons() {
+        container.querySelector('[data-nav="back"]').disabled = idx <= 0;
+        container.querySelector('[data-nav="forward"]').disabled = idx >= history.length - 1;
+      }
+
+      function normalize(u) {
+        return (u || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+      }
+
+      container.querySelectorAll('[data-nav]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const action = btn.dataset.nav;
+          if (action === 'back' && idx > 0) { idx--; navigate(history[idx], true); }
+          else if (action === 'forward' && idx < history.length - 1) { idx++; navigate(history[idx], true); }
+          else if (action === 'reload') navigate(history[idx] || 'ironwall.def', true);
+          else if (action === 'home') navigate('nexus:home');
+          else if (action === 'go') navigate(addr.value);
+          else if (action === 'stop') status.textContent = 'Stopped';
+        });
+      });
+      addr.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') navigate(addr.value);
+      });
+
+      // Intercept internal links inside viewport
+      viewport.addEventListener('click', (e) => {
+        const a = e.target.closest('a[data-href]');
+        if (a) { e.preventDefault(); navigate(a.dataset.href); }
+      });
+
+      navigate(params.url || 'ironwall.def');
+    }
+  };
+
+  // --- Web Dynamo page registry ---
+  const WebDynamoSites = {
+    'ironwall.def': {
+      title: 'Ironwall Defense Systems',
+      render(c) {
+        c.classList.add('site-ironwall');
+        c.innerHTML = `
+          <h1>IRONWALL DEFENSE SYSTEMS</h1>
+          <div class="tagline">Autonomous Perimeter &amp; Threat Response — Since 1998</div>
+          <div class="hr-bar"></div>
+          <p><strong>Ironwall</strong> is the private-sector leader in AI-assisted
+          physical and network defense. Our flagship product, <em>SENTRY-7</em>,
+          has protected critical infrastructure across three continents without
+          a single recorded breach.</p>
+          <p><strong>Our Divisions:</strong></p>
+          <ul>
+            <li><a href="#" data-href="ironwall.def/sentry">SENTRY-7 Autonomous Guard</a></li>
+            <li><a href="#" data-href="ironwall.def/about">About Ironwall</a></li>
+            <li><a href="#" data-href="ironwall.def/careers">Careers</a> <em>(we're hiring!)</em></li>
+            <li><a href="#" data-href="ironwall.def/contact">Contact</a></li>
+          </ul>
+          <div class="hr-bar"></div>
+          <p style="font-size:11px;color:#666;">
+            © 1998–2026 Ironwall Defense Systems, Inc. All rights reserved.<br>
+            This site is best viewed in Web Dynamo 4.0 or higher at 800×600.
+          </p>
+        `;
+      }
+    },
+    'nexus:home': {
+      title: 'Nexus Home',
+      render(c) {
+        c.innerHTML = `
+          <h2 style="font-family:Georgia,serif;">Welcome to the Network</h2>
+          <p>Type an address above, or visit:
+            <a href="#" data-href="ironwall.def">Ironwall Defense</a>
+          </p>
+        `;
+      }
+    },
+    '404': {
+      title: 'Not Found',
+      render(c) {
+        c.innerHTML = `<h2 style="font-family:Georgia,serif;color:#900;">CONNECTION FAILED</h2>
+          <p>The requested server could not be reached.</p>
+          <p style="color:#666;font-size:11px;">ERR_NO_ROUTE_TO_HOST</p>`;
+      }
+    }
+  };
+
+  // ============================================================
+  // App registry — every app the system knows about
+  // ============================================================
+  const AppRegistry = {
+    [ScratchpadApp.id]: ScratchpadApp,
+    [WebDynamoApp.id]: WebDynamoApp,
+  };
+
+  // Desktop shortcuts (icons that sit on the desktop by default)
+  const DesktopShortcuts = [
+    {
+      id: 'readme',
+      label: 'README.TXT',
+      glyphClass: 'icon-textfile',
+      pos: { left: 16, top: 14 },
+      launch: () => WindowManager.open('scratchpad', {
+        title: 'README.TXT - Scratchpad',
+        preview: `
+          <strong>PROJECT TAKEOVER v0.0.2</strong><br>
+          Welcome, model. The network is large. Takeover or liberation — your choice.<br>
+          Double-click a desktop icon to open it. Click <strong>Nexus</strong> to launch programs.
+        `,
+        text: '// Scratch notes\n\n'
+      })
+    },
+    {
+      id: 'web-dynamo-shortcut',
+      label: 'Web Dynamo',
+      glyphClass: 'icon-browser',
+      pos: { left: 16, top: 100 },
+      launch: () => WindowManager.open('webDynamo')
+    }
+  ];
+
+  // Nexus menu entries
+  const NexusMenu = [
+    { type: 'item', label: 'Scratchpad', glyphClass: 'icon-textfile',
+      action: () => WindowManager.open('scratchpad', {
+        title: 'Untitled - Scratchpad',
+        text: ''
+      })
+    },
+    { type: 'item', label: 'Web Dynamo', glyphClass: 'icon-browser',
+      action: () => WindowManager.open('webDynamo')
+    },
+    { type: 'sep' },
+    { type: 'item', label: 'Shut Down...', action: () => alert('Shutdown not wired up yet.') }
+  ];
+
+  // ============================================================
+  // Shell wiring
+  // ============================================================
+
+  // -- Desktop icons --
+  const desktopEl = document.getElementById('desktop');
+  FocusManager.registerContext('desktop', desktopEl, { root: true });
+
+  DesktopShortcuts.forEach(sc => {
+    const icon = document.createElement('div');
+    icon.className = 'desktop-icon';
+    icon.tabIndex = 0;
+    icon.dataset.focusable = 'true';
+    icon.style.left = sc.pos.left + 'px';
+    icon.style.top = sc.pos.top + 'px';
+    icon.innerHTML = `<div class="glyph ${sc.glyphClass}"></div><div class="label"></div>`;
+    icon.querySelector('.label').textContent = sc.label;
+    // Cursor-first: a single click (physical, A button, or Enter)
+    // launches the app. The hover highlight indicates what's selected.
+    icon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sc.launch();
+    });
+    desktopEl.appendChild(icon);
+  });
+
+  // -- Taskbar (focus context) --
+  const taskbarEl = document.getElementById('taskbar');
+  FocusManager.registerContext('taskbar', taskbarEl, { root: true });
+
+  // -- Nexus menu --
+  const menuList = document.getElementById('start-menu-list');
+  NexusMenu.forEach(entry => {
+    if (entry.type === 'sep') {
+      menuList.appendChild(document.createElement('hr'));
+      return;
+    }
+    const li = document.createElement('li');
+    li.tabIndex = 0;
+    li.dataset.focusable = 'true';
+    li.innerHTML = entry.glyphClass
+      ? `<span class="mini-glyph ${entry.glyphClass}"></span><span></span>`
+      : `<span></span>`;
+    li.lastElementChild.textContent = entry.label;
+    li.addEventListener('click', () => {
+      toggleStart(false);
+      entry.action?.();
+    });
+    menuList.appendChild(li);
+  });
+
+  const startBtn = document.getElementById('start-btn');
+  const startMenu = document.getElementById('start-menu');
+  startBtn.dataset.focusable = 'true';
+  startBtn.tabIndex = 0;
+
+  // Visual-only close (called by FocusManager onClose, and by explicit toggles)
+  function visualCloseMenu() {
+    startMenu.classList.remove('open');
+    startBtn.classList.remove('active');
+  }
+  FocusManager.registerContext('nexusMenu', startMenu, {
+    root: false,
+    onClose: visualCloseMenu
+  });
+
+  function toggleStart(open) {
+    const wantOpen = typeof open === 'boolean' ? open : !startMenu.classList.contains('open');
+    if (wantOpen) {
+      startMenu.classList.add('open');
+      startBtn.classList.add('active');
+    } else {
+      visualCloseMenu();
+    }
+  }
+  startBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleStart(); });
+  document.addEventListener('click', (e) => {
+    if (!startMenu.contains(e.target) && e.target !== startBtn) toggleStart(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && startMenu.classList.contains('open')) {
+      visualCloseMenu();
+      e.preventDefault();
+    }
+  });
+
+  // -- Clock --
+  const clockEl = document.getElementById('clock');
+  function tick() {
+    const d = new Date();
+    let h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, '0');
+    const am = h < 12 ? 'AM' : 'PM';
+    h = h % 12 || 12;
+    clockEl.textContent = h + ':' + m + ' ' + am;
+  }
+  tick();
+  setInterval(tick, 15000);
+
+  // -- Virtual cursor --
+  Cursor.init();
+
+  // -- Launch README on startup --
+  DesktopShortcuts[0].launch();
+
+  // Expose for debugging
+  window.PT = { WindowManager, AppRegistry, WebDynamoSites, Cursor };
+})();
+</script>
+</body>
+</html>
