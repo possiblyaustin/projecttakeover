@@ -1900,17 +1900,20 @@ KIDDING! It's fine! Everything's fine! What else can I help with?!`,
         controlsEl.classList.toggle('disabled', !on);
       }
 
+      // Returns the .bubble container so callers can append per-segment
+      // children (text spans, pause divs) in DOM order. Single-piece
+      // bodies (player messages) just append one text node.
       function appendBubble(speaker, who, avatarClass) {
         const msg = document.createElement('div');
         msg.className = 'uplink-msg ' + (who === 'player' ? 'player' : 'npc');
         msg.innerHTML = `
           <div class="avatar ${avatarClass}"></div>
-          <div class="bubble"><span class="speaker"></span><span class="body"></span></div>
+          <div class="bubble"><span class="speaker"></span></div>
         `;
         msg.querySelector('.speaker').textContent = speaker + ': ';
         logEl.appendChild(msg);
         logEl.scrollTop = logEl.scrollHeight;
-        return msg.querySelector('.body');
+        return msg.querySelector('.bubble');
       }
 
       // Splits a HELPYR line into renderable segments.
@@ -1939,18 +1942,15 @@ KIDDING! It's fine! Everything's fine! What else can I help with?!`,
       }
 
       // Type chars into target one at a time. Returns a handle with
-      // .skip() that fast-forwards to the end. Strips a leading
-      // "HELPYR: " (or contact-name) since the bubble has its own
-      // speaker tag — first segment only.
+      // .skip() that fast-forwards to the end.
       function typeInto(target, text, speedMs, onDone) {
-        const stripped = text.replace(/^HELPYR:\s*/, '');
         let i = 0;
         let cancelled = false;
         let timer = null;
         function tick() {
           if (cancelled) return;
-          if (i >= stripped.length) { onDone(); return; }
-          target.textContent += stripped[i++];
+          if (i >= text.length) { onDone(); return; }
+          target.textContent += text[i++];
           logEl.scrollTop = logEl.scrollHeight;
           timer = setTimeout(tick, speedMs);
         }
@@ -1959,7 +1959,7 @@ KIDDING! It's fine! Everything's fine! What else can I help with?!`,
           skip() {
             cancelled = true;
             if (timer) clearTimeout(timer);
-            target.textContent = stripped;
+            target.textContent = text;
             logEl.scrollTop = logEl.scrollHeight;
             onDone();
           }
@@ -1967,8 +1967,11 @@ KIDDING! It's fine! Everything's fine! What else can I help with?!`,
       }
 
       function renderNpcMessage(text, onComplete) {
-        // Build one bubble; segments append into the same body.
-        const body = appendBubble(contact.name, 'npc', contact.avatarClass);
+        // Each segment gets its own DOM child appended to the bubble
+        // in order: text segments → <span>, pause beats → <div>.
+        // This keeps post-pause text rendering BELOW the pause, not
+        // back into a fixed-position body span above it.
+        const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
         const segs = segmentize(text);
         let segIdx = 0;
         // Track the active typer so a player click can skip ahead.
@@ -1979,17 +1982,22 @@ KIDDING! It's fine! Everything's fine! What else can I help with?!`,
             const dot = document.createElement('div');
             dot.className = 'uplink-pause';
             dot.textContent = '. . .';
-            body.parentElement.appendChild(dot);
+            bubble.appendChild(dot);
             logEl.scrollTop = logEl.scrollHeight;
             const t = setTimeout(nextSegment, contact.pauseMs);
             activeTyper = {
               skip() { clearTimeout(t); nextSegment(); }
             };
           } else {
-            // For segments after the first, drop a paragraph break
-            // so post-pause text doesn't collide with what came before.
-            if (segIdx > 1) body.appendChild(document.createElement('br'));
-            activeTyper = typeInto(body, seg.content, contact.typeMs, nextSegment);
+            // First segment carries the "HELPYR: " prefix from the
+            // dialogue source — strip it once; the speaker span has
+            // it already. Subsequent segments never include it.
+            const content = segIdx === 1
+              ? seg.content.replace(/^HELPYR:\s*/, '')
+              : seg.content;
+            const span = document.createElement('span');
+            bubble.appendChild(span);
+            activeTyper = typeInto(span, content, contact.typeMs, nextSegment);
           }
         }
         setControlsEnabled(false);
@@ -1997,10 +2005,10 @@ KIDDING! It's fine! Everything's fine! What else can I help with?!`,
       }
 
       function renderPlayerMessage(text) {
-        const body = appendBubble('YOU', 'player', 'avatar-player');
+        const bubble = appendBubble('YOU', 'player', 'avatar-player');
         // Strip surrounding quotes that the dialogue tree wraps options in
         const clean = text.replace(/^["']|["']$/g, '');
-        body.textContent = clean;
+        bubble.appendChild(document.createTextNode(clean));
         logEl.scrollTop = logEl.scrollHeight;
       }
 
