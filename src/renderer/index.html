@@ -482,6 +482,10 @@
     position: absolute;
     left: 0; right: 0; bottom: 0;
     height: 1.875rem;
+    /* Keep above windows so dragged windows slide UNDER the taskbar
+     * rather than overlapping it (matches Windows/Mac OS behavior).
+     * Below the start menu (9999) so the menu still pops over us. */
+    z-index: 1000;
     display: flex;
     align-items: center;
     padding: 0.125rem;
@@ -960,13 +964,21 @@
     }
 
     function click() {
-      // If the cursor isn't directly over a snap target, fall through
-      // to the nearest one within CLICK_SNAP_RADIUS. Makes clicks feel
-      // forgiving even when the magnetic pull hasn't pulled all the
-      // way in (e.g. user clicked mid-movement).
+      // If the cursor isn't directly over a snap target, optionally
+      // fall through to the nearest one within CLICK_SNAP_RADIUS so
+      // a slightly-off press still lands. BUT only when the cursor
+      // is over the desktop background — if it's already on real
+      // chrome (a titlebar, a viewport, an empty toolbar area),
+      // respect the user's aim. Falling through chrome can grab a
+      // text input several pixels away, focus it, and freeze arrow-
+      // key cursor navigation (the "freeze on titlebar" bug).
       let target = document.elementFromPoint(x, y);
       const directlyOnTarget = target && target.closest && target.closest(SNAP_SELECTOR);
-      if (!directlyOnTarget) {
+      const onBackground = !target
+        || target === document.body
+        || target === document.documentElement
+        || target.id === 'desktop';
+      if (!directlyOnTarget && onBackground) {
         const snap = findSnapTarget(x, y, CLICK_SNAP_RADIUS);
         if (snap) target = snap.el;
       }
@@ -1070,15 +1082,25 @@
 
       // Build window chrome. Sizes/positions are authored at scale 1.0
       // and multiplied by UI_SCALE so windows remain proportional on
-      // Steam Deck / 4K. Clamping happens against real viewport pixels.
+      // Steam Deck / 4K. Final dimensions are then clamped to the
+      // desktop area (which excludes the taskbar) so a window can
+      // never open larger than what's actually visible — matters on
+      // Deck-in-Firefox where browser chrome eats most of the height.
+      const desktopRect = document.getElementById('desktop').getBoundingClientRect();
+      const margin = 8;
+      const w = Math.min(size.w * UI_SCALE, desktopRect.width  - margin);
+      const h = Math.min(size.h * UI_SCALE, desktopRect.height - margin);
+      const left = Math.min(pos.x * UI_SCALE, desktopRect.width  - w - margin / 2);
+      const top  = Math.min(pos.y * UI_SCALE, desktopRect.height - h - margin / 2);
+
       const el = document.createElement('div');
       el.className = 'window bevel-out';
       el.id = winId;
       el.tabIndex = 0;
-      el.style.left = (pos.x * UI_SCALE) + 'px';
-      el.style.top = (pos.y * UI_SCALE) + 'px';
-      el.style.width = (size.w * UI_SCALE) + 'px';
-      el.style.height = (size.h * UI_SCALE) + 'px';
+      el.style.left = Math.max(0, left) + 'px';
+      el.style.top  = Math.max(0, top)  + 'px';
+      el.style.width  = w + 'px';
+      el.style.height = h + 'px';
 
       const title = params.title || app.name;
       el.innerHTML = `
