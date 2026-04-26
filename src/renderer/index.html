@@ -680,6 +680,15 @@
     gap: 0.5rem;
     margin-bottom: 0.625rem;
     align-items: flex-start;
+    /* Slight slide + fade on arrival so messages don't snap in.
+     * The typer fills NPC text after this animation completes; for
+     * player messages and the empty NPC bubble, this is the only
+     * "arrival" feedback the user gets. */
+    animation: uplink-msg-arrive 180ms ease-out backwards;
+  }
+  @keyframes uplink-msg-arrive {
+    from { opacity: 0; transform: translateY(0.4rem); }
+    to   { opacity: 1; transform: translateY(0); }
   }
   .uplink-msg .avatar {
     width: 1.75rem;
@@ -752,6 +761,17 @@
     border-bottom: 2px solid var(--dark);
     color: #18180c;
     white-space: normal;
+    /* Staggered slide-up + fade so options "arrive" sequentially
+     * after HELPYR finishes speaking, like incoming chat replies.
+     * `backwards` keeps each button invisible during its delay. */
+    animation: uplink-opt-arrive 220ms cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+  }
+  .uplink-option-btn:nth-child(1) { animation-delay:  60ms; }
+  .uplink-option-btn:nth-child(2) { animation-delay: 160ms; }
+  .uplink-option-btn:nth-child(3) { animation-delay: 260ms; }
+  @keyframes uplink-opt-arrive {
+    from { opacity: 0; transform: translateY(0.5rem) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0)     scale(1); }
   }
   .uplink-option-btn:active,
   .uplink-option-btn.cursor-hover {
@@ -1088,6 +1108,38 @@
         if (inText) return;
         e.preventDefault();
         rightClick();
+      }
+
+      // PgUp / PgDn → scroll the topmost scrollable area under the
+      // cursor by ~70% of its visible height (standard "page" feel).
+      // Lets Steam Deck users chord any button to PgUp/PgDn via Steam
+      // Input until proper right-stick scroll lands with the Gamepad
+      // API. Works on desktop / phone too.
+      if (e.key === 'PageUp' || e.key === 'PageDown') {
+        if (inText) return;
+        e.preventDefault();
+        scrollUnderCursor(e.key === 'PageUp' ? -1 : 1);
+      }
+    }
+
+    // Walk up from elementFromPoint to find the nearest ancestor
+    // that's actually scrollable (overflow-y auto/scroll AND has
+    // overflowing content). Stops at body so we don't accidentally
+    // scroll the whole page.
+    function scrollUnderCursor(dir) {
+      const el = document.elementFromPoint(x, y);
+      if (!el) return;
+      let n = el;
+      while (n && n !== document.body) {
+        const cs = getComputedStyle(n);
+        const canScroll =
+          (cs.overflowY === 'auto' || cs.overflowY === 'scroll') &&
+          n.scrollHeight > n.clientHeight;
+        if (canScroll) {
+          n.scrollBy({ top: dir * n.clientHeight * 0.7, behavior: 'smooth' });
+          return;
+        }
+        n = n.parentElement;
       }
     }
 
