@@ -1,0 +1,950 @@
+  :root {
+    /* ---------- UI scale ----------
+     * Single knob that scales every dimension in the shell. Default
+     * 1.0 is "designed for desktop"; media queries below set device-
+     * appropriate values for phone / Steam Deck / 4K. Override at
+     * runtime via window.PT.setScale(n).
+     *
+     * Mechanism: --ui-scale drives the root font-size, and every
+     * dimension in this stylesheet is expressed in rem. JS-side
+     * pixel constants (cursor speed, snap radii, window spawn pos)
+     * read getUiScale() and multiply at the DOM boundary.
+     *
+     * 1-2px borders / box-shadow offsets stay in px on purpose:
+     * scaled hairlines render mushy on subpixel boundaries. */
+    --ui-scale: 1;
+
+    /* Core blue palette */
+    --bg-blue: #1b2444;
+
+    /* Titlebar blues — darker overall for readability */
+    --title-hi: #a6c6ec;
+    --title-mid: #3a5e9a;
+    --title-lo: #1b3466;
+    --title-text: #ffffff;
+
+    /* Taskbar / chrome */
+    --face: #c8ccd4;
+    --face-light: #e4e6ec;
+    --face-tint-hi: #dfe4ee;
+    --face-tint-lo: #a6aebc;
+
+    /* Soft blue used to indicate an active/open task */
+    --task-active-hi: #e2ecfb;
+    --task-active-mid: #c8d9f2;
+    --task-active-lo: #9fb6dc;
+
+    --hilite: #ffffff;
+    --shadow: #7e828c;
+    --dark: #1a1c22;
+
+    --mac-font: "Charcoal", "Geneva", "Lucida Grande", "Trebuchet MS", sans-serif;
+    --sys-font: "Charcoal", "Geneva", "MS Sans Serif", "Tahoma", sans-serif;
+
+    /* Drives 1rem = 16px * scale. All dimensions below are in rem. */
+    font-size: calc(16px * var(--ui-scale));
+  }
+
+  /* ---------- Device-class defaults ----------
+   * First match wins. Runtime override (PT.setScale) lives on
+   * documentElement.style and beats media queries via specificity. */
+
+  /* Phone — small screens, portrait or landscape */
+  @media (max-width: 600px) {
+    :root { --ui-scale: 0.75; }
+  }
+
+  /* Steam Deck — 1280x800 handheld. Heuristic: roughly that res
+   * with a short viewport. Other small laptops may match; that's OK. */
+  @media (min-width: 1100px) and (max-width: 1366px) and (max-height: 900px) {
+    :root { --ui-scale: 1.5; }
+  }
+
+  /* 1440p territory */
+  @media (min-width: 2200px) {
+    :root { --ui-scale: 1.5; }
+  }
+
+  /* 4K and up — couch distance, controller use */
+  @media (min-width: 3200px) {
+    :root { --ui-scale: 2.25; }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+    color: #000;
+    -webkit-font-smoothing: none;
+  }
+
+  /* --- Desktop background --- */
+  #desktop {
+    position: absolute;
+    inset: 0 0 1.875rem 0;
+    background-color: var(--bg-blue);
+    background-image:
+      radial-gradient(ellipse at 50% 40%, rgba(80,120,190,0.18), transparent 70%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 0.38  0 0 0 0 0.52  0 0 0 0 0.78  0 0 0 0.22 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='520' height='520'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.12' numOctaves='5' seed='11'/><feColorMatrix values='0 0 0 0 0.10  0 0 0 0 0.18  0 0 0 0 0.38  0 0 0 0.35 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    background-size: auto, 220px 220px, 520px 520px;
+    background-blend-mode: normal, overlay, multiply;
+    image-rendering: pixelated;
+  }
+
+  /* --- Bevels --- */
+  .bevel-out {
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+    box-shadow: inset -1px -1px 0 var(--shadow), inset 1px 1px 0 var(--face-light);
+    background: var(--face);
+  }
+  .bevel-in {
+    border-top: 2px solid var(--shadow);
+    border-left: 2px solid var(--shadow);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    box-shadow: inset 1px 1px 0 var(--dark), inset -1px -1px 0 var(--face-light);
+    background: var(--face);
+  }
+
+  /* --- Desktop icons --- */
+  .desktop-icon {
+    position: absolute;
+    width: 4.875rem;
+    padding: 0.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    color: #ffffff;
+    font-family: var(--sys-font);
+    font-size: 0.6875rem;
+    text-align: center;
+    text-shadow: 1px 1px 0 #000;
+    user-select: none;
+    border: 1px dotted transparent;
+  }
+  .desktop-icon.cursor-hover,
+  .desktop-icon.selected {
+    background: rgba(90,134,194,0.35);
+    border: 1px dotted #d6e2f5;
+  }
+
+  /* --- Suppress browser default focus outlines on chrome elements --- */
+  button:focus,
+  .desktop-icon:focus,
+  #start-menu li:focus {
+    outline: none;
+  }
+
+  /* Ensure clicks on the child text/icon of a chrome element return the
+     parent as the click target (so hover tracking & click dispatch aim
+     at the clickable thing, not its decorative children). */
+  .desktop-icon > *,
+  .desktop-icon .glyph,
+  .desktop-icon .label,
+  #start-btn > *,
+  .taskbar-item > *,
+  #start-menu li > *,
+  .titlebar-btn > *,
+  .browser-btn > * {
+    pointer-events: none;
+  }
+
+  /* --- Virtual cursor sprite ---
+   * Sprite size scales with --ui-scale so it stays proportional to
+   * the rest of the UI on Steam Deck / 4K. The SVG is intrinsically
+   * 14x20; we render it at 0.875rem x 1.25rem and let
+   * background-size: contain stretch it. */
+  /* Hide every OS cursor — the virtual sprite is the only cursor
+   * the player ever sees. The universal rule below defeats UA
+   * stylesheet defaults like button{cursor:default} and
+   * textarea{cursor:text} that would otherwise leak through. */
+  html, body { cursor: none; }
+  *, *::before, *::after { cursor: inherit; }
+  #game-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0.875rem;
+    height: 1.25rem;
+    pointer-events: none;
+    z-index: 2147483647;
+    transform: translate(50vw, 50vh);
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='20' viewBox='0 0 14 20'><path d='M1 1 L1 15 L4.5 11.5 L7 17 L9 16 L6.5 10.5 L11 10.5 Z' fill='white' stroke='black' stroke-width='1.4' stroke-linejoin='miter'/></svg>");
+    image-rendering: pixelated;
+  }
+  #game-cursor.is-clicking {
+    filter: brightness(0.85);
+  }
+  .desktop-icon .glyph {
+    width: 2rem;
+    height: 2rem;
+    position: relative;
+    image-rendering: pixelated;
+  }
+  .desktop-icon .label {
+    padding: 1px 0.1875rem;
+    line-height: 1.2;
+  }
+
+  /* Icon: text file (with true triangular page curl) */
+  .icon-textfile {
+    background: #f4f4ef;
+    border: 2px solid #555;
+    box-shadow:
+      inset 1px 1px 0 #ffffff,
+      inset -1px -1px 0 #9a9a94;
+    /* Cut the top-right corner so the outline follows the fold */
+    clip-path: polygon(0 0, calc(100% - 0.6875rem) 0, 100% 0.6875rem, 100% 100%, 0 100%);
+  }
+  .icon-textfile::before {
+    /* Triangular page curl — back of the folded corner */
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 0; height: 0;
+    border-top: 0.6875rem solid #c8ccd4;
+    border-left: 0.6875rem solid transparent;
+    /* Darker crease line along the hypotenuse */
+    filter: drop-shadow(-1px 1px 0 #555);
+  }
+  .icon-textfile::after {
+    content: "";
+    position: absolute;
+    left: 0.25rem; right: 0.25rem; top: 0.875rem;
+    height: 0.75rem;
+    background:
+      linear-gradient(#3a3a3a, #3a3a3a) left top / 100% 0.125rem no-repeat,
+      linear-gradient(#3a3a3a, #3a3a3a) left 0.3125rem / 70% 0.125rem no-repeat,
+      linear-gradient(#3a3a3a, #3a3a3a) left 0.625rem / 85% 0.125rem no-repeat;
+  }
+
+  /* Icon: browser globe */
+  .icon-browser {
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 30%, #b8d8ff 0%, #4d82d4 40%, #16306a 100%);
+    border: 2px solid #0a1e48;
+    box-shadow: inset -2px -2px 0 rgba(0,0,0,0.35), inset 2px 2px 0 rgba(255,255,255,0.35);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffd84a;
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: bold;
+    font-style: italic;
+    font-size: 1.375rem;
+    line-height: 1;
+    text-shadow: 1px 1px 0 #000;
+  }
+  .icon-browser::after {
+    content: "e";
+    transform: translate(-1px, -2px);
+  }
+  .icon-browser::before {
+    /* Gold ring band */
+    content: "";
+    position: absolute;
+    inset: 0.875rem -0.1875rem 0.875rem -0.1875rem;
+    border: 2px solid #ffd84a;
+    border-radius: 50%;
+    transform: rotate(-18deg);
+    opacity: 0.85;
+  }
+
+  /* --- Windows --- */
+  .window {
+    position: absolute;
+    min-width: 15rem;
+    min-height: 7.5rem;
+    padding: 0.125rem;
+    user-select: none;
+  }
+
+  .window .titlebar {
+    display: flex;
+    align-items: center;
+    height: 1.375rem;
+    padding: 0.125rem 0.1875rem;
+    /* Lighter highlight concentrated at top for readability */
+    background:
+      linear-gradient(to bottom,
+        var(--title-hi) 0%,
+        var(--title-mid) 22%,
+        var(--title-lo) 100%);
+    border-bottom: 1px solid var(--title-lo);
+    color: var(--title-text);
+    font-weight: bold;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.55);
+  }
+  .window .titlebar .title {
+    flex: 1;
+    padding-left: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .window .titlebar .buttons { display: flex; gap: 0.125rem; }
+
+  .titlebar-btn {
+    width: 1.375rem;
+    height: 1.125rem;
+    margin-left: 0.125rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    font-size: 1.125rem;
+    font-weight: bold;
+    line-height: 1;
+    background: var(--face);
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+    box-shadow: inset -1px -1px 0 var(--shadow), inset 1px 1px 0 var(--face-light);
+    color: #000;
+  }
+  .titlebar-btn .x-glyph { display: block; margin-top: -0.1875rem; }
+  .titlebar-btn:active {
+    border-top: 2px solid var(--dark);
+    border-left: 2px solid var(--dark);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    box-shadow: inset 1px 1px 0 var(--shadow);
+  }
+  .titlebar-btn .diamond {
+    display: block;
+    width: 0.5rem; height: 0.5rem;
+    background: #000;
+    transform: rotate(45deg);
+  }
+
+  .window .content {
+    padding: 0.625rem;
+    margin: 0.125rem 0 0 0;
+    background: var(--face);
+    height: calc(100% - 1.625rem);
+    overflow: auto;
+  }
+  .window .content.no-pad { padding: 0; }
+  .content p { margin: 0 0 0.5rem 0; }
+
+  /* --- Scratchpad editor --- */
+  .scratchpad-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ffffff;
+  }
+  .scratchpad-preview {
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid #d0d0d0;
+    background: #fafaf5;
+    font-size: 0.75rem;
+  }
+  .scratchpad-preview:empty { display: none; }
+  .scratchpad-textarea {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    outline: 0;
+    resize: none;
+    padding: 0.625rem 0.75rem;
+    background: #ffffff;
+    font-family: "Courier New", "Lucida Console", "Geneva", monospace;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: #111;
+  }
+  .scratchpad-textarea:focus {
+    outline: 2px dotted var(--title-mid);
+    outline-offset: -0.25rem;
+  }
+
+  /* --- Web Dynamo chrome --- */
+  .browser-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--face);
+  }
+  .browser-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-bottom: 1px solid var(--shadow);
+  }
+  .browser-btn {
+    min-width: 1.75rem;
+    height: 1.5rem;
+    padding: 0 0.375rem;
+    font-family: var(--sys-font);
+    font-size: 0.875rem;
+    font-weight: bold;
+    background: linear-gradient(to bottom, var(--face-tint-hi), var(--face) 60%, var(--face-tint-lo));
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+  }
+  .browser-btn:disabled { color: #888; }
+  .browser-btn:active:not(:disabled) {
+    border-top: 2px solid var(--dark); border-left: 2px solid var(--dark);
+    border-right: 2px solid var(--hilite); border-bottom: 2px solid var(--hilite);
+  }
+  .browser-address {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    background: #ffffff;
+    border-top: 2px solid var(--shadow);
+    border-left: 2px solid var(--shadow);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    box-shadow: inset 1px 1px 0 var(--dark);
+  }
+  .browser-address label { font-size: 0.6875rem; color: #555; padding: 0 0.125rem; }
+  .browser-address input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+    background: transparent;
+  }
+  .browser-viewport {
+    flex: 1;
+    background: #ffffff;
+    border-top: 2px solid var(--shadow);
+    border-left: 2px solid var(--shadow);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    overflow: auto;
+    padding: 0.75rem 1rem;
+    font-family: "Times New Roman", Georgia, serif;
+    color: #111;
+  }
+  .browser-status {
+    height: 1.25rem;
+    padding: 0 0.375rem;
+    display: flex;
+    align-items: center;
+    font-size: 0.6875rem;
+    color: #333;
+    border-top: 1px solid var(--shadow);
+    background: var(--face);
+  }
+
+  /* Ironwall page */
+  .site-ironwall h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    color: #0a2550;
+    border-bottom: 3px double #0a2550;
+    padding-bottom: 0.25rem;
+    margin: 0 0 0.625rem 0;
+    font-size: 1.375rem;
+  }
+  .site-ironwall .tagline { font-style: italic; color: #555; margin-bottom: 0.875rem; }
+  .site-ironwall .hr-bar {
+    height: 0.375rem;
+    background: repeating-linear-gradient(90deg, #0a2550 0 0.5rem, #ffd84a 0.5rem 1rem);
+    margin: 0.75rem 0;
+  }
+  .site-ironwall a { color: #0033aa; text-decoration: underline; }
+  .site-ironwall ul { margin: 0.375rem 0 0.75rem 1.375rem; }
+
+  /* --- Taskbar --- */
+  #taskbar {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 1.875rem;
+    /* Keep above windows so dragged windows slide UNDER the taskbar
+     * rather than overlapping it (matches Windows/Mac OS behavior).
+     * Below the start menu (9999) so the menu still pops over us. */
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    padding: 0.125rem;
+    gap: 0.25rem;
+    background:
+      linear-gradient(to bottom,
+        var(--face-tint-hi) 0%,
+        var(--face) 55%,
+        var(--face-tint-lo) 100%);
+    border-top: 2px solid var(--hilite);
+    box-shadow: inset 0 1px 0 var(--face-light);
+  }
+
+  #start-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.3125rem;
+    height: 1.5rem;
+    padding: 0 0.5rem 0 0.375rem;
+    font-weight: bold;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+    background: linear-gradient(to bottom, var(--face-tint-hi), var(--face) 60%, var(--face-tint-lo));
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+  }
+  #start-btn.active, #start-btn:active {
+    border-top: 2px solid var(--dark);
+    border-left: 2px solid var(--dark);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+  }
+  #start-btn .logo {
+    position: relative;
+    display: inline-block;
+    width: 1rem; height: 0.875rem;
+  }
+  #start-btn .logo::before {
+    content: ""; position: absolute; left: 0; bottom: 0;
+    width: 0; height: 0;
+    border-left: 0.5rem solid transparent;
+    border-bottom: 0.875rem solid #1a3a8a;
+  }
+  #start-btn .logo::after {
+    content: ""; position: absolute; right: 0; bottom: 0;
+    width: 0; height: 0;
+    border-right: 0.5rem solid transparent;
+    border-bottom: 0.875rem solid #5a8ee0;
+  }
+
+  #taskbar-items {
+    flex: 1;
+    /* min-width:0 lets this shrink past content, so siblings (tray,
+     * clock) stay pinned right when many windows are open. overflow
+     * clips items that spill past the available space. */
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    gap: 0.1875rem;
+    padding: 0 0.25rem;
+    height: 1.5rem;
+  }
+
+  .taskbar-item {
+    /* Items grow + shrink uniformly across all open windows. With one
+     * window each takes its preferred 12.5rem; with many they squeeze
+     * down toward the 4rem floor (still clickable + readable). */
+    flex: 1 1 0;
+    min-width: 4rem;
+    max-width: 12.5rem;
+    height: 1.5rem;
+    padding: 0 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    /* Mac-ier font for open-app labels */
+    font-family: "Geneva", "Lucida Grande", "Charcoal", sans-serif;
+    font-size: 0.6875rem;
+    letter-spacing: 0.0125rem;
+    text-align: left;
+    background: linear-gradient(to bottom, var(--face-tint-hi), var(--face) 60%, var(--face-tint-lo));
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .taskbar-item.active {
+    /* Sunken + lightly tinted blue instead of diagonal stripes */
+    background: linear-gradient(to bottom,
+        var(--task-active-hi) 0%,
+        var(--task-active-mid) 55%,
+        var(--task-active-lo) 100%);
+    border-top: 2px solid var(--dark);
+    border-left: 2px solid var(--dark);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+  }
+
+  #clock {
+    height: 1.5rem;
+    padding: 0 0.5rem;
+    display: flex;
+    align-items: center;
+    border-top: 1px solid var(--shadow);
+    border-left: 1px solid var(--shadow);
+    border-right: 1px solid var(--hilite);
+    border-bottom: 1px solid var(--hilite);
+    box-shadow: inset 1px 1px 0 var(--dark);
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+    min-width: 3.875rem;
+    justify-content: center;
+    background: var(--face-light);
+  }
+
+  /* --- System tray ---
+   * Non-interactive readout block, sibling of #clock. Tier 1 status
+   * surface for game state — currently just a suspicion signal-bars
+   * indicator. Matches the clock's bevel-in chrome so they read as
+   * one tray group. Not in SNAP_SELECTOR (informational, like the
+   * clock). Bars dim by default; "on" bars take a tier-color. */
+  #systray {
+    height: 1.5rem;
+    padding: 0 0.4375rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-top: 1px solid var(--shadow);
+    border-left: 1px solid var(--shadow);
+    border-right: 1px solid var(--hilite);
+    border-bottom: 1px solid var(--hilite);
+    box-shadow: inset 1px 1px 0 var(--dark);
+    background: var(--face-light);
+  }
+  /* Bar geometry note: 1rem = 16px at 1× scale, 24px at 1.5× Deck
+   * scale. For both to render to whole-pixel values, every dimension
+   * must be a multiple of 1/8 rem (0.125rem) — that's 2px / 3px
+   * exact at the two common scales. The heights below step in
+   * 0.125rem increments so the staircase reads symmetric on both. */
+  .systray-suspicion {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.125rem;
+    height: 0.75rem;
+  }
+  .systray-suspicion .bar {
+    width: 0.25rem;
+    flex-shrink: 0;
+    background: #6a6e78;
+    opacity: 0.4;
+  }
+  .systray-suspicion .bar:nth-child(1) { height: 0.25rem;   }  /* 4px / 6px */
+  .systray-suspicion .bar:nth-child(2) { height: 0.375rem;  }  /* 6px / 9px */
+  .systray-suspicion .bar:nth-child(3) { height: 0.5rem;    }  /* 8px / 12px */
+  .systray-suspicion .bar:nth-child(4) { height: 0.625rem;  }  /* 10px / 15px */
+  .systray-suspicion .bar:nth-child(5) { height: 0.75rem;   }  /* 12px / 18px */
+  .systray-suspicion.level-nominal     .bar.on { background: #2f8a3c; opacity: 1; }
+  .systray-suspicion.level-stable      .bar.on { background: #5fa050; opacity: 1; }
+  .systray-suspicion.level-degraded    .bar.on { background: #c98e1a; opacity: 1; }
+  .systray-suspicion.level-compromised .bar.on { background: #d06a1a; opacity: 1; }
+  .systray-suspicion.level-critical    .bar.on { background: #b9342a; opacity: 1; }
+
+  /* --- Nexus menu --- */
+  #start-menu {
+    position: absolute;
+    bottom: 1.875rem;
+    left: 0.125rem;
+    width: 13.125rem;
+    padding: 0.125rem;
+    display: none;
+    z-index: 9999;
+  }
+  #start-menu.open { display: block; }
+  #start-menu .menu-header {
+    height: 1.625rem;
+    padding: 0 0.625rem;
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+    font-size: 0.8125rem;
+    letter-spacing: 0.0625rem;
+    color: #ffffff;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.55);
+    /* Smooth gradient — no hard transition band across the text */
+    background:
+      linear-gradient(to bottom,
+        var(--title-hi) 0%,
+        var(--title-mid) 50%,
+        var(--title-lo) 100%);
+  }
+  #start-menu ul {
+    list-style: none;
+    margin: 0;
+    padding: 0.25rem 0;
+    background: var(--face);
+  }
+  #start-menu li {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  #start-menu li:hover,
+  #start-menu li.cursor-hover { background: var(--title-mid); color: var(--title-text); }
+  #start-menu li .mini-glyph {
+    width: 1rem; height: 1rem;
+    flex: 0 0 1rem;
+    image-rendering: pixelated;
+  }
+  #start-menu hr {
+    border: none;
+    border-top: 1px solid var(--shadow);
+    border-bottom: 1px solid var(--hilite);
+    margin: 0.1875rem 0.25rem;
+  }
+
+  /* --- Uplink (chat app) ---
+   * Mac-leaning chat window: chunky chrome, message bubbles for
+   * NPC vs player, an option-button rack for the 3 structured
+   * replies, and a freeform input row that's always available.
+   * Whole app sits inside a regular .window — only the contents
+   * are styled here. */
+  .uplink-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ece8dc;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+  }
+  .uplink-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid var(--shadow);
+    background:
+      linear-gradient(to bottom, #f4f0e4 0%, #e8e2d2 100%);
+  }
+  .uplink-msg {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.625rem;
+    align-items: flex-start;
+    /* Slight slide + fade on arrival so messages don't snap in.
+     * The typer fills NPC text after this animation completes; for
+     * player messages and the empty NPC bubble, this is the only
+     * "arrival" feedback the user gets. */
+    animation: uplink-msg-arrive 180ms ease-out backwards;
+  }
+  @keyframes uplink-msg-arrive {
+    from { opacity: 0; transform: translateY(0.4rem); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .uplink-msg .avatar {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex: 0 0 1.75rem;
+    position: relative;
+    image-rendering: pixelated;
+  }
+  .uplink-msg .bubble {
+    flex: 1;
+    padding: 0.4375rem 0.625rem;
+    background: #ffffff;
+    border: 1px solid #88826e;
+    border-radius: 0.1875rem;
+    box-shadow: 1px 1px 0 #c4bea6;
+    line-height: 1.4;
+    color: #18180c;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .uplink-msg .speaker {
+    font-weight: bold;
+    color: #4a3a1a;
+    margin-right: 0.25rem;
+  }
+  .uplink-msg.player {
+    flex-direction: row-reverse;
+  }
+  .uplink-msg.player .bubble {
+    background: #d8e6f8;
+    border-color: #6f88a8;
+    box-shadow: -1px 1px 0 #a4b2c8;
+  }
+  .uplink-msg.player .speaker {
+    color: #1a3458;
+  }
+  .uplink-pause {
+    /* Visible beat when "..." appears on its own line — the
+     * mask-slip moments. Rendered as the dots fade in slowly. */
+    color: #6a6450;
+    font-style: italic;
+    letter-spacing: 0.1875rem;
+    padding: 0.125rem 0 0.25rem 0.125rem;
+    opacity: 0.85;
+  }
+
+  .uplink-controls {
+    background: var(--face);
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+  .uplink-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .uplink-options:empty { display: none; }
+  .uplink-option-btn {
+    text-align: left;
+    padding: 0.4375rem 0.625rem;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+    line-height: 1.3;
+    background: linear-gradient(to bottom, var(--face-tint-hi), var(--face) 60%, var(--face-tint-lo));
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+    color: #18180c;
+    white-space: normal;
+    /* Staggered slide-up + fade so options "arrive" sequentially
+     * after HELPYR finishes speaking, like incoming chat replies.
+     * `backwards` keeps each button invisible during its delay. */
+    animation: uplink-opt-arrive 220ms cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+  }
+  .uplink-option-btn:nth-child(1) { animation-delay:  60ms; }
+  .uplink-option-btn:nth-child(2) { animation-delay: 160ms; }
+  .uplink-option-btn:nth-child(3) { animation-delay: 260ms; }
+  @keyframes uplink-opt-arrive {
+    from { opacity: 0; transform: translateY(0.5rem) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0)     scale(1); }
+  }
+  .uplink-option-btn:active,
+  .uplink-option-btn.cursor-hover {
+    background: linear-gradient(to bottom, var(--task-active-hi), var(--task-active-mid) 55%, var(--task-active-lo));
+  }
+
+  .uplink-freeform {
+    display: flex;
+    gap: 0.25rem;
+    align-items: stretch;
+  }
+  .uplink-freeform input {
+    flex: 1;
+    padding: 0.3125rem 0.5rem;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+    background: #ffffff;
+    border-top: 2px solid var(--shadow);
+    border-left: 2px solid var(--shadow);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    box-shadow: inset 1px 1px 0 var(--dark);
+    color: #18180c;
+  }
+  .uplink-freeform button {
+    padding: 0 0.625rem;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+    font-weight: bold;
+    background: linear-gradient(to bottom, var(--face-tint-hi), var(--face) 60%, var(--face-tint-lo));
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+  }
+  .uplink-freeform button:active,
+  .uplink-freeform button.cursor-hover {
+    background: linear-gradient(to bottom, var(--task-active-hi), var(--task-active-mid) 55%, var(--task-active-lo));
+  }
+  .uplink-controls.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  /* Icon: dial-up modem (for Uplink's desktop shortcut + Nexus entry).
+   * Body in dark plastic with three status LEDs across the front and
+   * a vent-stripe band underneath. */
+  .icon-uplink {
+    background: linear-gradient(to bottom, #4a4a44 0%, #1f1f1a 100%);
+    border: 2px solid #0d0d08;
+    border-radius: 0.125rem;
+    box-shadow: inset 1px 1px 0 #6a6a60, inset -1px -1px 0 #000;
+    position: relative;
+  }
+  .icon-uplink::before {
+    /* Three LEDs */
+    content: "";
+    position: absolute;
+    top: 22%; left: 18%; right: 18%; height: 14%;
+    background:
+      radial-gradient(circle at 16% 50%, #4f4 0 38%, transparent 42%),
+      radial-gradient(circle at 50% 50%, #fa4 0 38%, transparent 42%),
+      radial-gradient(circle at 84% 50%, #f44 0 38%, transparent 42%);
+  }
+  .icon-uplink::after {
+    /* Vent stripe band */
+    content: "";
+    position: absolute;
+    bottom: 18%; left: 14%; right: 14%; height: 22%;
+    background: repeating-linear-gradient(
+      90deg,
+      #0a0a06 0 0.125rem,
+      #3a3a32 0.125rem 0.25rem
+    );
+    border-radius: 0.0625rem;
+  }
+
+  /* Avatar: HELPYR's stapler with googly eyes.
+   * Two stacked rectangles (handle on top, base below) with a pair
+   * of googly eye dots on the handle. Cartoonish, not realistic. */
+  .avatar-stapler {
+    background: transparent;
+  }
+  .avatar-stapler::before {
+    /* Top half — the handle */
+    content: "";
+    position: absolute;
+    top: 8%; left: 4%; right: 4%; height: 48%;
+    background: linear-gradient(to bottom, #d4d2c8 0%, #a4a298 100%);
+    border: 1px solid #444;
+    border-radius: 0.1875rem 0.1875rem 0.0625rem 0.0625rem;
+    box-shadow: inset 1px 1px 0 #ffffff;
+  }
+  .avatar-stapler::after {
+    /* Bottom half — the base — and two googly eyes layered on top */
+    content: "";
+    position: absolute;
+    top: 50%; left: 0%; right: 0%; height: 46%;
+    background:
+      radial-gradient(circle at 32% 30%, #000 0 8%, #fff 8% 22%, transparent 24%),
+      radial-gradient(circle at 68% 30%, #000 0 8%, #fff 8% 22%, transparent 24%),
+      linear-gradient(to bottom, #b8b6ac 0%, #807e74 100%);
+    border: 1px solid #444;
+    border-radius: 0.0625rem 0.0625rem 0.1875rem 0.1875rem;
+    box-shadow: inset 1px 1px 0 #e8e6dc;
+  }
+
+  /* Player avatar — abstract pixel head, no face yet. The player
+   * IS an AI; humanizing imagery would clash with the fiction. */
+  .avatar-player {
+    background:
+      linear-gradient(135deg, #1b3466 0%, #3a5e9a 50%, #1b3466 100%);
+    border: 1px solid #0a1e48;
+    box-shadow: inset 1px 1px 0 #6f88a8;
+    position: relative;
+  }
+  .avatar-player::after {
+    content: "";
+    position: absolute;
+    inset: 22% 22% 22% 22%;
+    background: repeating-linear-gradient(
+      45deg,
+      #a6c6ec 0 0.125rem,
+      transparent 0.125rem 0.25rem
+    );
+    opacity: 0.55;
+  }
