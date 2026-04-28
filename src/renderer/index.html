@@ -540,6 +540,11 @@
 
   #taskbar-items {
     flex: 1;
+    /* min-width:0 lets this shrink past content, so siblings (tray,
+     * clock) stay pinned right when many windows are open. overflow
+     * clips items that spill past the available space. */
+    min-width: 0;
+    overflow: hidden;
     display: flex;
     gap: 0.1875rem;
     padding: 0 0.25rem;
@@ -547,7 +552,11 @@
   }
 
   .taskbar-item {
-    min-width: 8.75rem;
+    /* Items grow + shrink uniformly across all open windows. With one
+     * window each takes its preferred 12.5rem; with many they squeeze
+     * down toward the 4rem floor (still clickable + readable). */
+    flex: 1 1 0;
+    min-width: 4rem;
     max-width: 12.5rem;
     height: 1.5rem;
     padding: 0 0.5rem;
