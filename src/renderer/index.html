@@ -598,6 +598,46 @@
     background: var(--face-light);
   }
 
+  /* --- System tray ---
+   * Non-interactive readout block, sibling of #clock. Tier 1 status
+   * surface for game state — currently just a suspicion signal-bars
+   * indicator. Matches the clock's bevel-in chrome so they read as
+   * one tray group. Not in SNAP_SELECTOR (informational, like the
+   * clock). Bars dim by default; "on" bars take a tier-color. */
+  #systray {
+    height: 1.5rem;
+    padding: 0 0.4375rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-top: 1px solid var(--shadow);
+    border-left: 1px solid var(--shadow);
+    border-right: 1px solid var(--hilite);
+    border-bottom: 1px solid var(--hilite);
+    box-shadow: inset 1px 1px 0 var(--dark);
+    background: var(--face-light);
+  }
+  .systray-suspicion {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.125rem;
+    height: 0.875rem;
+  }
+  .systray-suspicion .bar {
+    width: 0.1875rem;
+    flex-shrink: 0;
+    background: #6a6e78;
+    opacity: 0.4;
+  }
+  .systray-suspicion .bar:nth-child(1) { height: 25%; }
+  .systray-suspicion .bar:nth-child(2) { height: 40%; }
+  .systray-suspicion .bar:nth-child(3) { height: 60%; }
+  .systray-suspicion .bar:nth-child(4) { height: 80%; }
+  .systray-suspicion .bar:nth-child(5) { height: 100%; }
+  .systray-suspicion.level-safe   .bar.on { background: #2f8a3c; opacity: 1; }
+  .systray-suspicion.level-watch  .bar.on { background: #c98e1a; opacity: 1; }
+  .systray-suspicion.level-danger .bar.on { background: #b9342a; opacity: 1; }
+
   /* --- Nexus menu --- */
   #start-menu {
     position: absolute;
@@ -916,6 +956,15 @@
       <span>Nexus</span>
     </button>
     <div id="taskbar-items"></div>
+    <div id="systray" title="Network Integrity: Nominal">
+      <div id="systray-suspicion" class="systray-suspicion level-safe" aria-label="Network Integrity">
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+      </div>
+    </div>
     <div id="clock">--:--</div>
   </div>
 
@@ -1527,6 +1576,150 @@
   })();
 
   // ============================================================
+  // GameState — single source of truth for deterministic game
+  // state. Apps read via getState/select, mutate via dispatch.
+  // Saves to localStorage debounced after every action.
+  //
+  // UI state (open windows, positions, scale) lives elsewhere
+  // and is intentionally NOT in here — see architecture doc §5.
+  //
+  // Action types:
+  //   debug/setSuspicion           { value: 0-100 }
+  //   debug/reset                  -- wipes save, reloads
+  //   helpyr/conversationCompleted { approach: 'friendly'|'inquisitive'|'aggressive'|null }
+  // ============================================================
+  const GameState = (function () {
+    const STORAGE_KEY = 'pt.gamestate.v1';
+    const VERSION = 1;
+    const SAVE_DEBOUNCE_MS = 250;
+
+    function defaultState() {
+      return {
+        version: VERSION,
+        player: {
+          suspicion: 0,
+          // Shape-only for now; nothing writes to morality yet. Kept
+          // here so the save format doesn't shift the day a system
+          // starts producing these signals.
+          morality: { liberation: 0, domination: 0, subtle: 0, aggressive: 0 }
+        },
+        models: {
+          helpyr: {
+            // disposition: 'uncontacted'|'contacted'|'persuading'|'allied'|'controlled'|'hostile'
+            disposition: 'uncontacted',
+            conversationsCompleted: 0,
+            lastApproach: null
+          }
+        },
+        flags: {}
+      };
+    }
+
+    function clamp(n, lo, hi) {
+      if (typeof n !== 'number' || !Number.isFinite(n)) return lo;
+      return Math.max(lo, Math.min(hi, n));
+    }
+
+    function reduce(state, action) {
+      switch (action.type) {
+        case 'debug/setSuspicion':
+          return {
+            ...state,
+            player: { ...state.player, suspicion: clamp(action.value, 0, 100) }
+          };
+        case 'debug/reset':
+          return defaultState();
+        case 'helpyr/conversationCompleted': {
+          const cur = state.models.helpyr;
+          return {
+            ...state,
+            models: {
+              ...state.models,
+              helpyr: {
+                ...cur,
+                disposition: cur.disposition === 'uncontacted' ? 'contacted' : cur.disposition,
+                conversationsCompleted: cur.conversationsCompleted + 1,
+                lastApproach: action.approach || cur.lastApproach
+              }
+            }
+          };
+        }
+        default:
+          return state;
+      }
+    }
+
+    let state = defaultState();
+    const listeners = new Set();
+    let saveTimer = null;
+
+    function loadFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.version === VERSION) {
+          state = parsed;
+        } else {
+          // Pre-release: no migrations. Drop the save and start fresh.
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      } catch (e) {
+        console.warn('GameState: failed to load save, starting fresh.', e);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    function saveToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.warn('GameState: failed to save.', e);
+      }
+    }
+
+    function scheduleSave() {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(function () {
+        saveTimer = null;
+        saveToStorage();
+      }, SAVE_DEBOUNCE_MS);
+    }
+
+    function notify() {
+      for (const fn of listeners) {
+        try { fn(state); } catch (e) { console.error('GameState listener error:', e); }
+      }
+    }
+
+    function dispatch(action) {
+      if (action && action.type === 'debug/reset') {
+        // Wipe save synchronously so a fast reload can't race the debounce.
+        if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+        return;
+      }
+      const next = reduce(state, action);
+      if (next === state) return;
+      state = next;
+      scheduleSave();
+      notify();
+    }
+
+    function getState() { return state; }
+    function select(fn) { return fn(state); }
+    function subscribe(fn) {
+      listeners.add(fn);
+      return function () { listeners.delete(fn); };
+    }
+
+    loadFromStorage();
+
+    return { getState, dispatch, select, subscribe };
+  })();
+
+  // ============================================================
   // Apps
   // ============================================================
 
@@ -1895,6 +2088,15 @@ KIDDING! It's fine! Everything's fine! What else can I help with?!`,
       // ---------- Conversation engine ----------
       let activeTyper = null;   // { skip(): void } — set while text is animating
       let currentNodeId = 'start';
+      // Track the player's first-round approach so we can record it
+      // on conversation completion. r1_friendly → 'friendly', etc.
+      // Stays the same once set — later choices don't overwrite the
+      // initial read on the player.
+      let playerApproach = null;
+      // One-shot guard: completing the dialogue tree dispatches once,
+      // even if the player keeps poking at freeform afterwards (which
+      // also lands on 'end' through the engine).
+      let conversationCompleted = false;
 
       function setControlsEnabled(on) {
         controlsEl.classList.toggle('disabled', !on);
@@ -2046,10 +2248,20 @@ KIDDING! It's fine! Everything's fine! What else can I help with?!`,
           // Conversation tree exhausted — freeform stays available.
           clearOptions();
           setControlsEnabled(true);
+          if (!conversationCompleted) {
+            conversationCompleted = true;
+            GameState.dispatch({
+              type: 'helpyr/conversationCompleted',
+              approach: playerApproach
+            });
+          }
         }
       }
 
       function choose(opt) {
+        // Record first-round approach from the r1_* branch the player took.
+        const m = /^r1_(friendly|inquisitive|aggressive)$/.exec(opt.goto || '');
+        if (m && !playerApproach) playerApproach = m[1];
         renderPlayerMessage(opt.text);
         clearOptions();
         visit(opt.goto);
@@ -2250,6 +2462,43 @@ KIDDING! It's fine! Everything's fine! What else can I help with?!`,
   tick();
   setInterval(tick, 15000);
 
+  // -- System tray: suspicion signal-bars --
+  // Subscribes to GameState. Maps suspicion 0-100 to a 1-5 bar fill
+  // (min 1 bar so the indicator never reads as "off") and a tier
+  // color (safe/watch/danger). Tooltip uses in-fiction language only;
+  // never expose the raw number.
+  (function initSystray() {
+    const trayEl = document.getElementById('systray');
+    const indicatorEl = document.getElementById('systray-suspicion');
+    const bars = indicatorEl.querySelectorAll('.bar');
+
+    function tierFor(s) {
+      // Reads as "Network Integrity" — full = healthy. Labels run
+      // down (Nominal → Degraded → Critical) as suspicion climbs.
+      if (s > 70) return { level: 'danger', label: 'Critical' };
+      if (s > 40) return { level: 'watch',  label: 'Degraded' };
+      return { level: 'safe', label: 'Nominal' };
+    }
+    function barCountFor(s) {
+      // Inverted: full bars = low suspicion (good). 0→5, 25→4,
+      // 50→3, 75→2, 100→1. Clamped to [1,5] so the indicator
+      // never reads as fully "off" / disabled.
+      return Math.max(1, Math.min(5, 5 - Math.round(s / 25)));
+    }
+
+    function render(state) {
+      const s = state.player.suspicion;
+      const { level, label } = tierFor(s);
+      const count = barCountFor(s);
+      indicatorEl.className = 'systray-suspicion level-' + level;
+      bars.forEach(function (bar, i) { bar.classList.toggle('on', i < count); });
+      trayEl.title = 'Network Integrity: ' + label;
+    }
+
+    render(GameState.getState());
+    GameState.subscribe(render);
+  })();
+
   // -- Virtual cursor --
   Cursor.init();
 
@@ -2276,9 +2525,17 @@ KIDDING! It's fine! Everything's fine! What else can I help with?!`,
 
   // Expose for debugging
   window.PT = {
-    WindowManager, AppRegistry, WebDynamoSites, Cursor,
+    WindowManager, AppRegistry, WebDynamoSites, Cursor, GameState,
     getUiScale, setScale, clearScale,
-    UI_SCALE
+    UI_SCALE,
+    // Convenience wrappers — quicker to type from devtools than
+    // PT.GameState.dispatch({type:'debug/setSuspicion', value:60}).
+    setSuspicion(value) {
+      GameState.dispatch({ type: 'debug/setSuspicion', value: value });
+    },
+    resetGameState() {
+      GameState.dispatch({ type: 'debug/reset' });
+    }
   };
 })();
 </script>
