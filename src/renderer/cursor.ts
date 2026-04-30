@@ -31,6 +31,10 @@ const CLICK_SNAP_RADIUS = 28 * UI_SCALE; // clicks within this fall through to n
 // Anything that should "catch" the cursor. Order doesn't matter.
 // Exported so FocusNav can traverse the same set — there's only one
 // notion of "interactable target" in the shell.
+//
+// #systray is included for FocusNav reachability even though it has
+// no click action — focusing it surfaces the suspicion tooltip via
+// the .focus-ring::after rule in main.css.
 export const SNAP_SELECTOR = [
   '.desktop-icon',
   '.titlebar-btn',
@@ -38,6 +42,7 @@ export const SNAP_SELECTOR = [
   '.taskbar-item',
   '#start-btn',
   '#start-menu.open li',
+  '#systray',
   '.browser-address input',
   '.scratchpad-textarea',
   '.uplink-option-btn',

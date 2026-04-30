@@ -195,15 +195,62 @@
    * to cursor mode automatically.
    *
    * Static — no animation — to match the OS chrome aesthetic and to
-   * keep things calm on a Deck screen at couch distance. */
+   * keep things calm on a Deck screen at couch distance.
+   *
+   * Two visual treatments:
+   *   1. Default outline + halo for free-standing targets like
+   *      desktop icons and form inputs.
+   *   2. Inset highlight for beveled chrome (taskbar items, titlebar
+   *      buttons, menu items, systray). An outline competes with the
+   *      3D bevel; an inset blue line reads as "selected" without
+   *      fighting the chrome. */
   body.mode-focus #game-cursor { display: none; }
 
   .focus-ring {
-    outline: 2px solid #5599ff;
-    outline-offset: 1px;
+    outline: 3px solid #5599ff;
+    outline-offset: 2px;
     /* Dark outer band so the bright outline reads on both light
      * (taskbar) and dark (desktop) backgrounds without halo bleed. */
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 0 0 5px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Chrome variant — replaces the outline with an inset blue line so
+   * it sits just inside the existing bevel. Matches the OS-chrome
+   * aesthetic and stays readable next to adjacent items.
+   * box-shadow override clears the dark halo from the default rule. */
+  .taskbar-item.focus-ring,
+  .titlebar-btn.focus-ring,
+  .browser-btn.focus-ring,
+  #start-btn.focus-ring,
+  #start-menu li.focus-ring,
+  #systray.focus-ring {
+    outline: none;
+    box-shadow: inset 0 0 0 2px #5599ff;
+  }
+
+  /* Systray focus tooltip — when the suspicion meter is focused via
+   * D-pad / arrow nav, surface its in-fiction status text as a small
+   * floating label above the tray. desktop.ts mirrors the title
+   * attribute into data-label whenever suspicion changes. */
+  #systray { position: relative; }
+  #systray.focus-ring::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: calc(100% + 0.375rem);
+    right: 0;
+    background: var(--face);
+    color: #000;
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+    padding: 0.25rem 0.5rem;
+    font-family: var(--sys-font);
+    font-size: 0.6875rem;
+    white-space: nowrap;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+    z-index: 1000;
   }
   .desktop-icon .glyph {
     width: 2rem;

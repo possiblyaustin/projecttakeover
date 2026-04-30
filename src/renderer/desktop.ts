@@ -202,9 +202,14 @@ function initSystray(): void {
     const s = state.player.suspicion;
     const { level, label } = tierFor(s);
     const count = barCountFor(s);
+    const text = 'Network Integrity: ' + label;
     indicatorEl.className = 'systray-suspicion level-' + level;
     bars.forEach((bar, i) => { bar.classList.toggle('on', i < count); });
-    trayEl.title = 'Network Integrity: ' + label;
+    trayEl.title = text;
+    // Mirror to data-label so the focus-mode tooltip (#systray.focus-ring::after)
+    // can read it without depending on the title attribute (which only shows
+    // on native hover, not programmatic focus).
+    trayEl.setAttribute('data-label', text);
   }
 
   render(GameState.getState());
