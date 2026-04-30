@@ -821,11 +821,19 @@
   }
   .uplink-log {
     flex: 1;
-    /* Live-tail behavior: the conversation never scrolls. The newest
-     * messages always sit at the bottom and uplink.ts trims older
-     * bubbles from the top whenever the log overflows. Full history
-     * lives in JS state for the future Log viewer (PR series step 4).
-     * See docs/no-scroll-pages_v1.md §6. */
+    /* Live-tail behavior: the conversation never scrolls.
+     *
+     * justify-content: flex-end anchors content to the bottom of the
+     * log. When the player picks an option, uplink.ts clears the log
+     * and starts a fresh turn (player message + NPC reply). As the
+     * NPC reply types in and the combined turn exceeds the log
+     * height, the player's bubble at the top smoothly slides above
+     * the clip line — no DOM eviction, no snap-out. Full history
+     * stays in messages[] JS state for the future Log viewer (PR
+     * series step 4). See docs/no-scroll-pages_v1.md §6. */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
     overflow: hidden;
     padding: 0.625rem 0.75rem;
     border-bottom: 1px solid var(--shadow);
