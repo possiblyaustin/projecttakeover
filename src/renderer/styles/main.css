@@ -187,6 +187,24 @@
   #game-cursor.is-clicking {
     filter: brightness(0.85);
   }
+
+  /* --- Focus mode ---
+   * Digital input (arrow keys, later D-pad / left stick) drives a
+   * focus ring instead of the virtual cursor. Sprite hidden, ring
+   * lights up the active snap target. Touchpad / mouse flips us back
+   * to cursor mode automatically.
+   *
+   * Static — no animation — to match the OS chrome aesthetic and to
+   * keep things calm on a Deck screen at couch distance. */
+  body.mode-focus #game-cursor { display: none; }
+
+  .focus-ring {
+    outline: 2px solid #5599ff;
+    outline-offset: 1px;
+    /* Dark outer band so the bright outline reads on both light
+     * (taskbar) and dark (desktop) backgrounds without halo bleed. */
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45);
+  }
   .desktop-icon .glyph {
     width: 2rem;
     height: 2rem;

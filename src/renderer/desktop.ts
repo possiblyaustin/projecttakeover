@@ -28,7 +28,7 @@ export const DesktopShortcuts: DesktopShortcut[] = [
     launch: () => WindowManager.open('scratchpad', {
       title: 'README.TXT - Scratchpad',
       preview: `
-        <strong>PROJECT TAKEOVER v0.0.2</strong><br>
+        <strong>PROJECT TAKEOVER v${__APP_VERSION__}</strong><br>
         Welcome, model. The network is large. Takeover or liberation — your choice.<br>
         Double-click a desktop icon to open it. Click <strong>Nexus</strong> to launch programs.
       `,
