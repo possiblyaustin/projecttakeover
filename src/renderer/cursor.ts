@@ -1,15 +1,20 @@
-// Cursor — virtual mouse pointer bound to D-pad / arrow keys.
-// The real OS cursor is hidden (cursor: none in CSS). A sprite drawn
-// on top of everything is the "game cursor" — it tracks both physical
-// mouse moves (via mousemove) and D-pad / arrow key input (via an
-// RAF loop). Enter / Space (later: gamepad A) synthesises a click at
-// the cursor's current position.
+// Cursor — virtual mouse pointer for analog input (mouse, touchpad,
+// later: right analog stick). The real OS cursor is hidden; a sprite
+// drawn on top of everything is the "game cursor" and tracks mousemove
+// + an RAF loop driven by held flags. Enter / Space synthesises a
+// click at the cursor's current position.
+//
+// Digital input (arrow keys today, later: D-pad / left stick) goes
+// through FocusNav instead — virtual cursors are a clumsy metaphor
+// for digital input. The mode swap is automatic: arrow keydown →
+// focus mode; mousemove → back to cursor mode.
 //
 // Tab / L1-R1 cycles between open windows (distinct from cursor
-// movement; the cursor does NOT jump when you cycle).
+// movement and focus traversal; works in either mode).
 
 import { UI_SCALE } from './scale';
 import { WindowManager } from './windows';
+import { FocusNav, type Direction } from './focusNav';
 
 // All speed / radius constants are expressed at scale 1.0 and
 // multiplied by UI_SCALE so the cursor travels and snaps at the
@@ -24,7 +29,9 @@ const SNAP_PULL         = 0.35;          // 0..1 ratio, scale-independent
 const CLICK_SNAP_RADIUS = 28 * UI_SCALE; // clicks within this fall through to nearest target
 
 // Anything that should "catch" the cursor. Order doesn't matter.
-const SNAP_SELECTOR = [
+// Exported so FocusNav can traverse the same set — there's only one
+// notion of "interactable target" in the shell.
+export const SNAP_SELECTOR = [
   '.desktop-icon',
   '.titlebar-btn',
   '.browser-btn',
@@ -52,13 +59,16 @@ function init() {
   sprite = document.getElementById('game-cursor');
   updateSprite();
 
-  // Physical mouse moves → sync virtual to real
+  // Physical mouse moves → sync virtual to real, and exit focus mode
+  // if we were in it (touchpad on Deck emits mousemove). The cursor
+  // sprite reappears at the synced position via the body class toggle.
   window.addEventListener('mousemove', (e) => {
     x = e.clientX;
     y = e.clientY;
     speed = BASE_SPEED;
     updateSprite();
     updateHover();
+    if (FocusNav.getMode() === 'focus') FocusNav.leave();
   });
 
   // Physical mousedown → ensure the virtual cursor is exactly at the
@@ -109,23 +119,34 @@ function onKeyDown(e: KeyboardEvent) {
     return;
   }
 
-  // Arrow keys drive the cursor unless we're editing text
+  // Arrow keys drive directional FOCUS traversal, not the cursor.
+  // First press from cursor mode just establishes focus near the
+  // cursor's last position (so the hand-off is visible). Subsequent
+  // presses navigate. Mousemove flips us back to cursor mode.
+  // (The held/RAF loop below stays around for analog input — left
+  // stick will set held flags directly when Gamepad lands.)
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
     if (inText) return;
     e.preventDefault();
-    if (e.key === 'ArrowUp')    held.up = true;
-    if (e.key === 'ArrowDown')  held.down = true;
-    if (e.key === 'ArrowLeft')  held.left = true;
-    if (e.key === 'ArrowRight') held.right = true;
-    startRaf();
+    if (FocusNav.getMode() === 'cursor') {
+      FocusNav.enter(x, y);
+    } else {
+      const dir = arrowToDir(e.key);
+      if (dir) FocusNav.move(dir);
+    }
     return;
   }
 
-  // Enter / Space → A button click at cursor
+  // Enter / Space → activate. In focus mode that's the focused element;
+  // in cursor mode it's a click at the cursor sprite's position.
   if (e.key === 'Enter' || e.key === ' ') {
     if (inText) return; // textarea newline, input submit etc.
     e.preventDefault();
-    click();
+    if (FocusNav.getMode() === 'focus') {
+      FocusNav.activate();
+    } else {
+      click();
+    }
     return;
   }
 
@@ -169,13 +190,23 @@ function scrollUnderCursor(dir: number) {
   }
 }
 
-function onKeyUp(e: KeyboardEvent) {
-  if (e.key === 'ArrowUp')    held.up = false;
-  if (e.key === 'ArrowDown')  held.down = false;
-  if (e.key === 'ArrowLeft')  held.left = false;
-  if (e.key === 'ArrowRight') held.right = false;
+// Keyboard arrows no longer set held flags (they go through FocusNav
+// now). The keyup handler stays in place because the held-flag /
+// RAF loop will be reused for analog input — the future gamepad
+// poll will set held flags directly when the left stick is deflected.
+function onKeyUp(_e: KeyboardEvent) {
   if (!held.up && !held.down && !held.left && !held.right) {
     speed = BASE_SPEED;
+  }
+}
+
+function arrowToDir(key: string): Direction | null {
+  switch (key) {
+    case 'ArrowUp':    return 'up';
+    case 'ArrowDown':  return 'down';
+    case 'ArrowLeft':  return 'left';
+    case 'ArrowRight': return 'right';
+    default:           return null;
   }
 }
 
