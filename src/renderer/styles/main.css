@@ -221,6 +221,7 @@
   .taskbar-item.focus-ring,
   .titlebar-btn.focus-ring,
   .browser-btn.focus-ring,
+  .page-nav-btn.focus-ring,
   #start-btn.focus-ring,
   #start-menu li.focus-ring,
   #systray.focus-ring {
@@ -454,7 +455,8 @@
     padding: 0.25rem;
     border-bottom: 1px solid var(--shadow);
   }
-  .browser-btn {
+  .browser-btn,
+  .page-nav-btn {
     min-width: 1.75rem;
     height: 1.5rem;
     padding: 0 0.375rem;
@@ -467,10 +469,46 @@
     border-right: 2px solid var(--dark);
     border-bottom: 2px solid var(--dark);
   }
-  .browser-btn:disabled { color: #888; }
-  .browser-btn:active:not(:disabled) {
+  .browser-btn:disabled,
+  .page-nav-btn.disabled { color: #888; opacity: 0.55; }
+  .browser-btn:active:not(:disabled),
+  .page-nav-btn:active:not(.disabled) {
     border-top: 2px solid var(--dark); border-left: 2px solid var(--dark);
     border-right: 2px solid var(--hilite); border-bottom: 2px solid var(--hilite);
+  }
+
+  /* --- Page-nav bar ---
+   * Shared "◄ Prev / Page X of Y / Next ►" control for any paginated
+   * surface. Hosted by the consuming app inside its own chrome region
+   * (Web Dynamo replaces its status row; Uplink Log mounts at the
+   * window bottom). See docs/no-scroll-pages_v1.md. */
+  .page-nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 1.5rem;
+    padding: 0 0.375rem;
+    background: var(--face);
+    border-top: 1px solid var(--shadow);
+    font-family: var(--sys-font);
+    font-size: 0.6875rem;
+  }
+  .page-nav-bar .page-nav-indicator {
+    flex: 1;
+    text-align: center;
+    color: #333;
+  }
+  .page-nav-btn {
+    /* Slightly tighter than the Web Dynamo nav buttons since the bar
+     * lives in a denser context. */
+    height: 1.25rem;
+    font-size: 0.6875rem;
+    padding: 0 0.5rem;
+  }
+  .page-nav-btn.focus-ring {
+    /* Inherit chrome focus treatment from the global rule that
+     * targets bevel-styled buttons. Composed via the existing
+     * .focus-ring chrome-variant selector list below. */
   }
   .browser-address {
     display: flex;
@@ -783,7 +821,12 @@
   }
   .uplink-log {
     flex: 1;
-    overflow-y: auto;
+    /* Live-tail behavior: the conversation never scrolls. The newest
+     * messages always sit at the bottom and uplink.ts trims older
+     * bubbles from the top whenever the log overflows. Full history
+     * lives in JS state for the future Log viewer (PR series step 4).
+     * See docs/no-scroll-pages_v1.md §6. */
+    overflow: hidden;
     padding: 0.625rem 0.75rem;
     border-bottom: 1px solid var(--shadow);
     background:
