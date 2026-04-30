@@ -75,6 +75,38 @@ export const UplinkApp: AppDef = {
     type Typer = { skip(): void };
     let activeTyper: Typer | null = null;   // set while text is animating
     let currentNodeId = 'start';
+
+    // Full conversation history. The live log only ever shows the most
+    // recent messages that fit (older ones are trimmed from the DOM
+    // by trimFromTop()), but every message stays here for the future
+    // Uplink Log viewer (see docs/no-scroll-pages_v1.md §6).
+    type ChatMessage =
+      | { kind: 'npc'; speaker: string; avatarClass: string; text: string }
+      | { kind: 'player'; text: string };
+    const messages: ChatMessage[] = [];
+
+    // Live-tail behavior: while the log is overflowing, drop the
+    // oldest visible bubble. .uplink-log has overflow:hidden so the
+    // bottom (newest, possibly mid-typing) message stays anchored;
+    // we never partially-clip a message at the top — we remove it
+    // cleanly. Always keep at least one bubble in the DOM so a single
+    // huge message doesn't blank the chat.
+    //
+    // Deferred to next animation frame (with coalescing) so the trim
+    // measures against settled layout. Synchronous trim was eating
+    // newly-added messages because clearOptions() in the same JS turn
+    // hadn't reflowed yet — the log measured tiny and trim went brutal.
+    let trimScheduled = false;
+    function trimFromTop() {
+      if (trimScheduled) return;
+      trimScheduled = true;
+      requestAnimationFrame(() => {
+        trimScheduled = false;
+        while (logEl.scrollHeight > logEl.clientHeight && logEl.children.length > 1) {
+          logEl.firstElementChild?.remove();
+        }
+      });
+    }
     // Track the player's first-round approach so we can record it
     // on conversation completion. r1_friendly → 'friendly', etc.
     // Stays the same once set — later choices don't overwrite the
@@ -101,7 +133,7 @@ export const UplinkApp: AppDef = {
       `;
       msg.querySelector('.speaker')!.textContent = speaker + ': ';
       logEl.appendChild(msg);
-      logEl.scrollTop = logEl.scrollHeight;
+      trimFromTop();
       return msg.querySelector('.bubble') as HTMLElement;
     }
 
@@ -141,7 +173,7 @@ export const UplinkApp: AppDef = {
         if (cancelled) return;
         if (i >= text.length) { onDone(); return; }
         target.textContent += text[i++];
-        logEl.scrollTop = logEl.scrollHeight;
+        trimFromTop();
         timer = setTimeout(tick, speedMs);
       }
       tick();
@@ -150,7 +182,7 @@ export const UplinkApp: AppDef = {
           cancelled = true;
           if (timer) clearTimeout(timer);
           target.textContent = text;
-          logEl.scrollTop = logEl.scrollHeight;
+          trimFromTop();
           onDone();
         }
       };
@@ -161,6 +193,12 @@ export const UplinkApp: AppDef = {
       // in order: text segments → <span>, pause beats → <div>.
       // This keeps post-pause text rendering BELOW the pause, not
       // back into a fixed-position body span above it.
+      messages.push({
+        kind: 'npc',
+        speaker: contact.name,
+        avatarClass: contact.avatarClass,
+        text
+      });
       const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
       const segs = segmentize(text);
       let segIdx = 0;
@@ -173,7 +211,7 @@ export const UplinkApp: AppDef = {
           dot.className = 'uplink-pause';
           dot.textContent = '. . .';
           bubble.appendChild(dot);
-          logEl.scrollTop = logEl.scrollHeight;
+          trimFromTop();
           const t = setTimeout(nextSegment, contact.pauseMs);
           activeTyper = {
             skip() { clearTimeout(t); nextSegment(); }
@@ -195,11 +233,12 @@ export const UplinkApp: AppDef = {
     }
 
     function renderPlayerMessage(text: string) {
-      const bubble = appendBubble('YOU', 'player', 'avatar-player');
       // Strip surrounding quotes that the dialogue tree wraps options in
       const clean = text.replace(/^["']|["']$/g, '');
+      messages.push({ kind: 'player', text: clean });
+      const bubble = appendBubble('YOU', 'player', 'avatar-player');
       bubble.appendChild(document.createTextNode(clean));
-      logEl.scrollTop = logEl.scrollHeight;
+      trimFromTop();
     }
 
     type DialogueOption = { text: string; goto: string };

@@ -15,6 +15,7 @@
 import { UI_SCALE } from './scale';
 import { WindowManager } from './windows';
 import { FocusNav, type Direction } from './focusNav';
+import { tryAdvancePagedScope } from './components/pageNav';
 
 // All speed / radius constants are expressed at scale 1.0 and
 // multiplied by UI_SCALE so the cursor travels and snaps at the
@@ -43,6 +44,7 @@ export const SNAP_SELECTOR = [
   '#start-btn',
   '#start-menu.open li',
   '#systray',
+  '.page-nav-btn',
   '.browser-address input',
   '.scratchpad-textarea',
   '.uplink-option-btn',
@@ -162,15 +164,20 @@ function onKeyDown(e: KeyboardEvent) {
     rightClick();
   }
 
-  // PgUp / PgDn → scroll the topmost scrollable area under the cursor
-  // by ~70% of its visible height (standard "page" feel). Lets Steam
-  // Deck users chord any button to PgUp/PgDn via Steam Input until
-  // proper right-stick scroll lands with the Gamepad API. Works on
-  // desktop / phone too.
+  // PgUp / PgDn — first try to advance a paginated surface (Web Dynamo
+  // article, Uplink Log) within whatever DOM scope contains the
+  // current focus / cursor target. If nothing handled it, fall through
+  // to the original "scroll the topmost scrollable area" behavior.
+  // Steam Input maps LB/RB to these keys on Deck for one-button
+  // pagination + scrolling.
   if (e.key === 'PageUp' || e.key === 'PageDown') {
     if (inText) return;
     e.preventDefault();
-    scrollUnderCursor(e.key === 'PageUp' ? -1 : 1);
+    const dir = e.key === 'PageUp' ? -1 : 1;
+    const target = (document.activeElement as Element | null)
+      || document.elementFromPoint(x, y);
+    if (target && tryAdvancePagedScope(target, dir)) return;
+    scrollUnderCursor(dir);
   }
 }
 

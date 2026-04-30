@@ -25,6 +25,7 @@ import { registerApp, allApps } from './appRegistry';
 import { DesktopShortcuts, initDesktop } from './desktop';
 import { UI_SCALE, getUiScale, setScale, clearScale } from './scale';
 import { WebDynamoSites } from './apps/webDynamoSites';
+import { mountPageNav } from './components/pageNav';
 
 import { ScratchpadApp } from './apps/scratchpad';
 import { WebDynamoApp } from './apps/webDynamo';
@@ -60,6 +61,7 @@ DesktopShortcuts[0]!.launch();
   setScale,
   clearScale,
   UI_SCALE,
+  mountPageNav,
   // Convenience wrappers — quicker to type from devtools than
   // PT.GameState.dispatch({type:'debug/setSuspicion', value:60}).
   setSuspicion(value: number) {
