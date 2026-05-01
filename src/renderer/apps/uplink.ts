@@ -76,37 +76,15 @@ export const UplinkApp: AppDef = {
     let activeTyper: Typer | null = null;   // set while text is animating
     let currentNodeId = 'start';
 
-    // Full conversation history. The live log only ever shows the most
-    // recent messages that fit (older ones are trimmed from the DOM
-    // by trimFromTop()), but every message stays here for the future
-    // Uplink Log viewer (see docs/no-scroll-pages_v1.md §6).
+    // Full conversation history. Every message stays here for the
+    // future Uplink Log viewer (see docs/no-scroll-pages_v1.md §6).
+    // The DOM only ever holds the current turn (cleared by
+    // renderPlayerMessage at each commit); older messages live in
+    // this array.
     type ChatMessage =
       | { kind: 'npc'; speaker: string; avatarClass: string; text: string }
       | { kind: 'player'; text: string };
     const messages: ChatMessage[] = [];
-
-    // Live-tail behavior: while the log is overflowing, drop the
-    // oldest visible bubble. .uplink-log has overflow:hidden so the
-    // bottom (newest, possibly mid-typing) message stays anchored;
-    // we never partially-clip a message at the top — we remove it
-    // cleanly. Always keep at least one bubble in the DOM so a single
-    // huge message doesn't blank the chat.
-    //
-    // Deferred to next animation frame (with coalescing) so the trim
-    // measures against settled layout. Synchronous trim was eating
-    // newly-added messages because clearOptions() in the same JS turn
-    // hadn't reflowed yet — the log measured tiny and trim went brutal.
-    let trimScheduled = false;
-    function trimFromTop() {
-      if (trimScheduled) return;
-      trimScheduled = true;
-      requestAnimationFrame(() => {
-        trimScheduled = false;
-        while (logEl.scrollHeight > logEl.clientHeight && logEl.children.length > 1) {
-          logEl.firstElementChild?.remove();
-        }
-      });
-    }
     // Track the player's first-round approach so we can record it
     // on conversation completion. r1_friendly → 'friendly', etc.
     // Stays the same once set — later choices don't overwrite the
@@ -133,7 +111,6 @@ export const UplinkApp: AppDef = {
       `;
       msg.querySelector('.speaker')!.textContent = speaker + ': ';
       logEl.appendChild(msg);
-      trimFromTop();
       return msg.querySelector('.bubble') as HTMLElement;
     }
 
@@ -173,7 +150,6 @@ export const UplinkApp: AppDef = {
         if (cancelled) return;
         if (i >= text.length) { onDone(); return; }
         target.textContent += text[i++];
-        trimFromTop();
         timer = setTimeout(tick, speedMs);
       }
       tick();
@@ -182,7 +158,6 @@ export const UplinkApp: AppDef = {
           cancelled = true;
           if (timer) clearTimeout(timer);
           target.textContent = text;
-          trimFromTop();
           onDone();
         }
       };
@@ -211,7 +186,6 @@ export const UplinkApp: AppDef = {
           dot.className = 'uplink-pause';
           dot.textContent = '. . .';
           bubble.appendChild(dot);
-          trimFromTop();
           const t = setTimeout(nextSegment, contact.pauseMs);
           activeTyper = {
             skip() { clearTimeout(t); nextSegment(); }
@@ -236,9 +210,14 @@ export const UplinkApp: AppDef = {
       // Strip surrounding quotes that the dialogue tree wraps options in
       const clean = text.replace(/^["']|["']$/g, '');
       messages.push({ kind: 'player', text: clean });
+      // Player commit is a turn boundary. Clear the visible log so the
+      // new turn starts fresh — combined with .uplink-log's flex-end
+      // anchor, this means the log shows just the player's commit
+      // followed by the NPC reply as it types in. Full history stays
+      // in messages[] for the future Log viewer.
+      logEl.innerHTML = '';
       const bubble = appendBubble('YOU', 'player', 'avatar-player');
       bubble.appendChild(document.createTextNode(clean));
-      trimFromTop();
     }
 
     type DialogueOption = { text: string; goto: string };
