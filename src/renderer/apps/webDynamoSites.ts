@@ -13,6 +13,11 @@
 export type PageEntry = {
   /** Optional human label — reserved for a future TOC surface. */
   label?: string;
+  /** Optional URL slug. When set, the address bar shows
+   *  `<siteKey>/<path>` while this page is active, and typing that
+   *  URL directly resolves to this page. Page 1 typically omits this
+   *  (bare site URL); pages 2+ should set one for pretty URLs. */
+  path?: string;
   render(c: HTMLElement): void;
 };
 
@@ -49,6 +54,7 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
       },
       {
         label: 'Careers / Legal',
+        path: 'jobs',
         render(c: HTMLElement) {
           c.classList.add('site-ironwall');
           c.innerHTML = `

@@ -135,10 +135,21 @@ function nearestToPoint(px: number, py: number): HTMLElement | null {
 // remote UIs — favors straight-line moves over diagonal jumps while
 // still letting you reach off-axis targets when nothing's directly
 // in line.
+//
+// Tiered: targets that share a row (for L/R) or column (for U/D) with
+// the source — i.e. perp distance ≤ half the source's height/width —
+// always beat off-axis targets, regardless of parallel distance. This
+// fixes the case where Prev → Right would jump to a nearby viewport
+// link instead of the far-but-same-row Next button: the link has
+// medium perp and small parallel (low score), while Next has zero
+// perp but large parallel (higher score). Without tiering, Next loses
+// despite being the obviously-correct neighbor.
 function nearestInDirection(from: HTMLElement, dir: Direction): HTMLElement | null {
   const fr = from.getBoundingClientRect();
   const fcx = fr.left + fr.width / 2;
   const fcy = fr.top + fr.height / 2;
+  const rowTol = fr.height / 2;
+  const colTol = fr.width / 2;
 
   let best: HTMLElement | null = null;
   let bestScore = Infinity;
@@ -152,13 +163,17 @@ function nearestInDirection(from: HTMLElement, dir: Direction): HTMLElement | nu
 
     let parallel: number;
     let perp: number;
+    let onAxis: boolean;
     switch (dir) {
-      case 'right': if (dx <= 0) continue; parallel = dx;  perp = Math.abs(dy); break;
-      case 'left':  if (dx >= 0) continue; parallel = -dx; perp = Math.abs(dy); break;
-      case 'down':  if (dy <= 0) continue; parallel = dy;  perp = Math.abs(dx); break;
-      case 'up':    if (dy >= 0) continue; parallel = -dy; perp = Math.abs(dx); break;
+      case 'right': if (dx <= 0) continue; parallel = dx;  perp = Math.abs(dy); onAxis = perp <= rowTol; break;
+      case 'left':  if (dx >= 0) continue; parallel = -dx; perp = Math.abs(dy); onAxis = perp <= rowTol; break;
+      case 'down':  if (dy <= 0) continue; parallel = dy;  perp = Math.abs(dx); onAxis = perp <= colTol; break;
+      case 'up':    if (dy >= 0) continue; parallel = -dy; perp = Math.abs(dx); onAxis = perp <= colTol; break;
     }
-    const score = parallel + PERP_WEIGHT * perp;
+    // Off-axis targets get a flat penalty larger than any reasonable
+    // on-screen distance. Within each tier, the standard parallel +
+    // perp*weight ordering still applies so closer wins.
+    const score = (onAxis ? 0 : 1e6) + parallel + PERP_WEIGHT * perp;
     if (score < bestScore) { bestScore = score; best = el; }
   }
   return best;

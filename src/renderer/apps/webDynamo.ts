@@ -5,10 +5,47 @@
 // (docs/no-scroll-pages_v1.md §5).
 
 import type { AppDef, AppContext, WinParams } from '../types';
-import { WebDynamoSites, type SiteEntry } from './webDynamoSites';
+import { WebDynamoSites, type SiteEntry, type PageEntry } from './webDynamoSites';
 import { mountPageNav, type PageNavHandle } from '../components/pageNav';
 
-type HistoryEntry = { url: string; page: number };
+// History stores siteKey + page (1-indexed). The display URL shown in
+// the address bar is derived from these via displayUrlFor() — that
+// way page advances automatically reflect the right path slug, and
+// Back/Forward restore both pieces in one step. `displayUrl` is set
+// only when we want to show something other than the derived URL —
+// notably on 404 so the user can see (and fix) what they typed
+// instead of a bare "404" in the address bar.
+type HistoryEntry = { siteKey: string; page: number; displayUrl?: string };
+
+function displayUrlFor(siteKey: string, page: PageEntry | undefined): string {
+  return page?.path ? `${siteKey}/${page.path}` : siteKey;
+}
+
+function normalizeUrl(u: string): string {
+  return (u || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+}
+
+// Resolve a typed/clicked URL to a registered site + page. Tries an
+// exact site-key match first, then peels off the trailing path segment
+// and looks for a PageEntry whose `path` matches. Falls through to
+// 404 when neither hits — including the case where a site exists but
+// the path doesn't (e.g. ironwall.def/sentry, which is intentionally
+// a broken link in page 1's content).
+function resolveUrl(input: string): { siteKey: string; pageIdx: number } {
+  const norm = normalizeUrl(input);
+  if (WebDynamoSites[norm]) return { siteKey: norm, pageIdx: 0 };
+  const lastSlash = norm.lastIndexOf('/');
+  if (lastSlash > 0) {
+    const base = norm.slice(0, lastSlash);
+    const slug = norm.slice(lastSlash + 1);
+    const site = WebDynamoSites[base];
+    if (site) {
+      const idx = site.pages.findIndex(p => p.path === slug);
+      if (idx >= 0) return { siteKey: base, pageIdx: idx };
+    }
+  }
+  return { siteKey: '404', pageIdx: 0 };
+}
 
 export const WebDynamoApp: AppDef = {
   id: 'webDynamo',
@@ -44,6 +81,7 @@ export const WebDynamoApp: AppDef = {
     const history: HistoryEntry[] = [];
     let idx = -1;
 
+    let currentSiteKey: string = '404';
     let currentSite: SiteEntry | null = null;
     let currentPage = 1;
     let pageNavHandle: PageNavHandle | null = null;
@@ -52,18 +90,38 @@ export const WebDynamoApp: AppDef = {
     // resolve cleanly.
     let connectTimer: ReturnType<typeof setTimeout> | null = null;
 
+    function syncAddress() {
+      const entry = idx >= 0 ? history[idx] : undefined;
+      if (entry?.displayUrl !== undefined) {
+        addr.value = entry.displayUrl;
+        return;
+      }
+      addr.value = displayUrlFor(currentSiteKey, currentSite?.pages[currentPage - 1]);
+    }
+
     function navigate(url: string, fromHistory?: boolean, restorePage?: number) {
-      const site = WebDynamoSites[normalize(url)] || WebDynamoSites['404']!;
-      addr.value = url;
+      const { siteKey, pageIdx } = resolveUrl(url);
+      const site = WebDynamoSites[siteKey] || WebDynamoSites['404']!;
+      currentSiteKey = siteKey;
       currentSite = site;
-      currentPage = restorePage ?? 1;
+      // restorePage (from Back/Forward) wins; otherwise honor the page
+      // the URL itself addressed (e.g. typing ironwall.def/jobs lands
+      // on page 2). New navigations without a slug land on page 1.
+      currentPage = restorePage ?? (pageIdx + 1);
 
       if (!fromHistory) {
         // Drop any forward entries; clicking a link from page 2 of an
         // ironwall page should NOT leave the un-visited forward pages
         // reachable from the new entry.
         history.splice(idx + 1);
-        history.push({ url, page: currentPage });
+        // Preserve the typed/clicked URL on 404 so the address bar
+        // reads e.g. "ironwall.def/sentry" instead of "404", letting
+        // the player fix typos and giving Back/Forward a meaningful
+        // entry to display.
+        const displayOverride = siteKey === '404' && normalizeUrl(url) !== '404'
+          ? url
+          : undefined;
+        history.push({ siteKey, page: currentPage, displayUrl: displayOverride });
         idx = history.length - 1;
       }
 
@@ -89,12 +147,15 @@ export const WebDynamoApp: AppDef = {
             // a later Back lands on this page, not page 1.
             if (idx >= 0) history[idx]!.page = n;
             renderCurrentPage();
+            syncAddress();
           }
         });
       }
 
+      syncAddress();
+
       if (connectTimer) clearTimeout(connectTimer);
-      pageNavHandle?.setStatus('Connecting to ' + url + '...');
+      pageNavHandle?.setStatus('Connecting to ' + addr.value + '...');
       viewport.innerHTML = '';
       connectTimer = setTimeout(() => {
         connectTimer = null;
@@ -124,10 +185,6 @@ export const WebDynamoApp: AppDef = {
       (container.querySelector('[data-nav="forward"]') as HTMLButtonElement).disabled = idx >= history.length - 1;
     }
 
-    function normalize(u: string) {
-      return (u || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-    }
-
     container.querySelectorAll('[data-nav]').forEach(btn => {
       const b = btn as HTMLButtonElement;
       b.addEventListener('click', () => {
@@ -135,14 +192,14 @@ export const WebDynamoApp: AppDef = {
         if (action === 'back' && idx > 0) {
           idx--;
           const entry = history[idx]!;
-          navigate(entry.url, true, entry.page);
+          navigate(entry.siteKey, true, entry.page);
         } else if (action === 'forward' && idx < history.length - 1) {
           idx++;
           const entry = history[idx]!;
-          navigate(entry.url, true, entry.page);
+          navigate(entry.siteKey, true, entry.page);
         } else if (action === 'reload') {
           const entry = history[idx];
-          navigate(entry?.url || 'ironwall.def', true, entry?.page);
+          navigate(entry?.siteKey || 'ironwall.def', true, entry?.page);
         } else if (action === 'home') {
           navigate('nexus:home');
         } else if (action === 'go') {
