@@ -8,12 +8,25 @@
 
 import type { AppDef, AppContext, WinParams } from '../types';
 import { GameState } from '../game/state';
+import { WindowManager } from '../windows';
 import {
   HelpyrDialogue,
   HelpyrWildcards,
   classifyHelpyrFreeform,
   type DialogueNode
 } from './helpyr';
+
+// Shared with the read-only Log viewer (apps/uplinkLog.ts). Both the
+// live chat and the archive consume the same message shape so the
+// contact's full transcript can be passed across without massaging.
+export type ChatMessage =
+  | { kind: 'npc'; speaker: string; avatarClass: string; text: string }
+  | { kind: 'player'; text: string };
+
+// Slim contact record handed to the Log viewer — just what it needs
+// to render bubbles + title. The Log doesn't speak, so dialogue trees
+// and freeform classifiers stay private to uplink.ts.
+export type UplinkContactRef = { name: string; avatarClass: string };
 
 // Contact registry — adding a future NPC means adding an entry,
 // not changing the engine. Mirrors WebDynamoSites exactly.
@@ -54,6 +67,7 @@ export const UplinkApp: AppDef = {
 
     container.innerHTML = `
       <div class="uplink-root">
+        <button class="uplink-earlier-chip" data-focusable="true" tabindex="0" hidden>▲ Earlier in this transmission</button>
         <div class="uplink-log" data-focus-context-zone="log"></div>
         <div class="uplink-controls">
           <div class="uplink-options"></div>
@@ -70,21 +84,74 @@ export const UplinkApp: AppDef = {
     const controlsEl = container.querySelector('.uplink-controls') as HTMLElement;
     const inputEl = container.querySelector('.uplink-freeform input') as HTMLInputElement;
     const sendBtn = container.querySelector('.uplink-freeform button') as HTMLButtonElement;
+    const earlierChip = container.querySelector('.uplink-earlier-chip') as HTMLButtonElement;
 
     // ---------- Conversation engine ----------
     type Typer = { skip(): void };
     let activeTyper: Typer | null = null;   // set while text is animating
     let currentNodeId = 'start';
 
-    // Full conversation history. Every message stays here for the
-    // future Uplink Log viewer (see docs/no-scroll-pages_v1.md §6).
-    // The DOM only ever holds the current turn (cleared by
-    // renderPlayerMessage at each commit); older messages live in
-    // this array.
-    type ChatMessage =
-      | { kind: 'npc'; speaker: string; avatarClass: string; text: string }
-      | { kind: 'player'; text: string };
+    // Full conversation history. The live log only ever shows the most
+    // recent messages that fit (older ones are trimmed from the DOM
+    // by trimFromTop()), but every message stays here so the Log
+    // viewer (apps/uplinkLog.ts, docs/no-scroll-pages_v1.md §6) can
+    // page through the complete transcript.
     const messages: ChatMessage[] = [];
+    // Once any bubble has been trimmed, the "Earlier in this
+    // transmission" chip becomes available. It stays visible for the
+    // rest of the conversation — older messages don't come back.
+    let hasTrimmed = false;
+
+    // Live-tail behavior: the log uses flex column-reverse so the
+    // newest message anchors to the bottom. Older bubbles drift up
+    // as new ones arrive and are removed from the DOM only once
+    // they've slid completely above the log's visible area —
+    // overflow:hidden handles the in-between state, so partially-
+    // clipped bubbles fade naturally behind the top edge instead
+    // of popping out the moment they start to clip.
+    //
+    // Deferred to next animation frame (with coalescing) so the
+    // measurement happens against settled layout. A previous attempt
+    // that ran the trim in the same JS turn as clearOptions() ate
+    // newly-added messages because the log measured tiny before its
+    // controls panel had reflowed.
+    //
+    // History note: there's a parallel approach (turn-boundary
+    // clearing — clear logEl on every player commit, no trim) that
+    // shipped briefly to main as a separate v0.0.7 (PR #11) and was
+    // reverted. See memory/project_uplink_trim_history.md if the
+    // model is ever revisited.
+    let trimScheduled = false;
+    function trimFromTop() {
+      if (trimScheduled) return;
+      trimScheduled = true;
+      requestAnimationFrame(() => {
+        trimScheduled = false;
+        const logRect = logEl.getBoundingClientRect();
+        // column-reverse: lastElementChild is the OLDEST message
+        // (rendered at the top of the visible stack). Only remove
+        // bubbles whose bottom has slid above log.top.
+        while (logEl.lastElementChild && logEl.children.length > 1) {
+          const oldest = logEl.lastElementChild as HTMLElement;
+          const r = oldest.getBoundingClientRect();
+          if (r.bottom > logRect.top + 0.5) break;
+          oldest.remove();
+          if (!hasTrimmed) {
+            hasTrimmed = true;
+            earlierChip.hidden = false;
+          }
+        }
+      });
+    }
+
+    // The log shrinks not only when we append messages but also when
+    // the controls panel grows (options arriving) or the chip flips
+    // visible. Re-running trim on every log resize ensures the
+    // newest message stays visible instead of being clipped by the
+    // expanding controls — Austin hit this on Deck where the option
+    // buttons drew over the bottom of HELPYR's reply.
+    const logResizeObserver = new ResizeObserver(() => trimFromTop());
+    logResizeObserver.observe(logEl);
     // Track the player's first-round approach so we can record it
     // on conversation completion. r1_friendly → 'friendly', etc.
     // Stays the same once set — later choices don't overwrite the
@@ -110,7 +177,11 @@ export const UplinkApp: AppDef = {
         <div class="bubble"><span class="speaker"></span></div>
       `;
       msg.querySelector('.speaker')!.textContent = speaker + ': ';
-      logEl.appendChild(msg);
+      // The log is flex column-REVERSE, so the visual bottom is the
+      // DOM start. Insert new messages at the start to keep them
+      // anchored to the bottom; older messages naturally drift up.
+      logEl.insertBefore(msg, logEl.firstChild);
+      trimFromTop();
       return msg.querySelector('.bubble') as HTMLElement;
     }
 
@@ -150,6 +221,7 @@ export const UplinkApp: AppDef = {
         if (cancelled) return;
         if (i >= text.length) { onDone(); return; }
         target.textContent += text[i++];
+        trimFromTop();
         timer = setTimeout(tick, speedMs);
       }
       tick();
@@ -158,6 +230,7 @@ export const UplinkApp: AppDef = {
           cancelled = true;
           if (timer) clearTimeout(timer);
           target.textContent = text;
+          trimFromTop();
           onDone();
         }
       };
@@ -186,6 +259,7 @@ export const UplinkApp: AppDef = {
           dot.className = 'uplink-pause';
           dot.textContent = '. . .';
           bubble.appendChild(dot);
+          trimFromTop();
           const t = setTimeout(nextSegment, contact.pauseMs);
           activeTyper = {
             skip() { clearTimeout(t); nextSegment(); }
@@ -210,14 +284,9 @@ export const UplinkApp: AppDef = {
       // Strip surrounding quotes that the dialogue tree wraps options in
       const clean = text.replace(/^["']|["']$/g, '');
       messages.push({ kind: 'player', text: clean });
-      // Player commit is a turn boundary. Clear the visible log so the
-      // new turn starts fresh — combined with .uplink-log's flex-end
-      // anchor, this means the log shows just the player's commit
-      // followed by the NPC reply as it types in. Full history stays
-      // in messages[] for the future Log viewer.
-      logEl.innerHTML = '';
       const bubble = appendBubble('YOU', 'player', 'avatar-player');
       bubble.appendChild(document.createTextNode(clean));
+      trimFromTop();
     }
 
     type DialogueOption = { text: string; goto: string };
@@ -295,6 +364,18 @@ export const UplinkApp: AppDef = {
     // Click anywhere in the log fast-forwards the active typer.
     logEl.addEventListener('click', () => {
       if (activeTyper) activeTyper.skip();
+    });
+
+    // Earlier-in-this-transmission chip → opens a read-only Log
+    // window with the full conversation paginated. Passing the live
+    // messages array (not a snapshot) means a Log opened mid-chat
+    // will reflect any subsequent messages — closing the live Uplink
+    // doesn't disturb the Log; the array stays referenced.
+    earlierChip.addEventListener('click', () => {
+      WindowManager.open('uplinkLog', {
+        contact: { name: contact.name, avatarClass: contact.avatarClass },
+        messages
+      });
     });
 
     sendBtn.addEventListener('click', submitFreeform);

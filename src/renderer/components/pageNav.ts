@@ -41,6 +41,12 @@ export type PageNavHandle = {
   /** Re-read totalPages / currentPage and refresh button states.
    *  Apps call this after data changes that affect the page count. */
   update(): void;
+  /** Override the centered indicator with a status string (e.g. Web
+   *  Dynamo's "Connecting to ironwall.def..."). Pass null to revert
+   *  to the default "Page X of Y" rendering.
+   *  Decision §10/2 in docs/no-scroll-pages_v1.md: absorb status text
+   *  into the nav bar rather than keep a separate status row. */
+  setStatus(text: string | null): void;
   /** Tear down — remove DOM, deregister scope. */
   destroy(): void;
 };
@@ -84,6 +90,14 @@ export function mountPageNav(opts: PageNavOpts): PageNavHandle {
   const nextBtn = bar.querySelector('[data-dir="next"]') as HTMLButtonElement;
   const indicator = bar.querySelector('.page-nav-indicator') as HTMLElement;
 
+  // When non-null, the indicator displays this string instead of the
+  // default "Page X of Y". Hosts use this to thread their own status
+  // text (Web Dynamo connection state, future apps' transient notices)
+  // through the same bar slot. Cleared by setStatus(null) or by the
+  // host explicitly; advance() leaves it alone so a "Connecting..."
+  // message survives a page advance that hasn't finished resolving.
+  let currentStatus: string | null = null;
+
   function advance(dir: 1 | -1) {
     const cur = currentPage();
     const total = totalPages();
@@ -96,12 +110,21 @@ export function mountPageNav(opts: PageNavOpts): PageNavHandle {
   function update() {
     const cur = currentPage();
     const total = totalPages();
-    indicator.textContent = total > 0 ? `Page ${cur} of ${total}` : '';
+    if (currentStatus !== null) {
+      indicator.textContent = currentStatus;
+    } else {
+      indicator.textContent = total > 0 ? `Page ${cur} of ${total}` : '';
+    }
     // Disabled buttons stay focusable so D-pad doesn't get stuck on
     // the edge of a page range. The .disabled class handles the
     // visual; the click handler bails on dir-out-of-range above.
     prevBtn.classList.toggle('disabled', cur <= 1);
     nextBtn.classList.toggle('disabled', cur >= total);
+  }
+
+  function setStatus(text: string | null) {
+    currentStatus = text;
+    update();
   }
 
   prevBtn.addEventListener('click', () => advance(-1));
@@ -112,6 +135,7 @@ export function mountPageNav(opts: PageNavOpts): PageNavHandle {
 
   return {
     update,
+    setStatus,
     destroy() {
       scopes.delete(scope);
       bar.remove();

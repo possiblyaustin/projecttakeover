@@ -544,17 +544,6 @@
     font-family: "Times New Roman", Georgia, serif;
     color: #111;
   }
-  .browser-status {
-    height: 1.25rem;
-    padding: 0 0.375rem;
-    display: flex;
-    align-items: center;
-    font-size: 0.6875rem;
-    color: #333;
-    border-top: 1px solid var(--shadow);
-    background: var(--face);
-  }
-
   /* Ironwall page */
   .site-ironwall h1 {
     font-family: Georgia, "Times New Roman", serif;
@@ -821,20 +810,23 @@
   }
   .uplink-log {
     flex: 1;
-    /* Live-tail behavior: the conversation never scrolls.
+    /* Live-tail behavior: the conversation never scrolls. The newest
+     * message always sits at the bottom of the log; older content
+     * overflows off the top. Full history lives in JS state for the
+     * Log viewer (apps/uplinkLog.ts). See docs/no-scroll-pages_v1.md §6.
      *
-     * justify-content: flex-end anchors content to the bottom of the
-     * log. When the player picks an option, uplink.ts clears the log
-     * and starts a fresh turn (player message + NPC reply). As the
-     * NPC reply types in and the combined turn exceeds the log
-     * height, the player's bubble at the top smoothly slides above
-     * the clip line — no DOM eviction, no snap-out. Full history
-     * stays in messages[] JS state for the future Log viewer (PR
-     * series step 4). See docs/no-scroll-pages_v1.md §6. */
+     * Implementation uses the standard chat-UI pattern: flex column-
+     * reverse + insert-at-DOM-start. Visual order is still oldest →
+     * newest top-to-bottom, but the layout is anchored at the bottom
+     * so a single oversized message clips its TOP rather than its
+     * bottom (matches chat-app convention). uplink.ts must use
+     * insertBefore(msg, firstChild) instead of appendChild, and trim
+     * must remove lastElementChild (the oldest at the top of the
+     * visual stack) rather than firstElementChild. */
     display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+    flex-direction: column-reverse;
     overflow: hidden;
+    min-height: 0;
     padding: 0.625rem 0.75rem;
     border-bottom: 1px solid var(--shadow);
     background:
@@ -906,11 +898,25 @@
     display: flex;
     flex-direction: column;
     gap: 0.375rem;
+    /* Cap controls so the log always keeps at least 40% of the
+     * window. Without this, three wrapped option buttons on a
+     * Deck-sized window would push the controls panel past the
+     * window's height and clip the latest HELPYR message under the
+     * options. min-height:0 lets flex actually shrink the panel
+     * below its intrinsic min-content height. */
+    max-height: 60%;
+    min-height: 0;
   }
   .uplink-options {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    /* When option buttons wrap onto many lines on narrow viewports,
+     * scroll WITHIN the options slot rather than letting the panel
+     * grow past its max-height. The freeform input row stays pinned
+     * at the bottom of the controls panel. */
+    min-height: 0;
+    overflow-y: auto;
   }
   .uplink-options:empty { display: none; }
   .uplink-option-btn {
@@ -979,6 +985,56 @@
   .uplink-controls.disabled {
     opacity: 0.5;
     pointer-events: none;
+  }
+
+  /* "▲ Earlier in this transmission" chip — pinned above the live log
+   * once any bubble has been trimmed off the top. Click → opens the
+   * read-only Uplink Log window. Subtle continuous pulse on the
+   * background so players notice the affordance the first time it
+   * appears (decision §10/5 in docs/no-scroll-pages_v1.md). Tune
+   * post-playtest if it reads as noisy. */
+  .uplink-earlier-chip {
+    height: 1.375rem;
+    padding: 0 0.5rem;
+    font-family: var(--sys-font);
+    font-size: 0.6875rem;
+    font-weight: bold;
+    color: #4a3a1a;
+    text-align: center;
+    background: #ddd3ba;
+    border-top: 1px solid var(--hilite);
+    border-left: 1px solid var(--hilite);
+    border-right: 1px solid var(--shadow);
+    border-bottom: 1px solid var(--shadow);
+    cursor: pointer;
+    /* Halfway between v0.0.9 (invisible on Deck) and v0.0.10 (too
+     * obvious per Austin). Background swing only — no text-color
+     * shift, since that was reading as flicker — and slowed to 2s
+     * for a more breath-like rhythm. */
+    animation: uplink-chip-pulse 2s ease-in-out infinite;
+  }
+  .uplink-earlier-chip[hidden] { display: none; }
+  @keyframes uplink-chip-pulse {
+    0%, 100% { background: #ddd3ba; }
+    50%      { background: #f0e3c4; }
+  }
+
+  /* Uplink Log viewer — read-only paginated archive. Reuses the
+   * .uplink-msg bubble styles for visual continuity with the live
+   * chat; the page-nav primitive mounts itself at the bottom. */
+  .uplink-log-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ece8dc;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+  }
+  .uplink-log-pages {
+    flex: 1;
+    overflow: hidden;
+    padding: 0.625rem 0.75rem;
+    background: linear-gradient(to bottom, #f4f0e4 0%, #e8e2d2 100%);
   }
 
   /* Icon: dial-up modem (for Uplink's desktop shortcut + Nexus entry).
