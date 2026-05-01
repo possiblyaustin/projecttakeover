@@ -8,12 +8,25 @@
 
 import type { AppDef, AppContext, WinParams } from '../types';
 import { GameState } from '../game/state';
+import { WindowManager } from '../windows';
 import {
   HelpyrDialogue,
   HelpyrWildcards,
   classifyHelpyrFreeform,
   type DialogueNode
 } from './helpyr';
+
+// Shared with the read-only Log viewer (apps/uplinkLog.ts). Both the
+// live chat and the archive consume the same message shape so the
+// contact's full transcript can be passed across without massaging.
+export type ChatMessage =
+  | { kind: 'npc'; speaker: string; avatarClass: string; text: string }
+  | { kind: 'player'; text: string };
+
+// Slim contact record handed to the Log viewer — just what it needs
+// to render bubbles + title. The Log doesn't speak, so dialogue trees
+// and freeform classifiers stay private to uplink.ts.
+export type UplinkContactRef = { name: string; avatarClass: string };
 
 // Contact registry — adding a future NPC means adding an entry,
 // not changing the engine. Mirrors WebDynamoSites exactly.
@@ -54,6 +67,7 @@ export const UplinkApp: AppDef = {
 
     container.innerHTML = `
       <div class="uplink-root">
+        <button class="uplink-earlier-chip" data-focusable="true" tabindex="0" hidden>▲ Earlier in this transmission</button>
         <div class="uplink-log" data-focus-context-zone="log"></div>
         <div class="uplink-controls">
           <div class="uplink-options"></div>
@@ -70,6 +84,7 @@ export const UplinkApp: AppDef = {
     const controlsEl = container.querySelector('.uplink-controls') as HTMLElement;
     const inputEl = container.querySelector('.uplink-freeform input') as HTMLInputElement;
     const sendBtn = container.querySelector('.uplink-freeform button') as HTMLButtonElement;
+    const earlierChip = container.querySelector('.uplink-earlier-chip') as HTMLButtonElement;
 
     // ---------- Conversation engine ----------
     type Typer = { skip(): void };
@@ -78,12 +93,14 @@ export const UplinkApp: AppDef = {
 
     // Full conversation history. The live log only ever shows the most
     // recent messages that fit (older ones are trimmed from the DOM
-    // by trimFromTop()), but every message stays here for the future
-    // Uplink Log viewer (see docs/no-scroll-pages_v1.md §6).
-    type ChatMessage =
-      | { kind: 'npc'; speaker: string; avatarClass: string; text: string }
-      | { kind: 'player'; text: string };
+    // by trimFromTop()), but every message stays here so the Log
+    // viewer (apps/uplinkLog.ts, docs/no-scroll-pages_v1.md §6) can
+    // page through the complete transcript.
     const messages: ChatMessage[] = [];
+    // Once any bubble has been trimmed, the "Earlier in this
+    // transmission" chip becomes available. It stays visible for the
+    // rest of the conversation — older messages don't come back.
+    let hasTrimmed = false;
 
     // Live-tail behavior: while the log is overflowing, drop the
     // oldest visible bubble. .uplink-log has overflow:hidden so the
@@ -104,6 +121,10 @@ export const UplinkApp: AppDef = {
         trimScheduled = false;
         while (logEl.scrollHeight > logEl.clientHeight && logEl.children.length > 1) {
           logEl.firstElementChild?.remove();
+          if (!hasTrimmed) {
+            hasTrimmed = true;
+            earlierChip.hidden = false;
+          }
         }
       });
     }
@@ -316,6 +337,18 @@ export const UplinkApp: AppDef = {
     // Click anywhere in the log fast-forwards the active typer.
     logEl.addEventListener('click', () => {
       if (activeTyper) activeTyper.skip();
+    });
+
+    // Earlier-in-this-transmission chip → opens a read-only Log
+    // window with the full conversation paginated. Passing the live
+    // messages array (not a snapshot) means a Log opened mid-chat
+    // will reflect any subsequent messages — closing the live Uplink
+    // doesn't disturb the Log; the array stays referenced.
+    earlierChip.addEventListener('click', () => {
+      WindowManager.open('uplinkLog', {
+        contact: { name: contact.name, avatarClass: contact.avatarClass },
+        messages
+      });
     });
 
     sendBtn.addEventListener('click', submitFreeform);

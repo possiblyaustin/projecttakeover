@@ -30,12 +30,14 @@ import { mountPageNav } from './components/pageNav';
 import { ScratchpadApp } from './apps/scratchpad';
 import { WebDynamoApp } from './apps/webDynamo';
 import { UplinkApp } from './apps/uplink';
+import { UplinkLogApp } from './apps/uplinkLog';
 
 // ---- Boot order ----
 // 1. Register every app the system knows about.
 registerApp(ScratchpadApp);
 registerApp(WebDynamoApp);
 registerApp(UplinkApp);
+registerApp(UplinkLogApp);
 
 // 2. Build the shell (desktop icons, Nexus menu, taskbar, clock,
 //    systray). Subscribes the systray to GameState.

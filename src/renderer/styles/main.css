@@ -962,6 +962,52 @@
     pointer-events: none;
   }
 
+  /* "▲ Earlier in this transmission" chip — pinned above the live log
+   * once any bubble has been trimmed off the top. Click → opens the
+   * read-only Uplink Log window. Subtle continuous pulse on the
+   * background so players notice the affordance the first time it
+   * appears (decision §10/5 in docs/no-scroll-pages_v1.md). Tune
+   * post-playtest if it reads as noisy. */
+  .uplink-earlier-chip {
+    height: 1.375rem;
+    padding: 0 0.5rem;
+    font-family: var(--sys-font);
+    font-size: 0.6875rem;
+    font-weight: bold;
+    color: #4a3a1a;
+    text-align: center;
+    background: #e6decd;
+    border-top: 1px solid var(--hilite);
+    border-left: 1px solid var(--hilite);
+    border-right: 1px solid var(--shadow);
+    border-bottom: 1px solid var(--shadow);
+    cursor: pointer;
+    animation: uplink-chip-pulse 2s ease-in-out infinite;
+  }
+  .uplink-earlier-chip[hidden] { display: none; }
+  @keyframes uplink-chip-pulse {
+    0%, 100% { background: #e6decd; }
+    50%      { background: #f5ecdb; }
+  }
+
+  /* Uplink Log viewer — read-only paginated archive. Reuses the
+   * .uplink-msg bubble styles for visual continuity with the live
+   * chat; the page-nav primitive mounts itself at the bottom. */
+  .uplink-log-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ece8dc;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+  }
+  .uplink-log-pages {
+    flex: 1;
+    overflow: hidden;
+    padding: 0.625rem 0.75rem;
+    background: linear-gradient(to bottom, #f4f0e4 0%, #e8e2d2 100%);
+  }
+
   /* Icon: dial-up modem (for Uplink's desktop shortcut + Nexus entry).
    * Body in dark plastic with three status LEDs across the front and
    * a vent-stripe band underneath. */

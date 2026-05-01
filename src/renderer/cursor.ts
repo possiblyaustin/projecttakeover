@@ -50,6 +50,7 @@ export const SNAP_SELECTOR = [
   '.uplink-option-btn',
   '.uplink-freeform input',
   '.uplink-freeform button',
+  '.uplink-earlier-chip',
   'a[data-href]'
 ].join(', ');
 
