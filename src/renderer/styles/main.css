@@ -1001,21 +1001,22 @@
     font-weight: bold;
     color: #4a3a1a;
     text-align: center;
-    background: #d8cfb6;
+    background: #ddd3ba;
     border-top: 1px solid var(--hilite);
     border-left: 1px solid var(--hilite);
     border-right: 1px solid var(--shadow);
     border-bottom: 1px solid var(--shadow);
     cursor: pointer;
-    /* Wider swing than v0.0.9 — Austin couldn't see the pulse on Deck
-     * through Firefox's color reproduction. Still in the retro tan
-     * palette but ~3x the contrast delta. */
-    animation: uplink-chip-pulse 1.8s ease-in-out infinite;
+    /* Halfway between v0.0.9 (invisible on Deck) and v0.0.10 (too
+     * obvious per Austin). Background swing only — no text-color
+     * shift, since that was reading as flicker — and slowed to 2s
+     * for a more breath-like rhythm. */
+    animation: uplink-chip-pulse 2s ease-in-out infinite;
   }
   .uplink-earlier-chip[hidden] { display: none; }
   @keyframes uplink-chip-pulse {
-    0%, 100% { background: #d8cfb6; color: #4a3a1a; }
-    50%      { background: #fff0c8; color: #6b4a1a; }
+    0%, 100% { background: #ddd3ba; }
+    50%      { background: #f0e3c4; }
   }
 
   /* Uplink Log viewer — read-only paginated archive. Reuses the

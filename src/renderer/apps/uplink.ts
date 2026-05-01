@@ -120,10 +120,19 @@ export const UplinkApp: AppDef = {
       requestAnimationFrame(() => {
         trimScheduled = false;
         // column-reverse: lastElementChild is the OLDEST message
-        // (rendered at the top of the visible stack). Remove it
-        // when the log overflows — newest stays anchored at bottom.
-        while (logEl.scrollHeight > logEl.clientHeight && logEl.children.length > 1) {
-          logEl.lastElementChild?.remove();
+        // (rendered at the top of the visible stack). Only remove
+        // bubbles that have slid completely above the log's visible
+        // area — overflow:hidden handles the in-between state, so
+        // bubbles fade behind the top edge naturally as new messages
+        // push them up rather than popping out of existence the
+        // instant they start to clip. Austin flagged the earlier
+        // "remove on any overflow" behavior as feeling abrupt.
+        const logRect = logEl.getBoundingClientRect();
+        while (logEl.lastElementChild && logEl.children.length > 1) {
+          const oldest = logEl.lastElementChild as HTMLElement;
+          const r = oldest.getBoundingClientRect();
+          if (r.bottom > logRect.top + 0.5) break;
+          oldest.remove();
           if (!hasTrimmed) {
             hasTrimmed = true;
             earlierChip.hidden = false;
