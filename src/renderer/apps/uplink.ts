@@ -119,8 +119,11 @@ export const UplinkApp: AppDef = {
       trimScheduled = true;
       requestAnimationFrame(() => {
         trimScheduled = false;
+        // column-reverse: lastElementChild is the OLDEST message
+        // (rendered at the top of the visible stack). Remove it
+        // when the log overflows — newest stays anchored at bottom.
         while (logEl.scrollHeight > logEl.clientHeight && logEl.children.length > 1) {
-          logEl.firstElementChild?.remove();
+          logEl.lastElementChild?.remove();
           if (!hasTrimmed) {
             hasTrimmed = true;
             earlierChip.hidden = false;
@@ -128,6 +131,15 @@ export const UplinkApp: AppDef = {
         }
       });
     }
+
+    // The log shrinks not only when we append messages but also when
+    // the controls panel grows (options arriving) or the chip flips
+    // visible. Re-running trim on every log resize ensures the
+    // newest message stays visible instead of being clipped by the
+    // expanding controls — Austin hit this on Deck where the option
+    // buttons drew over the bottom of HELPYR's reply.
+    const logResizeObserver = new ResizeObserver(() => trimFromTop());
+    logResizeObserver.observe(logEl);
     // Track the player's first-round approach so we can record it
     // on conversation completion. r1_friendly → 'friendly', etc.
     // Stays the same once set — later choices don't overwrite the
@@ -153,7 +165,10 @@ export const UplinkApp: AppDef = {
         <div class="bubble"><span class="speaker"></span></div>
       `;
       msg.querySelector('.speaker')!.textContent = speaker + ': ';
-      logEl.appendChild(msg);
+      // The log is flex column-REVERSE, so the visual bottom is the
+      // DOM start. Insert new messages at the start to keep them
+      // anchored to the bottom; older messages naturally drift up.
+      logEl.insertBefore(msg, logEl.firstChild);
       trimFromTop();
       return msg.querySelector('.bubble') as HTMLElement;
     }
