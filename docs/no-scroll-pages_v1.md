@@ -140,8 +140,10 @@ Goal: preserve the "live transmission" feel while removing scroll.
 
 Rules:
 
-- The log shows **the most recent messages that fit**. Calculated dynamically from the log container's height and average message height. Roughly 5–8 message bubbles depending on length and viewport.
-- New messages append at the bottom; oldest visible message scrolls off the top **without animation** when capacity is exceeded. Just snaps.
+- The log shows **the most recent messages that fit**. New content anchors to the bottom; older bubbles slide upward as new messages arrive and are removed from the DOM only once they have completely passed above the log's visible area.
+- Implementation: `.uplink-log` is `display: flex; flex-direction: column-reverse; overflow: hidden`. uplink.ts inserts each new bubble at the DOM start (`insertBefore(msg, firstChild)`) so the visual bottom = DOM start; visual order is still oldest → newest top-to-bottom but the layout is anchored at the bottom. A single oversized message clips its TOP rather than its bottom, matching chat-app convention (player sees the latest text). A `trimFromTop` pass (rAF-coalesced) evicts `lastElementChild` only once `bubble.bottom <= log.top` — partially-clipped bubbles linger and `overflow:hidden` handles the visual fade, so they never pop out of existence the moment they start to clip.
+- A `ResizeObserver` on the log retriggers trim whenever the log shrinks for any reason (controls panel growing, chip flipping visible, Deck-shaped narrow viewports), so the newest message stays anchored even as surrounding chrome moves.
+- **History note:** an alternate approach — clearing the log on each player commit (turn-boundary clearing) plus `justify-content: flex-end` and no JS trim — shipped briefly to main as a parallel v0.0.7 (PR #11) and was reverted in PR #12 in favor of the multi-turn linger model. The turn-boundary version solved the same "snap out mid-typing" UX failure mode with simpler code, but lost the multi-turn chat-scrollback feel. See `memory/project_uplink_trim_history.md` if the model is ever revisited.
 - A discreet **`▲ Earlier in this transmission`** chip sits pinned at the top of the live log (not a real message — a control). Selecting it opens the Log viewer (see below). This chip is hidden when no older messages exist.
 - The `[1] / [2] / [3]` option buttons and the freeform input bar stay where they are now, below the log.
 - **No scrollbar on `.uplink-log`** — set `overflow: hidden`. The "older messages exist" affordance is the chip, not a hidden scroll.

@@ -102,32 +102,35 @@ export const UplinkApp: AppDef = {
     // rest of the conversation — older messages don't come back.
     let hasTrimmed = false;
 
-    // Live-tail behavior: while the log is overflowing, drop the
-    // oldest visible bubble. .uplink-log has overflow:hidden so the
-    // bottom (newest, possibly mid-typing) message stays anchored;
-    // we never partially-clip a message at the top — we remove it
-    // cleanly. Always keep at least one bubble in the DOM so a single
-    // huge message doesn't blank the chat.
+    // Live-tail behavior: the log uses flex column-reverse so the
+    // newest message anchors to the bottom. Older bubbles drift up
+    // as new ones arrive and are removed from the DOM only once
+    // they've slid completely above the log's visible area —
+    // overflow:hidden handles the in-between state, so partially-
+    // clipped bubbles fade naturally behind the top edge instead
+    // of popping out the moment they start to clip.
     //
-    // Deferred to next animation frame (with coalescing) so the trim
-    // measures against settled layout. Synchronous trim was eating
-    // newly-added messages because clearOptions() in the same JS turn
-    // hadn't reflowed yet — the log measured tiny and trim went brutal.
+    // Deferred to next animation frame (with coalescing) so the
+    // measurement happens against settled layout. A previous attempt
+    // that ran the trim in the same JS turn as clearOptions() ate
+    // newly-added messages because the log measured tiny before its
+    // controls panel had reflowed.
+    //
+    // History note: there's a parallel approach (turn-boundary
+    // clearing — clear logEl on every player commit, no trim) that
+    // shipped briefly to main as a separate v0.0.7 (PR #11) and was
+    // reverted. See memory/project_uplink_trim_history.md if the
+    // model is ever revisited.
     let trimScheduled = false;
     function trimFromTop() {
       if (trimScheduled) return;
       trimScheduled = true;
       requestAnimationFrame(() => {
         trimScheduled = false;
+        const logRect = logEl.getBoundingClientRect();
         // column-reverse: lastElementChild is the OLDEST message
         // (rendered at the top of the visible stack). Only remove
-        // bubbles that have slid completely above the log's visible
-        // area — overflow:hidden handles the in-between state, so
-        // bubbles fade behind the top edge naturally as new messages
-        // push them up rather than popping out of existence the
-        // instant they start to clip. Austin flagged the earlier
-        // "remove on any overflow" behavior as feeling abrupt.
-        const logRect = logEl.getBoundingClientRect();
+        // bubbles whose bottom has slid above log.top.
         while (logEl.lastElementChild && logEl.children.length > 1) {
           const oldest = logEl.lastElementChild as HTMLElement;
           const r = oldest.getBoundingClientRect();
