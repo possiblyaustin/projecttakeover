@@ -373,22 +373,33 @@ export const UplinkApp: AppDef = {
       nextSegment();
     }
 
-    // No-stalling render path. Used for the intro turn (app open) and
-    // any future case where we don't want filler. Pushes the message
-    // to messages[] up front so the Log viewer can see it during typing.
+    // No-stalling render path. Used for the intro turn (app open) where
+    // there's no preceding player action for HELPYR to be filler-ing
+    // about. Shows a thinking indicator immediately so the player isn't
+    // staring at empty space while the intro is in flight (§6e third
+    // bullet — character-appropriate indicator while waiting). When the
+    // intro lands, the indicator swaps for the real text in the SAME
+    // bubble — no blink, the speaker label stays put.
     function renderResponseTurnNoStalling(
       promise: Promise<AskResult>,
       onAllDone: (result: AskResult) => void,
     ) {
       setControlsEnabled(false);
+      const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
+      const indicatorEl = document.createElement('span');
+      indicatorEl.className = 'uplink-thinking';
+      indicatorEl.textContent = '. . .';
+      bubble.appendChild(indicatorEl);
+      trimFromTop();
+
       promise.then((result) => {
+        indicatorEl.remove();
         messages.push({
           kind: 'npc',
           speaker: contact.name,
           avatarClass: contact.avatarClass,
           text: result.reply,
         });
-        const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
         renderTextSegmentsInto(bubble, result.reply, /* stripPrefix */ true, () => onAllDone(result));
       });
     }
