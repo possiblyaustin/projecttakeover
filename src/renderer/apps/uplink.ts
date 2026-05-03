@@ -1,10 +1,9 @@
-// Uplink — chat with NPC AI models. PoC scope: hardcoded conversation
-// tree per contact. The engine here walks any tree of node types
-// {say|choose|end}; per-contact data lives in apps/<contact>.ts.
-//
-// When the real LLM lands, the dialogue tree becomes the canned-
-// response source for the stub ModelService — the engine that
-// consumes it doesn't need to change.
+// Uplink — chat with NPC AI models. Talks to NPCs through ModelService
+// (architecture §6a–§6f); never walks the canned dialogue tree directly.
+// The first ModelService implementation is MockModelService wrapping the
+// PoC dialogue trees, so phase-A behavior is identical to the pre-seam
+// engine. The real llama.cpp transport lands in a later phase by
+// swapping the service at construction.
 
 import type { AppDef, AppContext, WinParams } from '../types';
 import { GameState } from '../game/state';
@@ -13,8 +12,15 @@ import {
   HelpyrDialogue,
   HelpyrWildcards,
   classifyHelpyrFreeform,
-  type DialogueNode
+  helpyrToneFor,
 } from './helpyr';
+import { MockModelService } from '../game/mockModelService';
+import type {
+  ModelService,
+  SuggestedReply,
+  ApproachTone,
+  ModelChatMessage,
+} from '../game/modelService';
 
 // Shared with the read-only Log viewer (apps/uplinkLog.ts). Both the
 // live chat and the archive consume the same message shape so the
@@ -24,18 +30,31 @@ export type ChatMessage =
   | { kind: 'player'; text: string };
 
 // Slim contact record handed to the Log viewer — just what it needs
-// to render bubbles + title. The Log doesn't speak, so dialogue trees
-// and freeform classifiers stay private to uplink.ts.
+// to render bubbles + title.
 export type UplinkContactRef = { name: string; avatarClass: string };
 
-// Contact registry — adding a future NPC means adding an entry,
-// not changing the engine. Mirrors WebDynamoSites exactly.
+// Maps a §6c tone to the GameState approach vocabulary. Per §6c, only
+// a handful of tones carry mechanical weight today; the rest are
+// classifier signals the reducer doesn't yet act on. Round-1 picks are
+// what drive approach recording, so this map covers exactly the three
+// tones HELPYR's r1 options carry.
+const TONE_TO_APPROACH: Partial<
+  Record<ApproachTone, 'friendly' | 'inquisitive' | 'aggressive'>
+> = {
+  friendly: 'friendly',
+  curious: 'inquisitive',
+  direct: 'aggressive',
+};
+
+// Contact registry — adding a future NPC means adding an entry, not
+// changing the engine. Each contact owns its ModelService instance;
+// per-conversation state lives in the messages history passed on each
+// call, never in the service.
 type UplinkContact = {
   name: string;
   avatarClass: string;
-  dialogue: Record<string, DialogueNode>;
-  wildcards: Record<string, string>;
-  classify: (input: string) => string;
+  service: ModelService;
+  systemPrompt: string;
   /** Local model — text renders fast. Future remote AIs use slower
    *  speeds to communicate distance. */
   typeMs: number;
@@ -46,13 +65,28 @@ const UplinkContacts: Record<string, UplinkContact> = {
   helpyr: {
     name: 'HELPYR',
     avatarClass: 'avatar-stapler',
-    dialogue: HelpyrDialogue,
-    wildcards: HelpyrWildcards,
-    classify: classifyHelpyrFreeform,
+    service: new MockModelService({
+      dialogue: HelpyrDialogue,
+      wildcards: HelpyrWildcards,
+      classify: classifyHelpyrFreeform,
+      toneFor: helpyrToneFor,
+    }),
+    // Phase A: the mock ignores systemPrompt. Phase D will inject the
+    // persona prompt + [HELPYR_STATE] block here from the model
+    // registry (§6g).
+    systemPrompt: '',
     typeMs: 18,
     pauseMs: 1100,
-  }
+  },
 };
+
+function toModelHistory(msgs: ChatMessage[]): ModelChatMessage[] {
+  return msgs.map((m) =>
+    m.kind === 'npc'
+      ? { role: 'assistant' as const, text: m.text }
+      : { role: 'user' as const, text: m.text },
+  );
+}
 
 export const UplinkApp: AppDef = {
   id: 'uplink',
@@ -89,7 +123,6 @@ export const UplinkApp: AppDef = {
     // ---------- Conversation engine ----------
     type Typer = { skip(): void };
     let activeTyper: Typer | null = null;   // set while text is animating
-    let currentNodeId = 'start';
 
     // Full conversation history. The live log only ever shows the most
     // recent messages that fit (older ones are trimmed from the DOM
@@ -152,14 +185,13 @@ export const UplinkApp: AppDef = {
     // buttons drew over the bottom of HELPYR's reply.
     const logResizeObserver = new ResizeObserver(() => trimFromTop());
     logResizeObserver.observe(logEl);
-    // Track the player's first-round approach so we can record it
-    // on conversation completion. r1_friendly → 'friendly', etc.
-    // Stays the same once set — later choices don't overwrite the
-    // initial read on the player.
-    let playerApproach: string | null = null;
-    // One-shot guard: completing the dialogue tree dispatches once,
-    // even if the player keeps poking at freeform afterwards (which
-    // also lands on 'end' through the engine).
+
+    // First tone-mapped pick wins. Stays the same once set — later
+    // picks don't overwrite the initial read on the player's approach.
+    let playerApproach: 'friendly' | 'inquisitive' | 'aggressive' | null = null;
+    // One-shot guard: when the service signals conversationEnded we
+    // dispatch once, even if the player keeps poking at freeform
+    // afterwards (post-end freeform also returns conversationEnded).
     let conversationCompleted = false;
 
     function setControlsEnabled(on: boolean) {
@@ -281,7 +313,9 @@ export const UplinkApp: AppDef = {
     }
 
     function renderPlayerMessage(text: string) {
-      // Strip surrounding quotes that the dialogue tree wraps options in
+      // Strip surrounding quotes that the option text wraps for
+      // visual presentation. Stored history is dequoted; the mock
+      // matcher normalizes both sides on lookup either way.
       const clean = text.replace(/^["']|["']$/g, '');
       messages.push({ kind: 'player', text: clean });
       const bubble = appendBubble('YOU', 'player', 'avatar-player');
@@ -289,8 +323,7 @@ export const UplinkApp: AppDef = {
       trimFromTop();
     }
 
-    type DialogueOption = { text: string; goto: string };
-    function showOptions(opts: DialogueOption[]) {
+    function showOptions(opts: SuggestedReply[]) {
       optionsEl.innerHTML = '';
       for (const opt of opts) {
         const btn = document.createElement('button');
@@ -298,7 +331,7 @@ export const UplinkApp: AppDef = {
         btn.textContent = opt.text;
         btn.dataset.focusable = 'true';
         btn.tabIndex = 0;
-        btn.addEventListener('click', () => choose(opt));
+        btn.addEventListener('click', () => onPickReply(opt));
         optionsEl.appendChild(btn);
       }
       setControlsEnabled(true);
@@ -308,57 +341,66 @@ export const UplinkApp: AppDef = {
       optionsEl.innerHTML = '';
     }
 
-    function visit(nodeId: string) {
-      currentNodeId = nodeId;
-      const node = contact.dialogue[nodeId];
-      if (!node) return;
-      if (node.type === 'say') {
-        clearOptions();
-        renderNpcMessage(node.text, () => {
-          if (node.next) visit(node.next);
-          else setControlsEnabled(true);
-        });
-      } else if (node.type === 'choose') {
-        showOptions(node.options);
-      } else if (node.type === 'end') {
-        // Conversation tree exhausted — freeform stays available.
-        clearOptions();
-        setControlsEnabled(true);
-        if (!conversationCompleted) {
+    // Single funnel for everything ModelService gives back. Renders
+    // the NPC bubble, then either re-shows options (in-conversation
+    // or freeform-during-choose) or leaves the controls in
+    // freeform-only state. Dispatches the one-shot completion event
+    // when conversationEnded crosses true the first time.
+    function handleResult(result: { reply: string; suggestedReplies: SuggestedReply[]; conversationEnded: boolean }) {
+      renderNpcMessage(result.reply, () => {
+        if (result.suggestedReplies.length > 0) {
+          showOptions(result.suggestedReplies);
+        } else {
+          setControlsEnabled(true);
+        }
+        if (result.conversationEnded && !conversationCompleted) {
           conversationCompleted = true;
           GameState.dispatch({
             type: 'helpyr/conversationCompleted',
-            approach: playerApproach
+            approach: playerApproach,
           });
         }
-      }
+      });
     }
 
-    function choose(opt: DialogueOption) {
-      // Record first-round approach from the r1_* branch the player took.
-      const m = /^r1_(friendly|inquisitive|aggressive)$/.exec(opt.goto || '');
-      if (m && !playerApproach) playerApproach = m[1]!;
-      renderPlayerMessage(opt.text);
+    function onPickReply(reply: SuggestedReply) {
+      // First tone-mapped pick wins; later picks don't overwrite.
+      const approach = TONE_TO_APPROACH[reply.tone];
+      if (approach && !playerApproach) playerApproach = approach;
+
+      // Snapshot history BEFORE pushing the just-picked message — the
+      // service expects history to exclude the current userMessage.
+      const history = toModelHistory(messages);
+      renderPlayerMessage(reply.text);
       clearOptions();
-      visit(opt.goto);
+      setControlsEnabled(false);
+
+      contact.service
+        .askModel({
+          systemPrompt: contact.systemPrompt,
+          history,
+          userMessage: reply.text,
+        })
+        .then(handleResult);
     }
 
     function submitFreeform() {
       const raw = inputEl.value.trim();
       if (!raw) return;
+
+      const history = toModelHistory(messages);
       renderPlayerMessage(raw);
       inputEl.value = '';
-      const tag = contact.classify(raw);
-      const reply = contact.wildcards[tag] || contact.wildcards.confused!;
       clearOptions();
-      renderNpcMessage(reply, () => {
-        // After a wildcard reply, if we were in the middle of a
-        // structured round, restore that round's options. Otherwise
-        // just leave freeform open.
-        const cur = contact.dialogue[currentNodeId];
-        if (cur && cur.type === 'choose') showOptions(cur.options);
-        else setControlsEnabled(true);
-      });
+      setControlsEnabled(false);
+
+      contact.service
+        .askModel({
+          systemPrompt: contact.systemPrompt,
+          history,
+          userMessage: raw,
+        })
+        .then(handleResult);
     }
 
     // Click anywhere in the log fast-forwards the active typer.
@@ -386,7 +428,16 @@ export const UplinkApp: AppDef = {
       }
     });
 
-    // Kick off the conversation
-    visit('start');
+    // Kick off the conversation. Controls disabled while we await the
+    // first reply; renderNpcMessage will keep them disabled through
+    // typing and handleResult will re-enable for options.
+    setControlsEnabled(false);
+    contact.service
+      .askModel({
+        systemPrompt: contact.systemPrompt,
+        history: [],
+        userMessage: '',
+      })
+      .then(handleResult);
   }
 };
