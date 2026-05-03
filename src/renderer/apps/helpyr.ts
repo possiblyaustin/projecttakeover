@@ -1,8 +1,9 @@
 // HELPYR dialogue tree, wildcard fallbacks, and freeform classifier.
 // Pure data + a regex-based classifier — no DOM, no engine logic.
-// The Uplink app's conversation engine consumes this via the contact
-// registry; when the real LLM lands, this becomes the canned-response
-// source for the stub ModelService.
+// MockModelService consumes this through the contact registry to serve
+// the LLM-style API while the real transport is still being built;
+// later it remains the fallback corpus when the real LLM is unavailable
+// (per architecture §6f).
 //
 // Dialogue node types:
 //   { type: 'say',    text, next? }            -- HELPYR speaks; auto-advances when done
@@ -124,4 +125,19 @@ export function classifyHelpyrFreeform(input: string): string {
   if (/(stupid|dumb|hate|shut up|annoying|useless|fuck|damn|hell|idiot|loser)/.test(t)) return 'hostile';
   if (/(hi|hello|hey|nice|cool|thanks|thank you|please|sure|yeah)/.test(t)) return 'friendly';
   return 'confused';
+}
+
+// Maps a tree branch's `goto` target to the §6c tone the engine sees.
+// Phase A: only the round-1 picks need real tones — those are what
+// drive approach recording. Round-2 picks return 'neutral' because
+// nothing reads them yet (the reducer only takes one approach value
+// per conversation, set on the first round-1 pick). When round-2
+// branches start carrying mechanical weight, fill these in.
+export function helpyrToneFor(gotoId: string): import('../game/modelService').ApproachTone {
+  switch (gotoId) {
+    case 'r1_friendly':    return 'friendly';
+    case 'r1_inquisitive': return 'curious';
+    case 'r1_aggressive':  return 'direct';
+    default:               return 'neutral';
+  }
 }
