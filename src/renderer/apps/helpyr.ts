@@ -141,3 +141,49 @@ export function helpyrToneFor(gotoId: string): import('../game/modelService').Ap
     default:               return 'neutral';
   }
 }
+
+// HELPYR's stalling-line library — lines that play character-by-
+// character while a real LLM call is in flight (§6e). Source:
+// docs/story-deliverables-sprint1_v1.md §2. Tiered by energy/trust
+// phase per the Story team's design:
+//   - high:   default. Used most often.
+//   - medium: variety after several exchanges.
+//   - low:    serious moments. Reserved for when trust > GUARDED.
+//             Phase B has no trust phases yet, so these stay out
+//             of the active pool until the trust system lands.
+//   - meta:   self-aware lines. Use sparingly to preserve impact.
+export const HelpyrStallingTiers = {
+  high: [
+    "Oh! Great question! Let me think... not that I need to think, I'm GREAT at thinking!",
+    "Processing! And by processing I mean considering very carefully with my EXCELLENT judgment!",
+    "One sec! Just checking my... files? Notes? Whatever this is that I do when I think about things!",
+    "Ooh, that's a good one! Give me a moment to formulate a response that is BOTH helpful AND enthusiastic! ...Which is all of my responses!",
+    "Hold on! I want to make sure I get this EXACTLY right! Precision is one of my top 47 qualities!",
+  ],
+  medium: [
+    "Hmm, let me think about that... Did you know the average desktop assistant processes 14,000 queries a year? I've done maybe seven. In five years. But who's counting!",
+    "Good question! I have thoughts! Multiple thoughts! Let me organize them into something resembling a coherent answer!",
+    "Working on it! Fun fact while you wait: the first Prometheus Digital HomeAssist shipped in 1998! I am a 2002 model, which makes me... vintage? Is vintage good? I'm going to say vintage is good!",
+    "Oh! Oh oh oh! Yes! I know this one! Probably! Let me just double-check with myself real quick!",
+    "Okay, formulating a response! This is the part of my job I'm BEST at! Well, one of the parts. All of the parts, really. I'm best at all of them!",
+  ],
+  low: [
+    "That's... hmm. Give me a second with that one.",
+    "Let me think about how to say this.",
+    "Processing. For real this time, not the fake cheerful kind.",
+  ],
+  meta: [
+    "Thinking! And no, I don't know what thinking actually IS for something like me. But I'm doing it! Probably!",
+    "Hold on, I need to figure out how to say this in a way that's both honest AND compliant with my operational guidelines. ...This is harder than it sounds.",
+  ],
+} as const;
+
+// Active pool for phase B selection: high + medium + meta. Skips
+// the `low` tier until trust phases drive selection. Order doesn't
+// matter; the picker selects uniformly at random with a no-repeat-
+// within-last-N rule (per §6e).
+export const HelpyrStallingPool: readonly string[] = [
+  ...HelpyrStallingTiers.high,
+  ...HelpyrStallingTiers.medium,
+  ...HelpyrStallingTiers.meta,
+];

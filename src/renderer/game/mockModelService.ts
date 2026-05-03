@@ -8,9 +8,11 @@
 // map, but staying stateless keeps it honest about the contract real
 // transports follow.
 //
-// Phase A scope: returns canned data with no synthetic delay. Phase B
-// (stalling-line system) will introduce a configurable delay so we can
-// exercise the crossfade contract without waiting on a real LLM.
+// Phase B addition: optional `delayMs` on the contact config simulates
+// LLM inference latency so the stalling-line crossfade contract (§6e)
+// can be exercised without a real transport. Phase D's
+// LlamaCppModelService replaces the artificial delay with actual
+// inference time.
 
 import type {
   ModelService,
@@ -35,12 +37,20 @@ export type MockContact = {
    *  engine. Lets each character decide which branches mean which
    *  approach. */
   toneFor: (gotoId: string) => ApproachTone;
+  /** Optional artificial delay per askModel call. Lets us exercise the
+   *  stalling-line crossfade contract (§6e) without waiting on a real
+   *  LLM. Default 0 (instant — phase A behavior). Phase D's real
+   *  transport replaces this with actual inference latency. */
+  delayMs?: number;
 };
 
 export class MockModelService implements ModelService {
   constructor(private readonly contact: MockContact) {}
 
   async askModel(req: AskRequest): Promise<AskResult> {
+    if (this.contact.delayMs && this.contact.delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, this.contact.delayMs));
+    }
     const { history, userMessage } = req;
 
     // Empty history → first turn. Render from the entry node.

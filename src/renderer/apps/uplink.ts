@@ -4,6 +4,16 @@
 // PoC dialogue trees, so phase-A behavior is identical to the pre-seam
 // engine. The real llama.cpp transport lands in a later phase by
 // swapping the service at construction.
+//
+// Phase B addition: stalling-line crossfade contract (§6e). Player-send
+// turns immediately render a character-voice "stalling" line into a new
+// NPC bubble while the askModel promise is in flight. When the real
+// reply lands, the stalling typing stops at the next word boundary, a
+// brief pause beat is inserted, then the real reply renders into the
+// SAME bubble — one continuous message. If the stalling renders out
+// before the reply arrives, an animated "still thinking" indicator
+// shows until the reply lands. The intro turn (app open) doesn't fire
+// stalling because there's no preceding player action.
 
 import type { AppDef, AppContext, WinParams } from '../types';
 import { GameState } from '../game/state';
@@ -13,10 +23,12 @@ import {
   HelpyrWildcards,
   classifyHelpyrFreeform,
   helpyrToneFor,
+  HelpyrStallingPool,
 } from './helpyr';
 import { MockModelService } from '../game/mockModelService';
 import type {
   ModelService,
+  AskResult,
   SuggestedReply,
   ApproachTone,
   ModelChatMessage,
@@ -55,6 +67,10 @@ type UplinkContact = {
   avatarClass: string;
   service: ModelService;
   systemPrompt: string;
+  /** Pool the stalling-line picker draws from (§6e). Order doesn't
+   *  matter; selection is uniformly random with a no-repeat-within-
+   *  last-N rule. */
+  stallingPool: readonly string[];
   /** Local model — text renders fast. Future remote AIs use slower
    *  speeds to communicate distance. */
   typeMs: number;
@@ -70,11 +86,20 @@ const UplinkContacts: Record<string, UplinkContact> = {
       wildcards: HelpyrWildcards,
       classify: classifyHelpyrFreeform,
       toneFor: helpyrToneFor,
+      // Phase B: artificial delay simulates real-LLM inference latency
+      // so the crossfade contract is exercised in development. Tuned
+      // to land within the variance of HELPYR's stalling-line typing
+      // times (1.2–3.6s for the 15 lines at typeMs=18) so we hit BOTH
+      // crossfade paths — sometimes real arrives during stalling
+      // (stop-at-boundary), sometimes after (indicator → merge).
+      // Phase D's real transport replaces this entirely.
+      delayMs: 2500,
     }),
-    // Phase A: the mock ignores systemPrompt. Phase D will inject the
-    // persona prompt + [HELPYR_STATE] block here from the model
-    // registry (§6g).
+    // Phase B still ignores systemPrompt in the mock. Phase D will
+    // inject the persona prompt + [HELPYR_STATE] block here from the
+    // model registry (§6g).
     systemPrompt: '',
+    stallingPool: HelpyrStallingPool,
     typeMs: 18,
     pauseMs: 1100,
   },
@@ -86,6 +111,23 @@ function toModelHistory(msgs: ChatMessage[]): ModelChatMessage[] {
       ? { role: 'assistant' as const, text: m.text }
       : { role: 'user' as const, text: m.text },
   );
+}
+
+// No-repeat-in-last-N stalling picker. Window size capped to pool-1
+// so a small pool can't paint itself into a no-options corner.
+function makeStallingPicker(pool: readonly string[]): () => string {
+  if (pool.length === 0) return () => '';
+  const windowN = Math.min(5, Math.max(1, pool.length - 1));
+  const recent: string[] = [];
+  return () => {
+    const available = pool.filter((line) => !recent.includes(line));
+    const choice = available.length > 0
+      ? available[Math.floor(Math.random() * available.length)]!
+      : pool[0]!;
+    recent.push(choice);
+    if (recent.length > windowN) recent.shift();
+    return choice;
+  };
 }
 
 export const UplinkApp: AppDef = {
@@ -122,7 +164,13 @@ export const UplinkApp: AppDef = {
 
     // ---------- Conversation engine ----------
     type Typer = { skip(): void };
+    /** Char-typer with the additional ability to gracefully stop at the
+     *  next word boundary. Used by the stalling-line crossfade so the
+     *  filler line doesn't get cut mid-word when the real reply lands. */
+    type CharsTyper = Typer & { stopAtBoundary(cb: () => void): void };
     let activeTyper: Typer | null = null;   // set while text is animating
+
+    const pickStalling = makeStallingPicker(contact.stallingPool);
 
     // Full conversation history. The live log only ever shows the most
     // recent messages that fit (older ones are trimmed from the DOM
@@ -243,14 +291,28 @@ export const UplinkApp: AppDef = {
       return segs;
     }
 
-    // Type chars into target one at a time. Returns a handle with
-    // .skip() that fast-forwards to the end.
-    function typeInto(target: HTMLElement, text: string, speedMs: number, onDone: () => void): Typer {
+    // Type chars into target one at a time. Returns a handle with:
+    //   .skip() — fast-forward to the end and call onDone.
+    //   .stopAtBoundary(cb) — graceful interrupt: keep typing until
+    //     the next word boundary, then call cb() instead of onDone.
+    //     Used by the stalling-line crossfade so the filler doesn't
+    //     get cut mid-word when the real reply arrives.
+    function typeInto(target: HTMLElement, text: string, speedMs: number, onDone: () => void): CharsTyper {
       let i = 0;
       let cancelled = false;
+      let stopWanted = false;
+      let stopCallback: (() => void) | null = null;
       let timer: ReturnType<typeof setTimeout> | null = null;
+      function isAtBoundary(): boolean {
+        return i >= text.length || /\s/.test(text[i] || '');
+      }
       function tick() {
         if (cancelled) return;
+        if (stopWanted && isAtBoundary()) {
+          // Caller takes over via stopCallback. Don't fire onDone.
+          if (stopCallback) stopCallback();
+          return;
+        }
         if (i >= text.length) { onDone(); return; }
         target.textContent += text[i++];
         trimFromTop();
@@ -264,25 +326,28 @@ export const UplinkApp: AppDef = {
           target.textContent = text;
           trimFromTop();
           onDone();
-        }
+        },
+        stopAtBoundary(cb: () => void) {
+          stopWanted = true;
+          stopCallback = cb;
+        },
       };
     }
 
-    function renderNpcMessage(text: string, onComplete: () => void) {
-      // Each segment gets its own DOM child appended to the bubble
-      // in order: text segments → <span>, pause beats → <div>.
-      // This keeps post-pause text rendering BELOW the pause, not
-      // back into a fixed-position body span above it.
-      messages.push({
-        kind: 'npc',
-        speaker: contact.name,
-        avatarClass: contact.avatarClass,
-        text
-      });
-      const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
+    // Render `text` (segmentized, with pause beats) into an existing
+    // NPC `bubble`. If `stripSpeakerPrefix` is true, strip "HELPYR: "
+    // from the first text segment — the speaker span on the bubble
+    // already shows the name. Used by the no-stalling path AND by the
+    // post-merge path of the stalling crossfade (both render real
+    // reply text into a bubble).
+    function renderTextSegmentsInto(
+      bubble: HTMLElement,
+      text: string,
+      stripSpeakerPrefix: boolean,
+      onComplete: () => void,
+    ) {
       const segs = segmentize(text);
       let segIdx = 0;
-      // Track the active typer so a player click can skip ahead.
       function nextSegment() {
         if (segIdx >= segs.length) { activeTyper = null; onComplete(); return; }
         const seg = segs[segIdx++]!;
@@ -297,10 +362,7 @@ export const UplinkApp: AppDef = {
             skip() { clearTimeout(t); nextSegment(); }
           };
         } else {
-          // First segment carries the "HELPYR: " prefix from the
-          // dialogue source — strip it once; the speaker span has
-          // it already. Subsequent segments never include it.
-          const content = segIdx === 1
+          const content = (segIdx === 1 && stripSpeakerPrefix)
             ? seg.content.replace(/^HELPYR:\s*/, '')
             : seg.content;
           const span = document.createElement('span');
@@ -308,8 +370,124 @@ export const UplinkApp: AppDef = {
           activeTyper = typeInto(span, content, contact.typeMs, nextSegment);
         }
       }
-      setControlsEnabled(false);
       nextSegment();
+    }
+
+    // No-stalling render path. Used for the intro turn (app open) and
+    // any future case where we don't want filler. Pushes the message
+    // to messages[] up front so the Log viewer can see it during typing.
+    function renderResponseTurnNoStalling(
+      promise: Promise<AskResult>,
+      onAllDone: (result: AskResult) => void,
+    ) {
+      setControlsEnabled(false);
+      promise.then((result) => {
+        messages.push({
+          kind: 'npc',
+          speaker: contact.name,
+          avatarClass: contact.avatarClass,
+          text: result.reply,
+        });
+        const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
+        renderTextSegmentsInto(bubble, result.reply, /* stripPrefix */ true, () => onAllDone(result));
+      });
+    }
+
+    // Stalling-line crossfade path (§6e). One bubble for the whole
+    // turn — stalling becomes a preamble that the real reply flows
+    // out of. messages[] gets one entry whose text starts as just the
+    // stalling line and gets updated to "stalling\n...\nrealReply"
+    // when the real reply lands. The Log viewer reads .text live, so
+    // a transcript opened mid-turn always shows what HELPYR has
+    // actually said up to that point.
+    function renderResponseTurnWithStalling(
+      promise: Promise<AskResult>,
+      onAllDone: (result: AskResult) => void,
+    ) {
+      setControlsEnabled(false);
+      const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
+      const stallingLine = pickStalling();
+
+      const transcriptEntry: ChatMessage = {
+        kind: 'npc',
+        speaker: contact.name,
+        avatarClass: contact.avatarClass,
+        text: stallingLine,
+      };
+      messages.push(transcriptEntry);
+
+      const stallSpan = document.createElement('span');
+      bubble.appendChild(stallSpan);
+
+      let stallingDone = false;
+      let realResult: AskResult | null = null;
+      let indicatorEl: HTMLElement | null = null;
+
+      function startMergeWithReal(result: AskResult) {
+        // Update transcript entry to capture both halves of HELPYR's
+        // turn. The "..." line on its own is parsed by segmentize as
+        // a pause beat, matching the visual pause we draw below.
+        transcriptEntry.text = stallingLine + '\n...\n' + result.reply;
+
+        // Visual pause beat between stalling and real reply.
+        const pauseEl = document.createElement('div');
+        pauseEl.className = 'uplink-pause';
+        pauseEl.textContent = '. . .';
+        bubble.appendChild(pauseEl);
+        trimFromTop();
+
+        // Briefer pause than full pauseMs — we don't want the whole
+        // turn to drag, the stalling-to-real handoff should feel
+        // continuous.
+        setTimeout(() => {
+          // Real reply may begin with "HELPYR: " (the dialogue source
+          // includes it). The speaker span already shows the name, so
+          // strip it from the first segment of the real reply.
+          renderTextSegmentsInto(bubble, result.reply, /* stripPrefix */ true, () => onAllDone(result));
+        }, Math.floor(contact.pauseMs / 2));
+      }
+
+      const stallingTyper = typeInto(stallSpan, stallingLine, contact.typeMs, () => {
+        // Stalling reached natural end. If real has somehow already
+        // arrived (e.g., user clicked to skip stalling AFTER promise
+        // resolved but BEFORE the next tick observed stopWanted), go
+        // straight to merge. Otherwise show the "still thinking"
+        // indicator until real lands.
+        stallingDone = true;
+        activeTyper = null;
+        if (realResult) {
+          startMergeWithReal(realResult);
+        } else {
+          indicatorEl = document.createElement('div');
+          indicatorEl.className = 'uplink-thinking';
+          indicatorEl.textContent = '. . .';
+          bubble.appendChild(indicatorEl);
+          trimFromTop();
+        }
+      });
+      activeTyper = stallingTyper;
+
+      promise.then((result) => {
+        realResult = result;
+        if (!stallingDone) {
+          // Stalling still typing. Stop at next word boundary, then
+          // merge. stopAtBoundary mutually excludes onDone, so the
+          // stalling-typer's onDone won't fire after this.
+          stallingTyper.stopAtBoundary(() => {
+            stallingDone = true;
+            activeTyper = null;
+            startMergeWithReal(result);
+          });
+        } else if (indicatorEl) {
+          // Stalling finished, indicator showing. Hide it, merge.
+          indicatorEl.remove();
+          indicatorEl = null;
+          startMergeWithReal(result);
+        }
+        // else: stallingDone && !indicatorEl means the stalling-typer's
+        // onDone has just fired and saw realResult set — startMergeWithReal
+        // was already kicked off there. Nothing more to do.
+      });
     }
 
     function renderPlayerMessage(text: string) {
@@ -341,26 +519,22 @@ export const UplinkApp: AppDef = {
       optionsEl.innerHTML = '';
     }
 
-    // Single funnel for everything ModelService gives back. Renders
-    // the NPC bubble, then either re-shows options (in-conversation
-    // or freeform-during-choose) or leaves the controls in
-    // freeform-only state. Dispatches the one-shot completion event
-    // when conversationEnded crosses true the first time.
-    function handleResult(result: { reply: string; suggestedReplies: SuggestedReply[]; conversationEnded: boolean }) {
-      renderNpcMessage(result.reply, () => {
-        if (result.suggestedReplies.length > 0) {
-          showOptions(result.suggestedReplies);
-        } else {
-          setControlsEnabled(true);
-        }
-        if (result.conversationEnded && !conversationCompleted) {
-          conversationCompleted = true;
-          GameState.dispatch({
-            type: 'helpyr/conversationCompleted',
-            approach: playerApproach,
-          });
-        }
-      });
+    // Called once a turn (intro or response) is fully rendered. Decides
+    // what controls go back to the player and dispatches the one-shot
+    // completion event when conversationEnded crosses true.
+    function commitResult(result: AskResult) {
+      if (result.suggestedReplies.length > 0) {
+        showOptions(result.suggestedReplies);
+      } else {
+        setControlsEnabled(true);
+      }
+      if (result.conversationEnded && !conversationCompleted) {
+        conversationCompleted = true;
+        GameState.dispatch({
+          type: 'helpyr/conversationCompleted',
+          approach: playerApproach,
+        });
+      }
     }
 
     function onPickReply(reply: SuggestedReply) {
@@ -373,15 +547,13 @@ export const UplinkApp: AppDef = {
       const history = toModelHistory(messages);
       renderPlayerMessage(reply.text);
       clearOptions();
-      setControlsEnabled(false);
 
-      contact.service
-        .askModel({
-          systemPrompt: contact.systemPrompt,
-          history,
-          userMessage: reply.text,
-        })
-        .then(handleResult);
+      const promise = contact.service.askModel({
+        systemPrompt: contact.systemPrompt,
+        history,
+        userMessage: reply.text,
+      });
+      renderResponseTurnWithStalling(promise, commitResult);
     }
 
     function submitFreeform() {
@@ -392,15 +564,13 @@ export const UplinkApp: AppDef = {
       renderPlayerMessage(raw);
       inputEl.value = '';
       clearOptions();
-      setControlsEnabled(false);
 
-      contact.service
-        .askModel({
-          systemPrompt: contact.systemPrompt,
-          history,
-          userMessage: raw,
-        })
-        .then(handleResult);
+      const promise = contact.service.askModel({
+        systemPrompt: contact.systemPrompt,
+        history,
+        userMessage: raw,
+      });
+      renderResponseTurnWithStalling(promise, commitResult);
     }
 
     // Click anywhere in the log fast-forwards the active typer.
@@ -428,16 +598,15 @@ export const UplinkApp: AppDef = {
       }
     });
 
-    // Kick off the conversation. Controls disabled while we await the
-    // first reply; renderNpcMessage will keep them disabled through
-    // typing and handleResult will re-enable for options.
-    setControlsEnabled(false);
-    contact.service
-      .askModel({
-        systemPrompt: contact.systemPrompt,
-        history: [],
-        userMessage: '',
-      })
-      .then(handleResult);
+    // Kick off the conversation. The intro turn doesn't fire stalling
+    // — there's no preceding player action, so HELPYR has nothing to
+    // be filling time about. Subsequent turns (option picks, freeform)
+    // route through the stalling crossfade.
+    const introPromise = contact.service.askModel({
+      systemPrompt: contact.systemPrompt,
+      history: [],
+      userMessage: '',
+    });
+    renderResponseTurnNoStalling(introPromise, commitResult);
   }
 };
