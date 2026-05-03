@@ -891,6 +891,21 @@
     padding: 0.125rem 0 0.25rem 0.125rem;
     opacity: 0.85;
   }
+  .uplink-thinking {
+    /* "Still thinking" indicator (§6e): shown when a stalling line
+     * has finished typing but the real reply hasn't arrived yet.
+     * Pulses gently to communicate "in progress, not stuck" without
+     * stealing attention. Replaced by the real reply when it lands. */
+    color: #6a6450;
+    font-style: italic;
+    letter-spacing: 0.1875rem;
+    padding: 0.125rem 0 0.25rem 0.125rem;
+    animation: uplink-thinking-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes uplink-thinking-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.85; }
+  }
 
   .uplink-controls {
     background: var(--face);
