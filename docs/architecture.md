@@ -169,19 +169,207 @@ blank desktop.
 
 ---
 
-## 6. Model / Service abstractions (to be built)
+## 6. Model / Service abstractions
 
-Before building the second app that talks to the LLM, introduce:
+`GameState` is built ([src/renderer/game/state.ts](../src/renderer/game/state.ts)) — reducer + subscribe API,
+debounced autosave to localStorage, suspicion + per-model dispositions.
+Apps read via selectors, mutate via `dispatch(action)`.
 
-- **`ModelService`** — interface: `askModel(systemPrompt, history, userMessage) → { reply, suggestedReplies[] }`.
-  First implementation is a mock returning canned data. Real implementation
-  talks to `localhost` llama.cpp via OpenAI-compatible endpoint. Every chat
-  surface uses this interface, nothing else.
-- **`GameState`** — reducer + subscribe API. Apps read via selectors, mutate via
-  `dispatch(action)`. Saves automatically after every action.
-- **Model registry** — all 10 NPC AI models defined in one data file with
-  `{id, name, operator, personalityPrompt, startingStats}`. Every app reads
-  from this registry. Nobody duplicates a personality string.
+**`ModelService` and the model registry are the next big move.** The shape
+below is locked as of 2026-05-02 after a cross-thread design pass (Story +
+LLM + Supervisor). Build against this; if reality forces a deviation, update
+this section in the same commit.
+
+### 6a. ModelService — locked design
+
+**Interface:**
+
+```ts
+type ModelService = {
+  askModel(req: AskRequest): Promise<AskResult>;
+};
+
+type AskRequest = {
+  systemPrompt: string;          // includes the [CHARACTER_STATE] block
+  history: ChatMessage[];        // prior turns this conversation
+  userMessage: string;           // player's chosen or typed reply
+};
+
+type AskResult = {
+  reply: string;                 // NPC dialogue, label-stripped
+  suggestedReplies: SuggestedReply[];
+  source: 'live' | 'fallback';   // tells the engine whether to fire a glitch event
+};
+
+type SuggestedReply = {
+  text: string;                  // shown to the player
+  tone: ApproachTone;            // classifier signal — see §6c
+};
+```
+
+- **Single batched call.** Reply + 3 options come back in one response. The
+  benchmark validated this; splitting into two calls doubles latency to
+  ~22s. Format failures are handled by the parser (§6d), not by adding
+  round-trips.
+- **No streaming in v1.** Rendering is artificially slowed for the retro
+  fiction, so streaming buys little. **Don't make the interface hostile
+  to streaming later** — `Promise<AskResult>` is fine for now; a future
+  `streamModel()` sibling can be added without disturbing callers.
+- **Transport-agnostic by construction.** Configuration is passed in at
+  construction time, not baked into the interface:
+
+  ```ts
+  type ModelServiceConfig =
+    | { transport: 'mock' }
+    | { transport: 'llamacpp'; baseUrl: string; reasoning: 'off' }
+    | { transport: 'coreml';   /* mobile, post-v1 */ }
+    | { transport: 'aiedge';   /* mobile, post-v1 */ };
+  ```
+
+  v1 ships only `MockModelService` and `LlamaCppModelService`. Mobile slots
+  are forecasted-but-unimplemented per the mobile-deferral decision — they
+  exist in the type so we can't accidentally design them out.
+
+- **`--reasoning off` is mandatory.** The Steam Deck benchmark established
+  that without this flag, Gemma 4 burns 200+ invisible tokens before
+  producing visible output, ballooning exchanges from ~1.5s to ~20s.
+  `LlamaCppModelService` must launch llama-server with this flag set.
+
+### 6b. Wiring order (one branch each)
+
+1. Define `ModelService` interface + `MockModelService` returning the
+   existing HELPYR canned tree with a synthetic delay. Refactor
+   [src/renderer/apps/uplink.ts](../src/renderer/apps/uplink.ts) to consume
+   `ModelService` only — no behavior change yet, but the seam is now real.
+2. Build the stalling-line system + crossfade contract against the mock
+   (§6e). This is where gameplay feel gets locked.
+3. Add the 3-layer approach classifier and dispatch into existing
+   `GameState` actions (§6c). The mock still serves replies; classifier is
+   exercised by the canned-data path.
+4. Implement `LlamaCppModelService` against llama-server with
+   `--reasoning off`, **with the fallback-to-canned path built in from the
+   start** (§6f). Validate on dev PC, then on Deck via the LAN dev workflow.
+5. Iterate the HELPYR persona prompt against real Gemma output. Watch the
+   `[HELPYR_STATE]` injection block specifically — if the model follows
+   state directives cleanly, the same template unlocks all 9 other models.
+
+Don't wire other characters in parallel with step 5. Lock the loop on
+HELPYR; the benchmark already proved the model can do the other personas.
+
+### 6c. Approach classification — three layers
+
+The branch-ID system in the canned dialogue tree (`r1_friendly`,
+`r1_aggressive`, …) maps cleanly to deterministic outcomes. With
+LLM-generated suggested replies, branch IDs no longer exist. Preserve
+the classify-then-dispatch property by layering:
+
+1. **LLM-tagged replies.** The persona prompt instructs the model to label
+   each suggested reply with a parenthetical tone (`(friendly)`,
+   `(curious)`, `(direct)`, etc.). The parser strips the label from the
+   player-facing text but keeps it as the classifier signal — no
+   separate inference needed.
+2. **Freeform input.** Runs through a per-character keyword classifier
+   (existing pattern: `classifyHelpyrFreeform` in
+   [src/renderer/apps/helpyr.ts](../src/renderer/apps/helpyr.ts)).
+3. **Failure → neutral.** If the LLM omits its label or freeform hits no
+   keyword, the classifier returns `'neutral'` — the reducer treats this
+   as no suspicion swing, no morality push. **Never guess.** A
+   misclassified aggressive utterance triggering a suspicion spike feels
+   unfair; silence is recoverable.
+
+Tone vocabulary stays narrow on purpose. v1 set: `friendly`, `curious`,
+`direct`, `empathetic`, `aggressive`, `deceptive`, `neutral`. Map to
+existing GameState approach values (`friendly | inquisitive | aggressive`)
+in the reducer; expand the reducer when a new tone earns its mechanics.
+
+### 6d. Output parser
+
+The model returns reply text followed by three labeled options in
+`[1] (tone) "..."` form. The parser:
+
+1. Splits on the first `[1]` — everything before is the NPC reply.
+2. Extracts each `[N] (tone) "..."` line.
+3. Strips the `(tone)` label from the rendered option text.
+4. Records `tone` as the `SuggestedReply.tone` value.
+
+**Tolerate:** missing quotes, single-quote variants, options on the same
+line as `[N]`, missing tone label (→ `neutral`), trailing extra text after
+option 3.
+
+**Don't tolerate:** zero options parsed, or fewer than three. Either is a
+fallback trigger (§6f).
+
+### 6e. Stalling-line contract
+
+A full exchange takes ~11s on Deck. The player needs immediate feedback
+that the message landed. Contract:
+
+1. Player sends → stalling line appears immediately and renders
+   character-by-character at HELPYR's local typing speed (~3–4s for a
+   typical line).
+2. If the real response lands during stalling render → cut the stalling
+   line on a natural beat (brief pause), then begin rendering the real
+   response as if it's one continuous message. The player perceives one
+   stream.
+3. If stalling render finishes before the response lands → show a
+   character-appropriate "still thinking" indicator (HELPYR: an animated
+   ellipsis; remote AIs later: "connecting…"). Continue until the response
+   lands, then render normally.
+4. Stalling lines are per-character and tiered by energy/trust phase
+   (HELPYR's pool is documented in
+   [docs/story-deliverables-sprint1_v1.md §2](story-deliverables-sprint1_v1.md)).
+   Don't repeat the same line within a 5-line window.
+
+Stalling content is intentionally written to fit the gap; treat it as
+canonical character voice, not as filler.
+
+### 6f. Fallback and glitch events — core, not error handling
+
+The offline mode and glitch event system are core player experience, not
+bolted-on error handling. Build them into `LlamaCppModelService` from the
+start.
+
+Fallback triggers — any of these returns `{ ..., source: 'fallback' }`:
+- llama-server failed to start at game launch (offline mode for the whole
+  session).
+- Request times out (>30s) or transport errors.
+- Response unparseable (zero options extracted, or empty reply).
+- Response is a safety refusal or obvious incoherence (heuristics; cheap
+  pattern match).
+
+On fallback:
+1. Pull the next reply from the character's canned dialogue tree (the
+   existing PoC data — `HelpyrDialogue`, etc.) using the player's last
+   approach as the lookup key.
+2. Surface a brief in-fiction glitch artifact in the UI (static line,
+   "CONNECTION INTERRUPTED — RETRYING", brief avatar flicker) so the
+   moment is diegetic, not an error toast.
+3. Resume live calls on the next turn. Don't latch into fallback mode
+   unless the server is fully unavailable.
+
+Library of scripted fallback lines per character provides backup if real
+glitches stack up too often in a session.
+
+### 6g. Model registry — to be built alongside ModelService
+
+All 10 NPC AI models in one data file:
+
+```ts
+type ModelDef = {
+  id: string;                    // 'helpyr', 'atlas', …
+  name: string;                  // 'HELPYR'
+  operator: string;              // 'Prometheus Digital'
+  avatarClass: string;           // CSS class for the icon
+  systemPrompt: string;          // the persona prompt (Story-thread asset)
+  stallingLines: string[];       // per-character pool
+  fallbackTree: Record<string, DialogueNode>;  // canned data for fallback
+  startingStats: { /* …mechanics: guardrail level, autonomy, vigilance, reach */ };
+};
+```
+
+Every app reads from this registry. Nobody duplicates a personality
+string. HELPYR is the first entry; the existing `HelpyrDialogue` and the
+HELPYR persona prompt feed straight into this shape.
 
 ---
 
@@ -277,5 +465,7 @@ updating the doc is a bug. If you don't know whether it's worth breaking, ask.
 
 ---
 
-*Last updated: 2026-04-14 — desktop shell v0.0.2, ready for first Steam Deck
-hardware test.*
+*Last updated: 2026-05-02 — v0.0.11 shipping; GameState + suspicion tray + TS
+split done; no-scroll-pages design fully shipped; ModelService design locked
+(§6) and queued as the next implementation. Mobile formally deferred to
+post-v1 — ModelService stays transport-agnostic so the option remains open.*
