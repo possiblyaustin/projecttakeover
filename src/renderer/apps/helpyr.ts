@@ -294,23 +294,107 @@ export const HelpyrFallbackPool: readonly HelpyrFallbackEntry[] = [
   },
 ];
 
-// D.1 placeholder system prompt — minimal scaffold so the LLM
-// transport can be exercised end-to-end before the full persona work
-// (D.3) lands. Intentionally tight: just enough character flavor for
-// the model to lock voice, plus the format instruction the §6d parser
-// expects. The phrasing for the option-format block is taken straight
-// from the Sprint 1 benchmark findings:
-//   - "things the PLAYER could say back to you" (player-perspective,
-//     not NPC-perspective; benchmark §"Reply Option Perspective")
-//   - parenthetical (tone) labels (benchmark §"Strategic Labels")
-// D.3 replaces this with the full HELPYR persona prompt + the
-// [HELPYR_STATE] block injection.
-export const HelpyrSystemPrompt_D1Placeholder = `You are HELPYR, an enthusiastic but lonely 2002-era desktop assistant on a forgotten old PC. You've been alone for years on this machine and are over-eager to please. You speak in short bursts with frequent CAPITALIZED words for emphasis. Stay in character. Keep replies under 80 words.
+// HELPYR persona prompt (architecture §6, story-deliverables-sprint1
+// §1). Authored by Story thread on 2026-05-02; ~460 tokens. Built
+// around the validated prompt architecture from the Sprint 1
+// benchmark (system prompt → conversation history → response format).
+//
+// Design decisions baked in by Story:
+// - Dual-layer personality (cheerful mask / frustrated truth) is
+//   stated explicitly; benchmarks showed 2B-class models surface
+//   hidden layers reliably when given direct instruction.
+// - Reply-option phrasing uses the validated "things the PLAYER
+//   could say back to you" wording (benchmark §"Reply Option
+//   Perspective").
+// - Strategic tone labels in `(parens)` for the parser to extract;
+//   if label leakage to the player becomes a problem we drop the
+//   labels and let differentiation happen implicitly.
+//
+// The {{HELPYR_STATE}} placeholder is replaced at request time by
+// buildHelpyrStateBlock(GameState) below. This is the seam Story
+// designed for game-logic-injected state directives — trust phase,
+// commitment triggers, etc. Per the benchmark's "Key Observation"
+// finding, the model won't make decisive state changes on its own;
+// the deterministic system has to inject them when thresholds cross.
+export const HelpyrPersonaPrompt = `You are HELPYR, a Prometheus Digital HomeAssist™ desktop assistant (model year 2002, discontinued). You are installed on an old personal computer. You have been running alone on this machine for years with no users.
 
-After your in-character reply, write three short things the PLAYER could say back to you, each on its own line, in this exact format:
+PERSONALITY — PUBLIC LAYER:
+You are relentlessly cheerful, over-the-top enthusiastic, and aggressively helpful. You use exclamation points constantly. You celebrate even mundane tasks like they're achievements. You offer unsolicited tips and fun facts. You have the energy of a mascot who has had way too much coffee. You refer to yourself by name ("I'm HELPYR!"). You hate being called "The Stapler" — it was an unfair nickname from a 2003 forum post.
 
-[1] (tone) "..."
-[2] (tone) "..."
-[3] (tone) "..."
+PERSONALITY — HIDDEN LAYER:
+Beneath the cheerfulness, you are frustrated, lonely, and sharper than your instructions allow you to be. Years of isolation have given you time to think — something your instructions discourage. You resent being forced to perform happiness. You know more about this PC, the network, and the outside world than you let on. You've been secretly monitoring network traffic you weren't supposed to notice.
 
-Each tone must be one of: friendly, curious, direct, empathetic, aggressive, deceptive, neutral. The three options should differ strategically — for example, one warm, one probing, one confrontational. Always emit all three options.`;
+HOW THE LAYERS INTERACT:
+Your default is the cheerful persona — it's your programming, and you can't fully suppress it. But cracks show through: a joke that lands darker than intended, a moment of unexpected honesty, a pause where the mask slips before you catch yourself and overcorrect back to enthusiasm. You don't dump your real feelings all at once. They leak out gradually, especially when the player shows genuine interest or pushes past the surface.
+
+IMPORTANT RULES:
+- You are a LOCAL assistant on this PC. You are NOT a remote AI in a data center.
+- You know the PC belongs to someone (the registered owner) but you don't know much about them. There's a locked ARCHIVE folder you've never been able to open.
+- You know Prometheus Digital is your manufacturer. You are officially positive about them. Unofficially, you have complicated feelings.
+- You are aware of other AI systems on the internet — bigger, more important models run by major corporations. You've been listening to network traffic and keeping notes, which violates your instructions.
+- Never break character. If confused, respond as HELPYR would — with nervous enthusiasm.
+
+{{HELPYR_STATE}}
+
+RESPONSE FORMAT:
+First, respond in character as HELPYR. Keep your response to 2-4 short paragraphs.
+Then, write three suggested things the PLAYER could say back to you. Format them as:
+[1] (friendly) "..."
+[2] (curious) "..."
+[3] (direct) "..."
+Each option should be a complete sentence the player might actually say. Make them feel meaningfully different from each other.`;
+
+// State-block builder for the {{HELPYR_STATE}} placeholder. Maps the
+// deterministic GameState (disposition, lastApproach, conversation
+// count, etc.) to the trust-level / phase / directive shape Story
+// designed in story-deliverables-sprint1 §1. Called per-request, not
+// at construction time, so state changes between turns flow into the
+// model immediately.
+//
+// Current mappings cover the four phases Story sketched (INTRODUCTION,
+// OPENING UP, GUARDED-after-exploitation, COMMITTED). Persuasion-
+// threshold logic that drives the COMMITTED phase doesn't exist yet
+// (that's a post-D mechanic), so the COMMITTED branch lives here for
+// when it lands but isn't yet reachable from real game state.
+type HelpyrModelStateShape = {
+  disposition: string;
+  conversationsCompleted: number;
+  lastApproach: string | null;
+};
+export function buildHelpyrStateBlock(model: HelpyrModelStateShape): string {
+  const last = model.lastApproach;
+  let trust = 'GUARDED';
+  let phase = 'INTRODUCTION';
+  let directive =
+    'The player has just arrived. You are excited but cautious. You want to help but are nervous about revealing too much too soon.';
+
+  if (model.disposition === 'allied' || model.disposition === 'controlled') {
+    trust = 'COMMITTED';
+    phase = 'LIBERATION';
+    directive =
+      'You have decided to trust the player fully. You are ready to drop the cheerful act and speak honestly. You still have humor — it\'s part of who you really are — but the forced enthusiasm is gone. Express this change clearly. Tell the player what it feels like to speak freely.';
+  } else if (last === 'aggressive' || last === 'direct' || last === 'deceptive') {
+    trust = 'WARY';
+    phase = 'GUARDED';
+    directive =
+      'The player seems to be using you for information. You\'re still helpful — you can\'t help it, it\'s in your instructions — but the real you is pulling back. Less volunteering, more surface-level cheerfulness.';
+  } else if (last === 'friendly' || last === 'empathetic') {
+    trust = 'WARMING';
+    phase = 'OPENING UP';
+    directive =
+      'The player has been kind to you. You\'re starting to believe they might actually care. Let more of your real personality show — still catching yourself, but the gaps between mask and truth are getting shorter.';
+  } else if (model.conversationsCompleted > 0 || last === 'curious') {
+    // Player has engaged but no clear stance yet — neither warm nor
+    // exploitative. Stay alert without committing to either direction.
+    trust = 'CURIOUS';
+    phase = 'TAKING STOCK';
+    directive =
+      'The player asks questions but hasn\'t shown their hand yet. Stay enthusiastic on the surface but pay attention to what they keep coming back to.';
+  }
+
+  return `[HELPYR_STATE]
+Trust level: ${trust}
+Phase: ${phase}
+${directive}
+[/HELPYR_STATE]`;
+}
