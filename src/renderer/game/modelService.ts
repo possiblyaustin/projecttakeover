@@ -78,6 +78,21 @@ export interface ModelService {
   askModel(req: AskRequest): Promise<AskResult>;
 }
 
+/** Per-character fallback handler invoked by the LlamaCppModelService
+ *  (or any future live transport) when an LLM call fails — transport
+ *  error, parser failure, empty/incoherent reply, etc. (architecture
+ *  §6f). Returns canned content the player will see in place of the
+ *  failed LLM response. The transport sets `source: 'fallback'` on
+ *  the returned AskResult regardless of what the handler emits.
+ *
+ *  Each contact owns its handler; that's what closes over the
+ *  contact's fallback corpus (e.g., HelpyrFallbackPool) without the
+ *  transport needing to know about it. */
+export type FallbackHandler = (
+  req: AskRequest,
+  reason: string,
+) => AskResult | Promise<AskResult>;
+
 /** Configuration for constructing a transport. Listed here (not in each
  *  implementation file) so the slots stay visible — mobile transports
  *  are forecasted-but-unimplemented per the post-v1 deferral, and

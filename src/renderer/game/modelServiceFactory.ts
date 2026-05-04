@@ -14,15 +14,19 @@
 
 import { MockModelService, type MockContact } from './mockModelService';
 import { LlamaCppModelService, type LlamaCppConfig } from './llamaCppModelService';
-import type { ModelService } from './modelService';
+import type { ModelService, FallbackHandler } from './modelService';
 
 export type ModelServiceSpec = {
-  /** Mock-mode data. Used for `?backend=mock` (default). D.2 will reuse
-   *  this same data as the canned-fallback corpus when llamacpp fails. */
+  /** Mock-mode data. Used for `?backend=mock` (default). */
   mock: MockContact;
   /** Optional overrides for the llamacpp transport. Shape merged on
    *  top of DEFAULT_LLAMA below. */
   llamaCpp?: Partial<LlamaCppConfig>;
+  /** Per-character fallback handler used by the live transport when
+   *  an LLM call fails (architecture §6f). Closes over the contact's
+   *  fallback corpus so the transport stays character-agnostic. The
+   *  mock backend doesn't need this — it can't fail. */
+  fallback?: FallbackHandler;
 };
 
 const DEFAULT_LLAMA: LlamaCppConfig = {
@@ -45,6 +49,7 @@ export function makeModelService(spec: ModelServiceSpec): ModelService {
     return new LlamaCppModelService({
       ...DEFAULT_LLAMA,
       ...(spec.llamaCpp || {}),
+      fallback: spec.fallback,
     });
   }
   return new MockModelService(spec.mock);

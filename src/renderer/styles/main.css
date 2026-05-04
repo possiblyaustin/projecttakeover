@@ -907,6 +907,30 @@
     50% { opacity: 0.85; }
   }
 
+  /* §6f glitch artifact — applied to .uplink-msg when the model service
+   * returned source: 'fallback'. Brief avatar flicker reads as a
+   * transmission hiccup; subtle warning-tinted bubble border sustains
+   * the read once the flicker is over. The canned reply text itself is
+   * in-character about the glitch (HELPYR narrating "I LOST you for a
+   * second there!"), so visuals stay restrained — not an error toast. */
+  .uplink-msg.fallback .avatar {
+    animation: uplink-fallback-flicker 1.2s steps(1) 1;
+  }
+  .uplink-msg.fallback .bubble {
+    border-color: #c47a2c;
+    box-shadow: -1px 1px 0 #c47a2c;
+  }
+  @keyframes uplink-fallback-flicker {
+    0%   { opacity: 1;    }
+    8%   { opacity: 0.15; }
+    16%  { opacity: 1;    }
+    24%  { opacity: 0.4;  }
+    32%  { opacity: 1;    }
+    44%  { opacity: 0.7;  }
+    52%  { opacity: 1;    }
+    100% { opacity: 1;    }
+  }
+
   .uplink-controls {
     background: var(--face);
     padding: 0.5rem;
