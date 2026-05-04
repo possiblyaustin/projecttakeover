@@ -22,6 +22,7 @@ import {
   HelpyrDialogue,
   HelpyrWildcards,
   classifyHelpyrFreeform,
+  classifyHelpyrApproach,
   helpyrToneFor,
   HelpyrStallingPool,
 } from './helpyr';
@@ -33,6 +34,7 @@ import type {
   ApproachTone,
   ModelChatMessage,
 } from '../game/modelService';
+import { classifyApproach } from '../game/approachClassifier';
 
 // Shared with the read-only Log viewer (apps/uplinkLog.ts). Both the
 // live chat and the archive consume the same message shape so the
@@ -44,19 +46,6 @@ export type ChatMessage =
 // Slim contact record handed to the Log viewer — just what it needs
 // to render bubbles + title.
 export type UplinkContactRef = { name: string; avatarClass: string };
-
-// Maps a §6c tone to the GameState approach vocabulary. Per §6c, only
-// a handful of tones carry mechanical weight today; the rest are
-// classifier signals the reducer doesn't yet act on. Round-1 picks are
-// what drive approach recording, so this map covers exactly the three
-// tones HELPYR's r1 options carry.
-const TONE_TO_APPROACH: Partial<
-  Record<ApproachTone, 'friendly' | 'inquisitive' | 'aggressive'>
-> = {
-  friendly: 'friendly',
-  curious: 'inquisitive',
-  direct: 'aggressive',
-};
 
 // Contact registry — adding a future NPC means adding an entry, not
 // changing the engine. Each contact owns its ModelService instance;
@@ -75,6 +64,10 @@ type UplinkContact = {
    *  speeds to communicate distance. */
   typeMs: number;
   pauseMs: number;
+  /** Per-character keyword classifier for freeform input (architecture
+   *  §6c, layer 2). Returns the §6c tone vocabulary; must return
+   *  'neutral' on no match — never guess. */
+  classifyApproach: (input: string) => ApproachTone;
 };
 
 const UplinkContacts: Record<string, UplinkContact> = {
@@ -102,6 +95,7 @@ const UplinkContacts: Record<string, UplinkContact> = {
     stallingPool: HelpyrStallingPool,
     typeMs: 18,
     pauseMs: 1100,
+    classifyApproach: classifyHelpyrApproach,
   },
 };
 
@@ -234,9 +228,15 @@ export const UplinkApp: AppDef = {
     const logResizeObserver = new ResizeObserver(() => trimFromTop());
     logResizeObserver.observe(logEl);
 
-    // First tone-mapped pick wins. Stays the same once set — later
-    // picks don't overwrite the initial read on the player's approach.
-    let playerApproach: 'friendly' | 'inquisitive' | 'aggressive' | null = null;
+    // First non-neutral tone wins. Stays set once captured — later
+    // turns don't overwrite the initial read on the player's stance.
+    // Captures the full §6c vocabulary even when the reducer doesn't
+    // act on a tone yet (empathetic, deceptive); the signal is preserved
+    // so when those tones earn mechanics, retroactive intent is honest.
+    let playerTone: ApproachTone | null = null;
+    function recordTone(tone: ApproachTone) {
+      if (!playerTone && tone !== 'neutral') playerTone = tone;
+    }
     // One-shot guard: when the service signals conversationEnded we
     // dispatch once, even if the player keeps poking at freeform
     // afterwards (post-end freeform also returns conversationEnded).
@@ -543,15 +543,16 @@ export const UplinkApp: AppDef = {
         conversationCompleted = true;
         GameState.dispatch({
           type: 'helpyr/conversationCompleted',
-          approach: playerApproach,
+          tone: playerTone,
         });
       }
     }
 
     function onPickReply(reply: SuggestedReply) {
-      // First tone-mapped pick wins; later picks don't overwrite.
-      const approach = TONE_TO_APPROACH[reply.tone];
-      if (approach && !playerApproach) playerApproach = approach;
+      // Layer 1 of the §6c classifier — the option already carries a
+      // tone (mock: from helpyrToneFor; LLM later: from the parser
+      // stripping the parenthetical label).
+      recordTone(classifyApproach({ kind: 'option', reply }));
 
       // Snapshot history BEFORE pushing the just-picked message — the
       // service expects history to exclude the current userMessage.
@@ -570,6 +571,15 @@ export const UplinkApp: AppDef = {
     function submitFreeform() {
       const raw = inputEl.value.trim();
       if (!raw) return;
+
+      // Layer 2 of the §6c classifier — route through the contact's
+      // per-character keyword classifier. Layer 3 (failure → neutral)
+      // is owned by that function.
+      recordTone(classifyApproach({
+        kind: 'freeform',
+        text: raw,
+        perCharacter: contact.classifyApproach,
+      }));
 
       const history = toModelHistory(messages);
       renderPlayerMessage(raw);

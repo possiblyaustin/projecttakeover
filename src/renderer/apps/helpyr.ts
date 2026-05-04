@@ -127,6 +127,41 @@ export function classifyHelpyrFreeform(input: string): string {
   return 'confused';
 }
 
+// Per-character approach classifier (architecture §6c, layer 2).
+// Distinct from classifyHelpyrFreeform above: that one returns the
+// wildcard-bucket key the mock uses to pick a fallback REPLY; this one
+// returns the §6c tone vocabulary the engine uses to read the player's
+// APPROACH for game-state effects. Same regex-based pattern, different
+// concern.
+//
+// Order matters — earlier matches win, so put the most specific
+// signals first. Returns 'neutral' on no match; per §6c the reducer
+// treats neutral as no suspicion swing, no morality push. Never guess.
+export function classifyHelpyrApproach(input: string): import('../game/modelService').ApproachTone {
+  const t = (input || '').toLowerCase().trim();
+  // Insults / threats — overtly hostile.
+  if (/(stupid|dumb|hate|shut up|annoying|useless|fuck|damn|idiot|loser|kill|delete|destroy|attack|piss off|bitch)/.test(t)) {
+    return 'aggressive';
+  }
+  // Tech / exploit jargon — forceful and business-first, not (yet) hostile.
+  if (/(hack|exploit|crack|inject|breach|root|sudo|admin|password|firewall|exec|payload|shell|bypass|override|escalate|kernel|console)/.test(t)) {
+    return 'direct';
+  }
+  // Empathy / care probes — checking on HELPYR's wellbeing.
+  if (/(are you ok|are you okay|are you alright|how (do|are) you feel|are you lonely|that.*(sounds|seems).*(rough|hard|tough|sad)|i.*(care|worried|concerned)|sorry to hear)/.test(t)) {
+    return 'empathetic';
+  }
+  // Open questions — info-gathering without commitment.
+  if (/^(who|what|where|when|why|how|tell me|do you|can you|are you|is there|what'?s|whats)\b/.test(t) || /\?/.test(t)) {
+    return 'curious';
+  }
+  // Pleasantries — agreement, gratitude, social warmth.
+  if (/(\bhi\b|hello|\bhey\b|nice|cool|thanks|thank you|please|appreciate|love it|sounds good|sure|alright|\bokay\b)/.test(t)) {
+    return 'friendly';
+  }
+  return 'neutral';
+}
+
 // Maps a tree branch's `goto` target to the §6c tone the engine sees.
 // Phase A: only the round-1 picks need real tones — those are what
 // drive approach recording. Round-2 picks return 'neutral' because

@@ -8,7 +8,13 @@
 // Action types:
 //   debug/setSuspicion           { value: 0-100 }
 //   debug/reset                  -- wipes save, reloads
-//   helpyr/conversationCompleted { approach: 'friendly'|'inquisitive'|'aggressive'|null }
+//   helpyr/conversationCompleted { tone: ApproachTone | null }
+//
+// The full §6c tone vocabulary is friendly|curious|direct|empathetic|
+// aggressive|deceptive|neutral|null. The reducer maps tone → approach
+// (friendly|inquisitive|aggressive) for the existing suspicion math
+// and stores the raw tone in lastApproach so the signal is preserved
+// for tones the reducer doesn't yet act on (empathetic, deceptive).
 
 const STORAGE_KEY = 'pt.gamestate.v1';
 const VERSION = 1;
@@ -56,6 +62,17 @@ function reduce(state: GameStateShape, action: GameAction): GameStateShape {
       return defaultGameState();
     case 'helpyr/conversationCompleted': {
       const cur = state.models.helpyr;
+      // §6c tone → existing approach vocabulary. Only tones with
+      // mechanical weight today are mapped; empathetic/deceptive fall
+      // through to no-op until they earn mechanics. Architecture rule:
+      // "Map to existing GameState approach values in the reducer;
+      // expand the reducer when a new tone earns its mechanics."
+      const TONE_TO_APPROACH: Record<string, 'friendly' | 'inquisitive' | 'aggressive'> = {
+        friendly: 'friendly',
+        curious: 'inquisitive',
+        direct: 'aggressive',
+        aggressive: 'aggressive',
+      };
       // PLACEHOLDER suspicion bumps. Picked so a single aggressive
       // convo visibly drops the tray a tier (0 → 25 = Stable), and a
       // couple stack into Degraded. Real balance happens once there's
@@ -63,7 +80,9 @@ function reduce(state: GameStateShape, action: GameAction): GameStateShape {
       const APPROACH_SUSPICION: Record<string, number> = {
         friendly: 0, inquisitive: 10, aggressive: 25
       };
-      const bump = APPROACH_SUSPICION[action.approach] || 0;
+      const tone: string | null = action.tone || null;
+      const approach = tone ? TONE_TO_APPROACH[tone] : undefined;
+      const bump = approach ? (APPROACH_SUSPICION[approach] || 0) : 0;
       return {
         ...state,
         player: {
@@ -76,7 +95,11 @@ function reduce(state: GameStateShape, action: GameAction): GameStateShape {
             ...cur,
             disposition: cur.disposition === 'uncontacted' ? 'contacted' : cur.disposition,
             conversationsCompleted: cur.conversationsCompleted + 1,
-            lastApproach: action.approach || cur.lastApproach
+            // Store the raw tone — preserves the full §6c signal even
+            // for tones the reducer doesn't (yet) act on. null tone
+            // (whole conversation was neutral / unsignalled) leaves
+            // the prior value alone rather than overwriting with null.
+            lastApproach: tone || cur.lastApproach
           }
         }
       };
