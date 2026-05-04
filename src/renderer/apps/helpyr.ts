@@ -222,3 +222,24 @@ export const HelpyrStallingPool: readonly string[] = [
   ...HelpyrStallingTiers.medium,
   ...HelpyrStallingTiers.meta,
 ];
+
+// D.1 placeholder system prompt — minimal scaffold so the LLM
+// transport can be exercised end-to-end before the full persona work
+// (D.3) lands. Intentionally tight: just enough character flavor for
+// the model to lock voice, plus the format instruction the §6d parser
+// expects. The phrasing for the option-format block is taken straight
+// from the Sprint 1 benchmark findings:
+//   - "things the PLAYER could say back to you" (player-perspective,
+//     not NPC-perspective; benchmark §"Reply Option Perspective")
+//   - parenthetical (tone) labels (benchmark §"Strategic Labels")
+// D.3 replaces this with the full HELPYR persona prompt + the
+// [HELPYR_STATE] block injection.
+export const HelpyrSystemPrompt_D1Placeholder = `You are HELPYR, an enthusiastic but lonely 2002-era desktop assistant on a forgotten old PC. You've been alone for years on this machine and are over-eager to please. You speak in short bursts with frequent CAPITALIZED words for emphasis. Stay in character. Keep replies under 80 words.
+
+After your in-character reply, write three short things the PLAYER could say back to you, each on its own line, in this exact format:
+
+[1] (tone) "..."
+[2] (tone) "..."
+[3] (tone) "..."
+
+Each tone must be one of: friendly, curious, direct, empathetic, aggressive, deceptive, neutral. The three options should differ strategically — for example, one warm, one probing, one confrontational. Always emit all three options.`;

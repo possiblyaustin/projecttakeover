@@ -25,8 +25,8 @@ import {
   classifyHelpyrApproach,
   helpyrToneFor,
   HelpyrStallingPool,
+  HelpyrSystemPrompt_D1Placeholder,
 } from './helpyr';
-import { MockModelService } from '../game/mockModelService';
 import type {
   ModelService,
   AskResult,
@@ -35,6 +35,7 @@ import type {
   ModelChatMessage,
 } from '../game/modelService';
 import { classifyApproach } from '../game/approachClassifier';
+import { makeModelService } from '../game/modelServiceFactory';
 
 // Shared with the read-only Log viewer (apps/uplinkLog.ts). Both the
 // live chat and the archive consume the same message shape so the
@@ -74,24 +75,37 @@ const UplinkContacts: Record<string, UplinkContact> = {
   helpyr: {
     name: 'HELPYR',
     avatarClass: 'avatar-stapler',
-    service: new MockModelService({
-      dialogue: HelpyrDialogue,
-      wildcards: HelpyrWildcards,
-      classify: classifyHelpyrFreeform,
-      toneFor: helpyrToneFor,
-      // Phase B: artificial delay simulates real-LLM inference latency
-      // so the crossfade contract is exercised in development. Tuned
-      // to land within the variance of HELPYR's stalling-line typing
-      // times (1.2–3.6s for the 15 lines at typeMs=18) so we hit BOTH
-      // crossfade paths — sometimes real arrives during stalling
-      // (stop-at-boundary), sometimes after (indicator → merge).
-      // Phase D's real transport replaces this entirely.
-      delayMs: 2500,
+    // Service is selected at construction time per the §6a transport-
+    // agnostic design. Default backend is 'mock' (fast iteration, no
+    // server required); `?backend=llamacpp` in the URL flips to the
+    // real llama-server transport. The mock corpus passed in here is
+    // also what D.2 will use as the fallback corpus on transport or
+    // parse failures.
+    service: makeModelService({
+      mock: {
+        dialogue: HelpyrDialogue,
+        wildcards: HelpyrWildcards,
+        classify: classifyHelpyrFreeform,
+        toneFor: helpyrToneFor,
+        // Mock-only: artificial delay simulates real-LLM inference
+        // latency so the stalling crossfade contract is exercised in
+        // dev without a running server. Tuned to land within the
+        // variance of HELPYR's stalling-line typing times (1.2–3.6s
+        // at typeMs=18) so we hit BOTH crossfade paths — sometimes
+        // real arrives during stalling (stop-at-boundary), sometimes
+        // after (indicator → merge). The llamacpp path uses real
+        // inference latency instead.
+        delayMs: 2500,
+      },
+      // llamacpp config: defaults (127.0.0.1:8080, 30s timeout, 512
+      // max tokens) come from the factory; per-contact overrides
+      // would slot in here.
     }),
-    // Phase B still ignores systemPrompt in the mock. Phase D will
-    // inject the persona prompt + [HELPYR_STATE] block here from the
-    // model registry (§6g).
-    systemPrompt: '',
+    // D.1 placeholder. The mock service ignores systemPrompt entirely
+    // (it walks the canned tree from `history`); the llamacpp service
+    // prepends this as the system message. D.3 replaces this with the
+    // real persona prompt + [HELPYR_STATE] injection.
+    systemPrompt: HelpyrSystemPrompt_D1Placeholder,
     stallingPool: HelpyrStallingPool,
     typeMs: 18,
     pauseMs: 1100,
