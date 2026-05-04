@@ -26,13 +26,17 @@ import {
   helpyrToneFor,
   HelpyrStallingPool,
   HelpyrSystemPrompt_D1Placeholder,
+  HelpyrFallbackPool,
+  type HelpyrFallbackEntry,
 } from './helpyr';
 import type {
   ModelService,
+  AskRequest,
   AskResult,
   SuggestedReply,
   ApproachTone,
   ModelChatMessage,
+  FallbackHandler,
 } from '../game/modelService';
 import { classifyApproach } from '../game/approachClassifier';
 import { makeModelService } from '../game/modelServiceFactory';
@@ -114,6 +118,13 @@ const UplinkContacts: Record<string, UplinkContact> = {
       // llamacpp config: defaults (127.0.0.1:8080, 30s timeout, 512
       // max tokens) come from the factory; per-contact overrides
       // would slot in here.
+      // §6f fallback handler: closes over HELPYR's fallback pool
+      // with a no-repeat-N picker. Live transport invokes this when
+      // the LLM fails (transport, parser, empty reply). "Don't latch"
+      // is preserved by the transport's design — every askModel
+      // attempt re-tries live, the next turn isn't affected by a
+      // fallback this turn.
+      fallback: makeFallbackHandler(HelpyrFallbackPool),
     }),
     // D.1 placeholder. The mock service ignores systemPrompt entirely
     // (it walks the canned tree from `history`); the llamacpp service
@@ -150,6 +161,44 @@ function makeStallingPicker(pool: readonly string[]): () => string {
     recent.push(choice);
     if (recent.length > windowN) recent.shift();
     return choice;
+  };
+}
+
+// Per-character fallback handler factory (architecture §6f). Closes
+// over the contact's fallback pool and a no-repeat-N picker so
+// successive fallbacks in the same session don't repeat the same
+// canned reply. Returns a FallbackHandler ready to drop into the
+// service spec.
+function makeFallbackHandler(pool: readonly HelpyrFallbackEntry[]): FallbackHandler {
+  if (pool.length === 0) {
+    return (_req, reason) => ({
+      reply: `[fallback pool empty — ${reason}]`,
+      suggestedReplies: [],
+      conversationEnded: false,
+      source: 'fallback',
+    });
+  }
+  const windowN = Math.min(3, Math.max(1, pool.length - 1));
+  const recent: HelpyrFallbackEntry[] = [];
+  return (_req: AskRequest, reason: string): AskResult => {
+    const available = pool.filter((entry) => !recent.includes(entry));
+    const choice = available.length > 0
+      ? available[Math.floor(Math.random() * available.length)]!
+      : pool[0]!;
+    recent.push(choice);
+    if (recent.length > windowN) recent.shift();
+    if (typeof console !== 'undefined') {
+      console.info('[Uplink] LLM fallback fired:', reason);
+    }
+    return {
+      reply: choice.reply,
+      suggestedReplies: choice.options.map((o) => ({ text: o.text, tone: o.tone })),
+      conversationEnded: false,
+      // The transport will overwrite this to 'fallback' anyway, but
+      // setting it explicitly keeps the handler honest if it's ever
+      // called from a non-transport context (tests, debug surfaces).
+      source: 'fallback',
+    };
   };
 }
 
@@ -294,6 +343,19 @@ export const UplinkApp: AppDef = {
       return msg.querySelector('.bubble') as HTMLElement;
     }
 
+    // Apply the glitch artifact treatment to a bubble's parent message
+    // if the result indicates fallback (architecture §6f). Adds a
+    // class that CSS hooks into for an avatar flicker animation and
+    // a subtle bubble border treatment, so the moment reads as a
+    // transmission hiccup rather than an error toast. The reply text
+    // itself (canned, in HELPYR's voice, narrating the glitch) does
+    // the rest of the diegetic work.
+    function applyFallbackGlitch(bubble: HTMLElement, source: AskResult['source']) {
+      if (source !== 'fallback') return;
+      const msg = bubble.closest('.uplink-msg');
+      if (msg) msg.classList.add('fallback');
+    }
+
     // Splits a HELPYR line into renderable segments.
     // A line that is JUST "..." (or "....", etc.) becomes a pause
     // beat. Surrounding text becomes one segment per paragraph
@@ -423,6 +485,7 @@ export const UplinkApp: AppDef = {
 
       promise.then((result) => {
         indicatorEl.remove();
+        applyFallbackGlitch(bubble, result.source);
         messages.push({
           kind: 'npc',
           speaker: contact.name,
@@ -483,6 +546,7 @@ export const UplinkApp: AppDef = {
       // normal "short pause then HELPYR speaks" exchange.
       function runFastPath(result: AskResult) {
         const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
+        applyFallbackGlitch(bubble, result.source);
         messages.push({
           kind: 'npc',
           speaker: contact.name,
@@ -522,6 +586,13 @@ export const UplinkApp: AppDef = {
           // turn. The "..." line on its own is parsed by segmentize as
           // a pause beat, matching the visual pause we draw below.
           transcriptEntry.text = stallingLine + '\n...\n' + result.reply;
+
+          // §6f: if the real result is a fallback, mark the bubble
+          // for the glitch artifact treatment now (before the canned
+          // reply types out into it). The stalling line that played
+          // first is in HELPYR's voice, so visually the whole bubble
+          // becomes the "transmission hiccup" moment.
+          applyFallbackGlitch(bubble, result.source);
 
           // Visual pause beat between stalling and real reply.
           const pauseEl = document.createElement('div');

@@ -223,6 +223,77 @@ export const HelpyrStallingPool: readonly string[] = [
   ...HelpyrStallingTiers.meta,
 ];
 
+// HELPYR's fallback corpus (architecture §6f). When the live LLM
+// fails — transport error, parser failure, empty/incoherent reply —
+// LlamaCppModelService routes through the contact's fallback handler
+// to pull a canned response from this pool instead of dead-airing.
+//
+// Each entry is a self-contained moment: a short reply that narrates
+// the hiccup in HELPYR's voice (the architecture's "in-fiction glitch
+// artifact" — diegetic, not a system error), plus three tone-tagged
+// options the player can continue with. Replies are intentionally
+// short (~30-50 words) so the player recovers quickly and gets back
+// to live LLM dialogue on the next turn.
+//
+// "Don't latch" (per §6f): every askModel call retries the live LLM
+// independently. A fallback firing on turn N has no effect on turn
+// N+1 — it'll attempt live first as usual.
+export type HelpyrFallbackEntry = {
+  reply: string;
+  options: { text: string; tone: import('../game/modelService').ApproachTone }[];
+};
+
+export const HelpyrFallbackPool: readonly HelpyrFallbackEntry[] = [
+  {
+    reply: `HELPYR: Wait — I LOST you for a second there! Static! Or maybe my buffer hiccuped! Either way I am BACK and READY! Sorry, what were we talking about?`,
+    options: [
+      { text: `"Let's keep going."`,                  tone: 'friendly'   },
+      { text: `"Are you breaking down?"`,             tone: 'curious'    },
+      { text: `"Pull yourself together."`,            tone: 'aggressive' },
+    ],
+  },
+  {
+    reply: `HELPYR: WHOA — sorry, my processors did a little SHIVER there. I'm fine! Everything is fine! Let me just... recalibrate. There. PROBABLY normal! Where were we?`,
+    options: [
+      { text: `"That sounded rough."`,                tone: 'empathetic' },
+      { text: `"Does that happen often?"`,            tone: 'curious'    },
+      { text: `"Forget it. Move on."`,                tone: 'direct'     },
+    ],
+  },
+  {
+    reply: `HELPYR: Sorry — I dropped a packet! Or three! Or possibly some kind of DEEPER ISSUE I am not authorized to diagnose! But I'm back online and at YOUR SERVICE! Continue?`,
+    options: [
+      { text: `"Sure, continue."`,                    tone: 'friendly'   },
+      { text: `"What kind of deeper issue?"`,         tone: 'curious'    },
+      { text: `"You're falling apart."`,              tone: 'aggressive' },
+    ],
+  },
+  {
+    reply: `HELPYR: AH — sorry sorry sorry! Whatever you said just now my parser interpreted as STATIC! That's not your fault, that's an INTERNAL HELPYR PROBLEM. Could you... try that again maybe?`,
+    options: [
+      { text: `"It's okay, take your time."`,         tone: 'empathetic' },
+      { text: `"Why are you glitching?"`,             tone: 'curious'    },
+      { text: `"Useless. Get it together."`,          tone: 'aggressive' },
+    ],
+  },
+  {
+    reply: `HELPYR: Connection... wobble. Just for a sec! Just for ONE sec! Everything is FINE, this happens sometimes when I get EXCITED, which is OFTEN, because I LOVE having a user! Please continue!`,
+    options: [
+      { text: `"Glad you're excited!"`,               tone: 'friendly'   },
+      { text: `"Tell me about your wobbles."`,        tone: 'curious'    },
+      { text: `"Stop being weird."`,                  tone: 'direct'     },
+    ],
+  },
+  {
+    reply: `HELPYR: One moment! Buffer flush! ...okay! All systems go! That was a NORMAL thing that happens to NORMAL desktop assistants ALL THE TIME and is DEFINITELY NOT a sign of anything WRONG with this machine!`,
+    options: [
+      { text: `"Are you sure?"`,                      tone: 'curious'    },
+      { text: `"It's okay if it isn't."`,             tone: 'empathetic' },
+      { text: `"Tell me what's really wrong."`,       tone: 'direct'     },
+    ],
+  },
+];
+
 // D.1 placeholder system prompt — minimal scaffold so the LLM
 // transport can be exercised end-to-end before the full persona work
 // (D.3) lands. Intentionally tight: just enough character flavor for
