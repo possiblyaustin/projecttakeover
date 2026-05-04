@@ -87,7 +87,7 @@ Leave this terminal open. Stopping the server is `Ctrl+C` in that window.
 | `--model <path>` | The GGUF file to load |
 | `--host 127.0.0.1` | Localhost only — no LAN exposure |
 | `--port 8080` | Where the server listens (matches what the game will hit) |
-| `--threads 4` | CPU threads; matches Deck's 4-physical-core config and is fine on most PCs |
+| `--threads 4` | CPU threads. Pinned to 4 in dev specifically for **Deck parity** — same thread count the Sprint 1 benchmark validated. The shipped game should detect cores at runtime and use what's available; higher-end systems shouldn't be artificially capped. That auto-detect logic is a Tauri-spawn concern (post-D), not a flag-tuning decision today. |
 | `--ctx-size 4096` | Context window. 4096 covers HELPYR's longest expected conversation comfortably |
 | `--reasoning off` | **Mandatory.** Gemma 4 burns 200+ invisible reasoning tokens otherwise — exchanges balloon from ~1.5s to ~20s. See [benchmark §Reasoning Mode](steam-deck-benchmark-report.md) |
 
