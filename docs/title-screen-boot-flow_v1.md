@@ -13,9 +13,9 @@
 
 ## Visual direction
 
-Lean early Mac OS X / Aqua-era: a clean centered login window over a static wallpaper (animation later, optional), with a logo lockup at the top reading **Project Takeover** (placeholder name). One visible user account — **Marsh** — with a sub-label that reads "New Game" if no save exists, "Continue — [last in-fiction timestamp]" if one does. Brushed-metal or pinstripe panel, system-font label work, no chrome that breaks the era.
+The **layout** leans Mac-style — a centered login window, single user account shown by default, sub-label, a row of secondary actions along the bottom. The **chrome** matches the existing desktop, which is Windows 95-esque: chunky bevelled borders, system-font labels, the same button and panel treatments the player will use ten seconds later. The point is to make the title screen read as the same computer booting up, not a separate intro skin.
 
-This stays consistent with the project's Mac-lean UI direction without being a 1:1 Apple clone.
+So: Mac-style information layout, W95-style chrome. No translucent Aqua, no brushed metal — those would jar against the desktop the player lands on.
 
 ## Screens
 
@@ -34,7 +34,7 @@ Center stage. Elements:
 
 Press Login (or `A` on controller) → boot-to-desktop transition.
 
-Optional flavor: a second user account labelled `admin` (or similar) that's locked and not interactable. Costs nothing, plants the "you don't have the keys to this machine" idea before gameplay starts. Defer if it complicates focus order.
+A second user account labelled `admin` (or similar) is shown but locked from launch. **Unlocked as a post-victory reward** — first time the player completes a run, the lock disappears and selecting `admin` boots into a sandbox / free-chat mode where the in-fiction LLMs can be talked to without game pressure (no suspicion, no win/loss, just dialogue). Plants the "you don't have the keys to this machine" idea before gameplay starts and gives runs a tangible end-screen unlock. Defer the actual sandbox build until v1.0; for now the slot just needs to exist visibly locked.
 
 ### 3. Options (modal sheet over the login window)
 
@@ -46,7 +46,9 @@ Optional flavor: a second user account labelled `admin` (or similar) that's lock
 
 ### 4. Acknowledgements
 
-Scrolling credits. Pulls the dependency list from [docs/dependency-tracker.md](docs/dependency-tracker.md). Per-thread author paragraphs slot in at the end as a v1.0 polish task — not in scope now.
+Static, scrollable text — opens like a `.txt` file in a Scratchpad-shaped window, not auto-scrolling movie credits. The player scrolls at their own pace. Pulls the dependency list from [docs/dependency-tracker.md](docs/dependency-tracker.md). Per-thread author paragraphs slot in at the end as a v1.0 polish task — not in scope now.
+
+Lives in **two places**: the title-screen secondary actions row, and the Nexus menu once the desktop is up. Same content both places — the title-screen entry is just a shortcut to the canonical home. Keeping it out of the desktop icon set saves real estate; Nexus is the right home for "About this Computer"-shaped items.
 
 ### 5. Boot-to-desktop transition (3–4s minimum, forced)
 
@@ -77,23 +79,29 @@ The existing ModelService seam from Phases A+B already has the stalling-line con
 
 If llama.cpp won't come up at all — binary missing, port conflict, OOM, GGUF integrity bad:
 
-- **Fictional surfacing:** an in-game error window styled as a system dialog. "Uplink failed: AI module not responding." Two buttons: **Retry** and **Diagnostics**.
+- **One transparent retry first.** The boot flow attempts to spawn llama.cpp, and on failure waits a beat and tries once more before surfacing anything to the player. Most transient failures (port still releasing, slow disk, antivirus scan) clear on the second attempt. The retry happens behind the boot-log line so the player never sees it.
+- **Fictional surfacing on persistent failure:** an in-game error window styled as a system dialog. "Uplink failed: AI module not responding." Two buttons: **Retry** (player-triggered, same path) and **Diagnostics**.
 - **Diagnostics window:** the one place where the fiction deliberately yields. Shows the real underlying error in a copyable text panel so the player can send Austin something useful. Frame it as a "Console" or "System Log" app to soften the break.
 - The boot flow does **not** silently route past this into a stalling-line desktop the player can wander around in. Without dialogue there is no game; faking it just wastes the player's time. Better to fail clearly with a path to recover.
 
 ## Out of scope (defer or skip)
 
+- The actual `admin` sandbox / free-chat mode — slot is visible at v1, the unlock build comes after a full playthrough loop exists
 - Per-thread acknowledgement paragraphs (v1.0 polish task)
 - Login-screen "tells" hinting at the AI presence — cute, late-stage, easy to add once the rest is solid
 - Multi-user save slots (single-slot autosave per the playthrough-commitment philosophy)
 - Animated wallpaper, parallax, ambient weather, etc.
 - Mid-game return-to-login (Quit handles it; no need for a soft logout)
 
-## Open questions
+## Decided during review
 
-- Skip the splash on warm relaunches? Probably yes — first cold launch only. Defer the flag check until implementation.
+- **Splash plays on cold launch only.** Warm relaunches skip straight to the login window.
+- **Acknowledgements lives in two places** (title-screen row + Nexus menu), with Nexus as the canonical home and the title-screen entry as a shortcut. Not a desktop icon.
+- **Hard-failure flow always retries once** before surfacing the dialog.
+
+## Open questions (still)
+
 - How granular can the "real" llama.cpp progress be? `llama-server` does not emit fine-grained phase events — we'd either tap stderr for known log lines, watch RSS growth, or approximate with a timed sequence that snaps to "complete" when the first warm-up token returns. Defer to Phase D when the real runtime is wired.
-- Does Acknowledgements live as a proper in-desktop app (`About This Computer`) once the desktop is up, with the title-screen entry just being a shortcut? Probably yes — that gives it a permanent home and saves duplicating the screen.
 
 ---
 
