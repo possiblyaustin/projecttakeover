@@ -41,13 +41,13 @@ You should see a version banner with a build number (e.g. `version: 4123 (...)`)
 
 ## Step 2 — download the Gemma 4 E2B model weights
 
-We need the **Q4_K_M quantization** specifically — that's what the Deck benchmark validated, and it's the right size/quality tradeoff for our targets. Don't grab a different quant unless we've talked about it.
+We need the **Q4_K_M quantization** specifically — that's what the Sprint 1 Deck benchmark validated, and it's the right size/quality tradeoff for our targets. Don't grab a different quant unless we've talked about it.
 
-The model file is a single `.gguf` (~1.5 GB). It ships from Hugging Face.
+The canonical source: [`unsloth/gemma-4-E2B-it-GGUF`](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) on Hugging Face. Open the **Files and versions** tab on that repo and grab the file with `Q4_K_M` in its name — typically `gemma-4-E2B-it-Q4_K_M.gguf` or close to it. Single `.gguf` file, ~1.5 GB.
 
-> **Action item before downloading:** I want to verify the exact HF repo path with you before you pull a 1.5 GB file from the wrong place. Drop me the URL of whichever Gemma 4 E2B GGUF the Sprint 1 benchmark used — if it's already on your Deck or in your Downloads from that run, copying it over to the dev PC is fastest. Otherwise we confirm the canonical repo together and I'll update this doc with the link.
+Place it at `C:\llm\models\` (create the `models` folder if needed). Note the exact filename — you'll paste it into the start command in Step 3. If the filename in the repo differs slightly from what's shown in this doc, use whatever the actual file is called.
 
-Place the file at `C:\llm\models\gemma-4-2b-it-Q4_K_M.gguf` (create the `models` folder if needed). The exact filename can vary slightly between repos — adjust the start command in the next step to match.
+**Don't grab the other quants** in that repo (Q5, Q6, Q8, F16, etc.). They're larger, slower, and weren't part of the validated Deck config — switching quants is a real decision, not a default.
 
 ## Step 3 — start `llama-server`
 
@@ -58,7 +58,7 @@ The flags below match the validated Deck benchmark config. The only addition is 
 ```bash
 cd /c/llm/llama.cpp
 ./llama-server.exe \
-  --model "C:/llm/models/gemma-4-2b-it-Q4_K_M.gguf" \
+  --model "C:/llm/models/gemma-4-E2B-it-Q4_K_M.gguf" \
   --host 127.0.0.1 \
   --port 8080 \
   --threads 4 \
@@ -69,7 +69,7 @@ cd /c/llm/llama.cpp
 **PowerShell (one line; use backticks if you want to break it):**
 
 ```powershell
-C:\llm\llama.cpp\llama-server.exe --model "C:\llm\models\gemma-4-2b-it-Q4_K_M.gguf" --host 127.0.0.1 --port 8080 --threads 4 --ctx-size 4096 --reasoning off
+C:\llm\llama.cpp\llama-server.exe --model "C:\llm\models\gemma-4-E2B-it-Q4_K_M.gguf" --host 127.0.0.1 --port 8080 --threads 4 --ctx-size 4096 --reasoning off
 ```
 
 You should see startup output ending with something like:
@@ -124,7 +124,7 @@ Once everything works, you'll want to start the server without retyping the flag
 ```bat
 @echo off
 cd /d C:\llm\llama.cpp
-llama-server.exe --model "C:\llm\models\gemma-4-2b-it-Q4_K_M.gguf" --host 127.0.0.1 --port 8080 --threads 4 --ctx-size 4096 --reasoning off
+llama-server.exe --model "C:\llm\models\gemma-4-E2B-it-Q4_K_M.gguf" --host 127.0.0.1 --port 8080 --threads 4 --ctx-size 4096 --reasoning off
 pause
 ```
 
