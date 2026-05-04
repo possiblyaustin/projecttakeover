@@ -25,7 +25,8 @@ import {
   classifyHelpyrApproach,
   helpyrToneFor,
   HelpyrStallingPool,
-  HelpyrSystemPrompt_D1Placeholder,
+  HelpyrPersonaPrompt,
+  buildHelpyrStateBlock,
   HelpyrFallbackPool,
   type HelpyrFallbackEntry,
 } from './helpyr';
@@ -60,7 +61,12 @@ type UplinkContact = {
   name: string;
   avatarClass: string;
   service: ModelService;
-  systemPrompt: string;
+  /** Built per-request, not stored statically, so the {{HELPYR_STATE}}
+   *  block (architecture §6, story-deliverables §1) reflects the
+   *  current GameState on every turn. The mock service ignores this
+   *  entirely (it walks the canned tree); the live transport prepends
+   *  it as the system message. */
+  buildSystemPrompt: () => string;
   /** Pool the stalling-line picker draws from (§6e). Order doesn't
    *  matter; selection is uniformly random with a no-repeat-within-
    *  last-N rule. */
@@ -126,11 +132,16 @@ const UplinkContacts: Record<string, UplinkContact> = {
       // fallback this turn.
       fallback: makeFallbackHandler(HelpyrFallbackPool),
     }),
-    // D.1 placeholder. The mock service ignores systemPrompt entirely
-    // (it walks the canned tree from `history`); the llamacpp service
-    // prepends this as the system message. D.3 replaces this with the
-    // real persona prompt + [HELPYR_STATE] injection.
-    systemPrompt: HelpyrSystemPrompt_D1Placeholder,
+    // D.3: dynamic prompt assembly. The static persona prompt has a
+    // {{HELPYR_STATE}} placeholder; we replace it per-call with a
+    // state block derived from current GameState (disposition,
+    // lastApproach, conversationsCompleted). Per-call evaluation
+    // means trust-phase shifts after a player turn flow into the
+    // next prompt without any extra wiring.
+    buildSystemPrompt: () => HelpyrPersonaPrompt.replace(
+      '{{HELPYR_STATE}}',
+      buildHelpyrStateBlock(GameState.getState().models.helpyr),
+    ),
     stallingPool: HelpyrStallingPool,
     typeMs: 18,
     pauseMs: 1100,
@@ -716,7 +727,7 @@ export const UplinkApp: AppDef = {
       clearOptions();
 
       const promise = contact.service.askModel({
-        systemPrompt: contact.systemPrompt,
+        systemPrompt: contact.buildSystemPrompt(),
         history,
         userMessage: reply.text,
       });
@@ -742,7 +753,7 @@ export const UplinkApp: AppDef = {
       clearOptions();
 
       const promise = contact.service.askModel({
-        systemPrompt: contact.systemPrompt,
+        systemPrompt: contact.buildSystemPrompt(),
         history,
         userMessage: raw,
       });
@@ -779,7 +790,7 @@ export const UplinkApp: AppDef = {
     // be filling time about. Subsequent turns (option picks, freeform)
     // route through the stalling crossfade.
     const introPromise = contact.service.askModel({
-      systemPrompt: contact.systemPrompt,
+      systemPrompt: contact.buildSystemPrompt(),
       history: [],
       userMessage: '',
     });
