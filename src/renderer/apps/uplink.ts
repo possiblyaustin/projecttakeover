@@ -481,6 +481,20 @@ export const UplinkApp: AppDef = {
       };
     }
 
+    // Build a typing-indicator element — small pill with three dots
+    // that bounce in sequence (CSS handles the animation). Used by
+    // every "waiting for the model" surface: intro turn, per-turn
+    // initial indicator, and the post-stalling "still thinking" beat.
+    // `tag` lets the post-stalling case use a div (sits on its own
+    // line below typed stalling text); the other two use span (sit
+    // inline next to the speaker label).
+    function makeThinkingIndicator(tag: 'span' | 'div'): HTMLElement {
+      const el = document.createElement(tag);
+      el.className = 'uplink-thinking';
+      el.innerHTML = '<i></i><i></i><i></i>';
+      return el;
+    }
+
     // Render `text` (segmentized, with pause beats) into an existing
     // NPC `bubble`. If `stripSpeakerPrefix` is true, strip the
     // contact's "NAME:" prefix from the first text segment — the
@@ -537,9 +551,7 @@ export const UplinkApp: AppDef = {
     ) {
       setControlsEnabled(false);
       const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
-      const indicatorEl = document.createElement('span');
-      indicatorEl.className = 'uplink-thinking';
-      indicatorEl.textContent = '. . .';
+      const indicatorEl = makeThinkingIndicator('span');
       bubble.appendChild(indicatorEl);
       trimFromTop();
 
@@ -589,9 +601,7 @@ export const UplinkApp: AppDef = {
       // Initial indicator. Fires at t=0 so the player gets immediate
       // confirmation their message landed. Removed when either the real
       // reply arrives OR the threshold timer fires (whichever first).
-      let indicatorEl: HTMLElement | null = document.createElement('span');
-      indicatorEl.className = 'uplink-thinking';
-      indicatorEl.textContent = '. . .';
+      let indicatorEl: HTMLElement | null = makeThinkingIndicator('span');
       bubble.appendChild(indicatorEl);
       trimFromTop();
 
@@ -684,9 +694,7 @@ export const UplinkApp: AppDef = {
           if (realResult) {
             startMergeWithReal(realResult);
           } else {
-            postStallingIndicator = document.createElement('div');
-            postStallingIndicator.className = 'uplink-thinking';
-            postStallingIndicator.textContent = '. . .';
+            postStallingIndicator = makeThinkingIndicator('div');
             bubble.appendChild(postStallingIndicator);
             trimFromTop();
           }
