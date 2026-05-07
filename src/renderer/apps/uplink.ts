@@ -268,6 +268,12 @@ export const UplinkApp: AppDef = {
     const contactKey: string = params.contact || 'helpyr';
     const contact = UplinkContacts[contactKey]!;
     ctx.setTitle(contact.name + ' — Uplink');
+    // Per-contact taskbar glyph: reuses the chat-bubble avatar class so
+    // a glance at the taskbar reads "I have a HELPYR window and a
+    // QUILL window open" without having to read text. Avatar classes
+    // (.avatar-stapler, .avatar-quill) use percentage-based positioning
+    // so they scale into the small taskbar glyph slot correctly.
+    ctx.setGlyph(contact.avatarClass);
 
     container.innerHTML = `
       <div class="uplink-root">
