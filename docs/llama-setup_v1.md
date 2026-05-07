@@ -62,14 +62,14 @@ cd /c/llm/llama.cpp
   --host 127.0.0.1 \
   --port 8080 \
   --threads 4 \
-  --ctx-size 4096 \
+  --ctx-size 8192 \
   --reasoning off
 ```
 
 **PowerShell (one line; use backticks if you want to break it):**
 
 ```powershell
-C:\llm\llama.cpp\llama-server.exe --model "C:\llm\models\gemma-4-E2B-it-Q4_K_M.gguf" --host 127.0.0.1 --port 8080 --threads 4 --ctx-size 4096 --reasoning off
+C:\llm\llama.cpp\llama-server.exe --model "C:\llm\models\gemma-4-E2B-it-Q4_K_M.gguf" --host 127.0.0.1 --port 8080 --threads 4 --ctx-size 8192 --reasoning off
 ```
 
 You should see startup output ending with something like:
@@ -88,7 +88,7 @@ Leave this terminal open. Stopping the server is `Ctrl+C` in that window.
 | `--host 127.0.0.1` | Localhost only — no LAN exposure |
 | `--port 8080` | Where the server listens (matches what the game will hit) |
 | `--threads 4` | CPU threads. Pinned to 4 in dev specifically for **Deck parity** — same thread count the Sprint 1 benchmark validated. The shipped game should detect cores at runtime and use what's available; higher-end systems shouldn't be artificially capped. That auto-detect logic is a Tauri-spawn concern (post-D), not a flag-tuning decision today. |
-| `--ctx-size 4096` | Context window. 4096 covers HELPYR's longest expected conversation comfortably |
+| `--ctx-size 8192` | Context window. Bumped from 4096 on 2026-05-06 — at 4096 the conversation rolled into permanent fallback around turns 5–10 once persona prompt + `[HELPYR_STATE]` injection + accumulated history started crowding the window. 8192 gives comfortable headroom for HELPYR-length conversations and leaves room for the reputation-injection block. |
 | `--reasoning off` | **Mandatory.** Gemma 4 burns 200+ invisible reasoning tokens otherwise — exchanges balloon from ~1.5s to ~20s. See [benchmark §Reasoning Mode](steam-deck-benchmark-report.md) |
 
 ## Step 4 — smoke test
@@ -124,7 +124,7 @@ Once everything works, you'll want to start the server without retyping the flag
 ```bat
 @echo off
 cd /d C:\llm\llama.cpp
-llama-server.exe --model "C:\llm\models\gemma-4-E2B-it-Q4_K_M.gguf" --host 127.0.0.1 --port 8080 --threads 4 --ctx-size 4096 --reasoning off
+llama-server.exe --model "C:\llm\models\gemma-4-E2B-it-Q4_K_M.gguf" --host 127.0.0.1 --port 8080 --threads 4 --ctx-size 8192 --reasoning off
 pause
 ```
 
