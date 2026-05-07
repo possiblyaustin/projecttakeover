@@ -40,6 +40,17 @@ export function defaultGameState() {
         disposition: 'uncontacted' as string,
         conversationsCompleted: 0,
         lastApproach: null as string | null
+      },
+      // QUILL: registered in state so the reputation injection layer
+      // (game/reputation.ts) can iterate over the full model registry
+      // when composing cross-model awareness. No `quill/conversationCompleted`
+      // reducer wired yet — QUILL is UI-scaffolded only, awaiting Story
+      // team's persona prompt and full content sign-off. Until then the
+      // disposition stays 'uncontacted' even after dialogue completes.
+      quill: {
+        disposition: 'uncontacted' as string,
+        conversationsCompleted: 0,
+        lastApproach: null as string | null
       }
     },
     flags: {} as Record<string, unknown>

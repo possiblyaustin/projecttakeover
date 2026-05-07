@@ -30,7 +30,7 @@ That window is now your server. **Leave it open** for the whole session — clos
 **Alternative (no .bat):** open Git Bash inside `C:\llm` and run:
 
 ```
-./llama-server.exe --model "C:/llm/models/gemma-4-E2B-it-Q4_K_M.gguf" --host 127.0.0.1 --port 8080 --threads 4 --ctx-size 4096 --reasoning off
+./llama-server.exe --model "C:/llm/models/gemma-4-E2B-it-Q4_K_M.gguf" --host 127.0.0.1 --port 8080 --threads 4 --ctx-size 8192 --reasoning off
 ```
 
 ### 2. Pull latest
@@ -106,7 +106,7 @@ Known stdout-display bug in Git Bash on ARM Windows. The command worked, the ter
 Probably a new dependency landed. Run `npm install` in project root, then start Vite again.
 
 ### Conversation gets stuck in fallback after many turns
-Known issue (suspected context-window overflow at `--ctx-size 4096`). For now: hard-reload the page to start a fresh conversation. Fix queued for investigation.
+First check: confirm `llama-server` is running with `--ctx-size 8192` (bumped from 4096 on 2026-05-06 to give the prompt + history headroom). If your `C:\llm\start-llama.bat` still has `4096`, edit it to `8192` and restart the server. If the bump doesn't resolve it, hard-reload the page to start a fresh conversation and flag for deeper investigation.
 
 ---
 
