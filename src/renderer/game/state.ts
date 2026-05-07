@@ -62,7 +62,11 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
-function reduce(state: GameStateShape, action: GameAction): GameStateShape {
+// Exported so tests can call the reducer as a pure function without
+// touching the module-level singleton or its localStorage side effects.
+// Production code routes through `dispatch` and should not import this
+// directly.
+export function reduce(state: GameStateShape, action: GameAction): GameStateShape {
   switch (action.type) {
     case 'debug/setSuspicion':
       return {

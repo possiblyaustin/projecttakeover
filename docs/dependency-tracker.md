@@ -63,6 +63,8 @@ These are used during development but don't end up in the final build. No attrib
 | Node.js / npm | MIT | Package management and build tooling |
 | Git | GPL v2 | Version control — does not ship |
 | Claude Code | Anthropic ToS | AI coding assistant — the star of the video |
+| Vitest | MIT | Test runner. Pure-function game logic + mocked-LLM integration tests |
+| happy-dom | MIT | DOM/window/localStorage shim for the Vitest environment |
 
 ---
 
@@ -118,4 +120,4 @@ Before adding any new dependency to the project:
 
 ---
 
-*Last updated: 2026-05-03*
+*Last updated: 2026-05-07*
