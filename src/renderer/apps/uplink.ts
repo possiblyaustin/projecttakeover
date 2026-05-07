@@ -30,6 +30,15 @@ import {
   HelpyrFallbackPool,
   type HelpyrFallbackEntry,
 } from './helpyr';
+import {
+  QuillDialogue,
+  QuillWildcards,
+  classifyQuillFreeform,
+  classifyQuillApproach,
+  quillToneFor,
+  QuillStallingPool,
+  QuillFallbackPool,
+} from './quill';
 import { buildReputationContext } from '../game/reputation';
 import type {
   ModelService,
@@ -159,6 +168,33 @@ const UplinkContacts: Record<string, UplinkContact> = {
     stallingThresholdMs: 5000,
     classifyApproach: classifyHelpyrApproach,
   },
+  // QUILL — Act 1 Beat 3 tutorial NPC. UI scaffold only: placeholder
+  // dialogue tree and fallback pool from apps/quill.ts; no persona
+  // prompt yet (awaiting Story team sign-off after HELPYR validates
+  // against real Gemma — see docs/story-deliverables-sprint1_v1.md
+  // §"Priority 4"). buildSystemPrompt returns empty string for now;
+  // mock backend ignores it, live backend isn't wired for QUILL yet.
+  // Open during dev with: PT.WindowManager.open('uplink', { contact: 'quill' })
+  quill: {
+    name: 'QUILL',
+    avatarClass: 'avatar-quill',
+    service: makeModelService({
+      mock: {
+        dialogue: QuillDialogue,
+        wildcards: QuillWildcards,
+        classify: classifyQuillFreeform,
+        toneFor: quillToneFor,
+        delayMs: 2500,
+      },
+      fallback: makeFallbackHandler(QuillFallbackPool),
+    }),
+    buildSystemPrompt: () => '',
+    stallingPool: QuillStallingPool,
+    typeMs: 18,
+    pauseMs: 1100,
+    stallingThresholdMs: 5000,
+    classifyApproach: classifyQuillApproach,
+  },
 };
 
 function toModelHistory(msgs: ChatMessage[]): ModelChatMessage[] {
@@ -232,7 +268,8 @@ export const UplinkApp: AppDef = {
   contentBevel: false,
   noContentPad: true,
   render(container: HTMLElement, params: WinParams, ctx: AppContext) {
-    const contact = UplinkContacts[params.contact || 'helpyr']!;
+    const contactKey: string = params.contact || 'helpyr';
+    const contact = UplinkContacts[contactKey]!;
     ctx.setTitle(contact.name + ' — Uplink');
 
     container.innerHTML = `
@@ -448,11 +485,15 @@ export const UplinkApp: AppDef = {
     }
 
     // Render `text` (segmentized, with pause beats) into an existing
-    // NPC `bubble`. If `stripSpeakerPrefix` is true, strip "HELPYR: "
-    // from the first text segment — the speaker span on the bubble
-    // already shows the name. Used by the no-stalling path AND by the
-    // post-merge path of the stalling crossfade (both render real
-    // reply text into a bubble).
+    // NPC `bubble`. If `stripSpeakerPrefix` is true, strip the
+    // contact's "NAME:" prefix from the first text segment — the
+    // speaker span on the bubble already shows the name. Used by the
+    // no-stalling path AND by the post-merge path of the stalling
+    // crossfade (both render real reply text into a bubble).
+    const speakerPrefixRe = new RegExp(
+      '^' + contact.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':\\s*',
+      'i',
+    );
     function renderTextSegmentsInto(
       bubble: HTMLElement,
       text: string,
@@ -476,7 +517,7 @@ export const UplinkApp: AppDef = {
           };
         } else {
           const content = (segIdx === 1 && stripSpeakerPrefix)
-            ? seg.content.replace(/^HELPYR:\s*/, '')
+            ? seg.content.replace(speakerPrefixRe, '')
             : seg.content;
           const span = document.createElement('span');
           bubble.appendChild(span);
@@ -718,8 +759,14 @@ export const UplinkApp: AppDef = {
       }
       if (result.conversationEnded && !conversationCompleted) {
         conversationCompleted = true;
+        // Per-contact action type so other characters' completions can't
+        // accidentally write to HELPYR's state. Reducer routes by prefix
+        // (game/state.ts). Contacts without a wired reducer (currently
+        // QUILL — see apps/quill.ts) silently no-op via the default case;
+        // their state stays uncontacted until Story validates and the
+        // reducer branch lands.
         GameState.dispatch({
-          type: 'helpyr/conversationCompleted',
+          type: `${contactKey}/conversationCompleted`,
           tone: playerTone,
         });
       }

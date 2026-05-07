@@ -1139,6 +1139,41 @@
     box-shadow: inset 1px 1px 0 #e8e6dc;
   }
 
+  /* Avatar: QUILL's feather quill pen.
+   * Cream shaft running diagonally with a darker pointed nib at the
+   * lower-left and feather barbs branching from the upper-right. UI
+   * scaffolding — Story team owns the final visual when QUILL's
+   * persona ships; this is a placeholder so the bubble doesn't show
+   * an empty avatar slot during dev. */
+  .avatar-quill {
+    background: transparent;
+    position: relative;
+  }
+  .avatar-quill::before {
+    /* Shaft — diagonal cream strip from upper-right to lower-left */
+    content: "";
+    position: absolute;
+    top: 18%; left: 18%; right: 18%; bottom: 18%;
+    background: linear-gradient(135deg,
+      #f4ecd6 0%, #e6dab8 50%, #c8b88a 100%);
+    border: 1px solid #6b5a2a;
+    border-radius: 0.0625rem;
+    transform: rotate(-30deg);
+    box-shadow: inset 1px 1px 0 #fff8e0;
+  }
+  .avatar-quill::after {
+    /* Feather barbs at the top + nib at the bottom, layered as
+     * stacked gradients to fake the pen-feather silhouette without
+     * a second pseudo-element. */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 78% 22%, #d8c898 0 14%, transparent 18%),
+      radial-gradient(circle at 70% 30%, #c8b888 0 10%, transparent 14%),
+      radial-gradient(circle at 28% 78%, #2a2218 0 7%, transparent 10%);
+  }
+
   /* Player avatar — abstract pixel head, no face yet. The player
    * IS an AI; humanizing imagery would clash with the fiction. */
   .avatar-player {

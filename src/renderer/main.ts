@@ -71,5 +71,13 @@ DesktopShortcuts[0]!.launch();
   },
   resetGameState() {
     GameState.dispatch({ type: 'debug/reset' });
+  },
+  // Opens Uplink with a specific contact. Useful for dev-testing
+  // contacts that don't have an in-fiction surface yet (currently
+  // QUILL — its real entry point will be Act 1 Beat 3, not the
+  // desktop). Default contact is 'helpyr' if omitted. Available
+  // contacts are the keys of UplinkContacts in apps/uplink.ts.
+  openContact(id: string) {
+    WindowManager.open('uplink', { contact: id });
   }
 };
