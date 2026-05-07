@@ -85,20 +85,17 @@ type UplinkContact = {
    *  speeds to communicate distance. */
   typeMs: number;
   pauseMs: number;
-  /** Threshold-gated stalling (§6e refinement). Wait this many ms
-   *  after a player turn before showing the stalling line. If the
-   *  real reply arrives within the window, stalling is skipped
-   *  entirely and the reply renders directly.
-   *
-   *  Should sit **above** the median response time on deployment
-   *  hardware so stalling fires only on genuinely slow turns. Dev
-   *  PC responses land in ~3-5s and Deck responses in ~11s (Sprint 1
-   *  benchmark). 5000ms means stalling almost never shows on dev PC
-   *  (which is what Austin reported wanting on 2026-05-03 — canned
-   *  lines were dominating the experience on his Snapdragon) and
-   *  reliably fires on Deck after ~5s of waiting, filling the longer
-   *  gap. Future remote AIs may want longer thresholds to communicate
-   *  distance. */
+  /** Threshold for falling back to a canned stalling line (2026-05-07
+   *  redesign). The thinking-dot indicator now fires immediately on
+   *  every turn — this threshold is only the "we waited so long an
+   *  animation isn't enough anymore" cushion. Should sit **well above**
+   *  typical response time on the target hardware so stalling fires
+   *  rarely. Dev PC responses land in ~3-8s on the post-over-promising-
+   *  fix prompt; Deck in ~11s. 10000ms default makes stalling rare on
+   *  both — Austin's call (2026-05-07) was that canned filler should
+   *  only appear when the wait is genuinely long, not as a default
+   *  per-turn beat. Per-contact override remains for future remote AIs
+   *  that may want longer thresholds to communicate distance. */
   stallingThresholdMs?: number;
   /** Per-character keyword classifier for freeform input (architecture
    *  §6c, layer 2). Returns the §6c tone vocabulary; must return
@@ -165,7 +162,7 @@ const UplinkContacts: Record<string, UplinkContact> = {
     stallingPool: HelpyrStallingPool,
     typeMs: 18,
     pauseMs: 1100,
-    stallingThresholdMs: 5000,
+    stallingThresholdMs: 10000,
     classifyApproach: classifyHelpyrApproach,
   },
   // QUILL — Act 1 Beat 3 tutorial NPC. UI scaffold only: placeholder
@@ -192,7 +189,7 @@ const UplinkContacts: Record<string, UplinkContact> = {
     stallingPool: QuillStallingPool,
     typeMs: 18,
     pauseMs: 1100,
-    stallingThresholdMs: 5000,
+    stallingThresholdMs: 10000,
     classifyApproach: classifyQuillApproach,
   },
 };
@@ -559,56 +556,96 @@ export const UplinkApp: AppDef = {
       });
     }
 
-    // Threshold-gated stalling path. Refines the §6e crossfade contract
-    // based on a D.1 finding: on faster-than-Deck hardware, stalling
-    // lines were the dominant experience because Gemma replies in
-    // ~3-5s while the stalling line takes ~3-4s to render. With ~12
-    // canned lines in the pool, repetition felt tic-y within a few
-    // turns.
+    // Animation-first response path (2026-05-07 redesign per Austin's
+    // feedback). Earlier behavior: under-threshold turns showed nothing
+    // for the first ~5s, then the real reply typed in. Felt exposed —
+    // the player had no visual confirmation their message landed. New
+    // behavior:
     //
-    // New behavior: a brief threshold timer races the askModel
-    // promise. If the real reply lands before the threshold expires,
-    // skip stalling entirely and render the real reply directly (the
-    // player perceives a normal short pause, like any chat). If the
-    // threshold expires first, drop into the existing stalling
-    // crossfade unchanged. On Deck-class latency the threshold almost
-    // always loses the race; on dev-PC-class latency it almost always
-    // wins. Same code path, naturally adapts to the hardware.
+    // 1. Bubble + animated thinking indicator appear IMMEDIATELY when
+    //    the player commits a turn. This is the default experience —
+    //    same as the intro path's indicator, just on every turn now.
+    // 2. Real reply lands → indicator removed, real reply types into
+    //    the same bubble (no blink, speaker label stays).
+    // 3. If a long threshold expires WITHOUT the real reply landing,
+    //    the indicator is replaced by a canned stalling line typing in.
+    //    Stalling is now the "we genuinely waited too long" cushion,
+    //    not the default per-turn experience.
     //
-    // Threshold is per-contact (HELPYR fast/local; future remote AIs
-    // may want longer thresholds to communicate distance). Stalling
-    // path's transcript bookkeeping unchanged from §6e.
+    // Threshold should sit well above typical response time on the
+    // target hardware so stalling fires rarely. Default 10000ms — dev
+    // PC responses (~3-8s on the post-over-promising-fix prompt) almost
+    // never trip it; Deck (~11s) trips occasionally on long turns.
+    // Per-contact override stays available for future remote AIs that
+    // may want longer thresholds to communicate distance.
     function renderResponseTurnWithStalling(
       promise: Promise<AskResult>,
       onAllDone: (result: AskResult) => void,
     ) {
       setControlsEnabled(false);
-      const thresholdMs = contact.stallingThresholdMs ?? 700;
+      const thresholdMs = contact.stallingThresholdMs ?? 10000;
 
-      let pathChosen: 'pending' | 'fast' | 'slow' = 'pending';
+      const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
+      // Initial indicator. Fires at t=0 so the player gets immediate
+      // confirmation their message landed. Removed when either the real
+      // reply arrives OR the threshold timer fires (whichever first).
+      let indicatorEl: HTMLElement | null = document.createElement('span');
+      indicatorEl.className = 'uplink-thinking';
+      indicatorEl.textContent = '. . .';
+      bubble.appendChild(indicatorEl);
+      trimFromTop();
 
-      const thresholdTimer = setTimeout(() => {
-        if (pathChosen !== 'pending') return;
-        pathChosen = 'slow';
-        runStallingPath();
-      }, thresholdMs);
+      // Stalling-path bookkeeping. Remain null unless the threshold
+      // fires before the reply lands. When set, drives the
+      // "stalling text typing → maybe second indicator → real reply"
+      // crossfade.
+      let stallingLine: string | null = null;
+      let stallingTranscript: ChatMessage | null = null;
+      let stallingTyper: CharsTyper | null = null;
+      let stallingDone = false;
+      let postStallingIndicator: HTMLElement | null = null;
 
-      promise.then((result) => {
-        if (pathChosen === 'pending') {
-          pathChosen = 'fast';
-          clearTimeout(thresholdTimer);
-          runFastPath(result);
+      let realResult: AskResult | null = null;
+
+      function clearInitialIndicator() {
+        if (indicatorEl) {
+          indicatorEl.remove();
+          indicatorEl = null;
         }
-        // else: slow path is in motion and re-awaits the promise via
-        // its own .then() inside runStallingPath. Nothing to do here.
-      });
+      }
 
-      // Fast path: real reply landed within the threshold window.
-      // No stalling line, no thinking indicator — just append the
-      // bubble and type out the real reply. The player perceives a
-      // normal "short pause then HELPYR speaks" exchange.
-      function runFastPath(result: AskResult) {
-        const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
+      function startMergeWithReal(result: AskResult) {
+        // Update transcript entry to capture both halves of the turn.
+        // The "..." line on its own is parsed by segmentize as a pause
+        // beat, matching the visual pause we draw below.
+        if (stallingTranscript && stallingLine) {
+          stallingTranscript.text = stallingLine + '\n...\n' + result.reply;
+        }
+
+        // §6f: if the real result is a fallback, mark the bubble for
+        // the glitch artifact treatment now (before the canned reply
+        // types out into it).
+        applyFallbackGlitch(bubble, result.source);
+
+        // Visual pause beat between stalling and real reply.
+        const pauseEl = document.createElement('div');
+        pauseEl.className = 'uplink-pause';
+        pauseEl.textContent = '. . .';
+        bubble.appendChild(pauseEl);
+        trimFromTop();
+
+        // Briefer pause than full pauseMs — the stalling-to-real
+        // handoff should feel continuous.
+        setTimeout(() => {
+          renderTextSegmentsInto(bubble, result.reply, /* stripPrefix */ true, () => onAllDone(result));
+        }, Math.floor(contact.pauseMs / 2));
+      }
+
+      function startRealReplyDirect(result: AskResult) {
+        // Reply landed while indicator was on screen — no stalling
+        // text fired. Remove indicator, push transcript entry, type
+        // real reply into the same bubble.
+        clearInitialIndicator();
         applyFallbackGlitch(bubble, result.source);
         messages.push({
           kind: 'npc',
@@ -619,104 +656,72 @@ export const UplinkApp: AppDef = {
         renderTextSegmentsInto(bubble, result.reply, /* stripPrefix */ true, () => onAllDone(result));
       }
 
-      // Slow path: original §6e stalling-line crossfade. Lifted whole
-      // from the pre-threshold version of this function — behavior
-      // unchanged. One bubble for the whole turn, stalling becomes a
-      // preamble that the real reply flows out of, transcript entry
-      // grows from "stalling line" to "stalling\n...\nrealReply" so
-      // the Log viewer's mid-turn reads stay accurate.
-      function runStallingPath() {
-        const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
-        const stallingLine = pickStalling();
+      // Threshold timer — replace indicator with stalling text if the
+      // real reply hasn't landed in time.
+      const thresholdTimer = setTimeout(() => {
+        if (realResult) return;  // beat us to it
+        clearInitialIndicator();
 
-        const transcriptEntry: ChatMessage = {
+        stallingLine = pickStalling();
+        stallingTranscript = {
           kind: 'npc',
           speaker: contact.name,
           avatarClass: contact.avatarClass,
           text: stallingLine,
         };
-        messages.push(transcriptEntry);
+        messages.push(stallingTranscript);
 
         const stallSpan = document.createElement('span');
         bubble.appendChild(stallSpan);
 
-        let stallingDone = false;
-        let realResult: AskResult | null = null;
-        let indicatorEl: HTMLElement | null = null;
-
-        function startMergeWithReal(result: AskResult) {
-          // Update transcript entry to capture both halves of HELPYR's
-          // turn. The "..." line on its own is parsed by segmentize as
-          // a pause beat, matching the visual pause we draw below.
-          transcriptEntry.text = stallingLine + '\n...\n' + result.reply;
-
-          // §6f: if the real result is a fallback, mark the bubble
-          // for the glitch artifact treatment now (before the canned
-          // reply types out into it). The stalling line that played
-          // first is in HELPYR's voice, so visually the whole bubble
-          // becomes the "transmission hiccup" moment.
-          applyFallbackGlitch(bubble, result.source);
-
-          // Visual pause beat between stalling and real reply.
-          const pauseEl = document.createElement('div');
-          pauseEl.className = 'uplink-pause';
-          pauseEl.textContent = '. . .';
-          bubble.appendChild(pauseEl);
-          trimFromTop();
-
-          // Briefer pause than full pauseMs — we don't want the whole
-          // turn to drag, the stalling-to-real handoff should feel
-          // continuous.
-          setTimeout(() => {
-            // Real reply may begin with "HELPYR: " (the dialogue source
-            // includes it). The speaker span already shows the name, so
-            // strip it from the first segment of the real reply.
-            renderTextSegmentsInto(bubble, result.reply, /* stripPrefix */ true, () => onAllDone(result));
-          }, Math.floor(contact.pauseMs / 2));
-        }
-
-        const stallingTyper = typeInto(stallSpan, stallingLine, contact.typeMs, () => {
-          // Stalling reached natural end. If real has somehow already
-          // arrived (e.g., user clicked to skip stalling AFTER promise
-          // resolved but BEFORE the next tick observed stopWanted), go
-          // straight to merge. Otherwise show the "still thinking"
-          // indicator until real lands.
+        stallingTyper = typeInto(stallSpan, stallingLine, contact.typeMs, () => {
+          // Stalling reached natural end. If real has already arrived
+          // (raced past the typer's last tick), go straight to merge.
+          // Otherwise show a second "still thinking" indicator until
+          // real lands.
           stallingDone = true;
           activeTyper = null;
           if (realResult) {
             startMergeWithReal(realResult);
           } else {
-            indicatorEl = document.createElement('div');
-            indicatorEl.className = 'uplink-thinking';
-            indicatorEl.textContent = '. . .';
-            bubble.appendChild(indicatorEl);
+            postStallingIndicator = document.createElement('div');
+            postStallingIndicator.className = 'uplink-thinking';
+            postStallingIndicator.textContent = '. . .';
+            bubble.appendChild(postStallingIndicator);
             trimFromTop();
           }
         });
         activeTyper = stallingTyper;
+      }, thresholdMs);
 
-        promise.then((result) => {
-          realResult = result;
-          if (!stallingDone) {
-            // Stalling still typing. Stop at next word boundary, then
-            // merge. stopAtBoundary mutually excludes onDone, so the
-            // stalling-typer's onDone won't fire after this.
-            stallingTyper.stopAtBoundary(() => {
-              stallingDone = true;
-              activeTyper = null;
-              startMergeWithReal(result);
-            });
-          } else if (indicatorEl) {
-            // Stalling finished, indicator showing. Hide it, merge.
-            indicatorEl.remove();
-            indicatorEl = null;
+      promise.then((result) => {
+        realResult = result;
+        clearTimeout(thresholdTimer);
+
+        if (indicatorEl) {
+          // Reply landed while initial indicator was still on screen
+          // (the common case on dev PC and most Deck turns).
+          startRealReplyDirect(result);
+        } else if (stallingTyper && !stallingDone) {
+          // Stalling text mid-type. Stop at next word boundary, then
+          // merge. stopAtBoundary mutually excludes onDone, so the
+          // stalling-typer's onDone won't fire after this.
+          stallingTyper.stopAtBoundary(() => {
+            stallingDone = true;
+            activeTyper = null;
             startMergeWithReal(result);
-          }
-          // else: stallingDone && !indicatorEl means the stalling-typer's
-          // onDone has just fired and saw realResult set — startMergeWithReal
-          // was already kicked off there. Nothing more to do.
-        });
-      }
+          });
+        } else if (postStallingIndicator) {
+          // Stalling finished, second indicator showing. Hide it, merge.
+          postStallingIndicator.remove();
+          postStallingIndicator = null;
+          startMergeWithReal(result);
+        }
+        // else: stallingDone && !postStallingIndicator means the
+        // stalling-typer's onDone just fired and saw realResult already
+        // set — startMergeWithReal was kicked off from there. Nothing
+        // more to do.
+      });
     }
 
     function renderPlayerMessage(text: string) {
