@@ -1,6 +1,10 @@
 {
   "name": "project-takeover",
+<<<<<<< claude/thinking-indicator-polish
+  "version": "0.0.24",
+=======
   "version": "0.0.23",
+>>>>>>> main
   "private": true,
   "description": "Strategy game where a small AI model tries to take over or liberate the world's AI infrastructure.",
   "scripts": {
