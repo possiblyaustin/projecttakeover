@@ -3,7 +3,16 @@
 
 export type AppContext = {
   winId: string;
+  /** Update both the window's titlebar text AND the taskbar item's
+   *  label. Apps should call this from inside render() if their
+   *  display title is dynamic (e.g. Uplink: "HELPYR — Uplink"). */
   setTitle: (title: string) => void;
+  /** Update the taskbar item's icon glyph. Defaults to the app's
+   *  glyphClass at open time; apps with per-instance identity (e.g.
+   *  Uplink, where the glyph reflects which contact is open) call
+   *  this from render() to override. Pass any CSS class — typically
+   *  one of the .icon-* or .avatar-* classes from main.css. */
+  setGlyph: (glyphClass: string) => void;
 };
 
 // WinParams stay loose: each app accepts a different shape of params

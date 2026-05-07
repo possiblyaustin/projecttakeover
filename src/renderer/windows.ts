@@ -77,23 +77,25 @@ function open(appId: string, params: WinParams = {}): string | null {
   // Register this window as its own focus context
   FocusManager.registerContext(winId, el, { root: true });
 
-  // Let the app render its content
-  const contentEl = el.querySelector('.content')!;
-  if (app.contentBevel === false) contentEl.classList.remove('bevel-in');
-  else contentEl.classList.add('bevel-in');
-  app.render(contentEl as HTMLElement, params, { winId, setTitle: (t: string) => {
-    el.querySelector('.title')!.textContent = t;
-    const ti = windows.get(winId)?.taskItem;
-    if (ti) ti.querySelector('.label')!.textContent = t;
-  }});
-
-  // Taskbar item
+  // Taskbar item — created BEFORE app.render() so that setTitle/
+  // setGlyph calls from inside render() can find it via windows.get().
+  // Prior to 2026-05-07 this was created AFTER render(), which meant
+  // any setTitle from inside render() updated the window titlebar but
+  // silently no-op'd the taskbar label (the taskItem didn't exist
+  // yet) — Austin saw "Uplink" instead of "HELPYR — Uplink" on the
+  // taskbar even though setTitle was firing correctly.
   const taskItem = document.createElement('button');
   taskItem.className = 'taskbar-item active';
   taskItem.dataset.window = winId;
   taskItem.dataset.focusable = 'true';
   taskItem.tabIndex = 0;
-  taskItem.innerHTML = `<span class="label"></span>`;
+  taskItem.innerHTML = `<span class="glyph"></span><span class="label"></span>`;
+  // Default glyph = the app's registered icon. Apps with per-window
+  // identity (e.g. Uplink showing which contact is open) override via
+  // ctx.setGlyph() inside render().
+  if (app.glyphClass) {
+    taskItem.querySelector('.glyph')!.className = 'glyph ' + app.glyphClass;
+  }
   taskItem.querySelector('.label')!.textContent = title;
   taskItem.addEventListener('click', () => {
     const w = windows.get(winId);
@@ -107,7 +109,28 @@ function open(appId: string, params: WinParams = {}): string | null {
   });
   document.getElementById('taskbar-items')!.appendChild(taskItem);
 
+  // Register the record BEFORE app.render() so setTitle/setGlyph
+  // lookups succeed during render.
   windows.set(winId, { el, appId, taskItem });
+
+  // Let the app render its content
+  const contentEl = el.querySelector('.content')!;
+  if (app.contentBevel === false) contentEl.classList.remove('bevel-in');
+  else contentEl.classList.add('bevel-in');
+  app.render(contentEl as HTMLElement, params, {
+    winId,
+    setTitle: (t: string) => {
+      el.querySelector('.title')!.textContent = t;
+      const ti = windows.get(winId)?.taskItem;
+      if (ti) ti.querySelector('.label')!.textContent = t;
+    },
+    setGlyph: (glyphClass: string) => {
+      const ti = windows.get(winId)?.taskItem;
+      if (!ti) return;
+      const g = ti.querySelector('.glyph') as HTMLElement | null;
+      if (g) g.className = 'glyph ' + glyphClass;
+    },
+  });
 
   attachDrag(el, winId);
   attachTitlebarButtons(el, winId);

@@ -662,6 +662,30 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* Per-window glyph that sits to the left of the label (defaults to
+   * the app's registered icon; apps with per-instance identity like
+   * Uplink override via ctx.setGlyph). The .icon-* / .avatar-* classes
+   * use percentage-based positioning so they scale into this small
+   * 0.875rem box correctly. flex: none keeps it from squeezing when
+   * many windows pack the taskbar. */
+  .taskbar-item .glyph {
+    flex: 0 0 0.875rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    position: relative;
+    display: inline-block;
+    image-rendering: pixelated;
+  }
+  /* When no glyph class is set (empty .glyph), collapse to nothing so
+   * the label sits flush left as it did before this change. */
+  .taskbar-item .glyph:not([class*=" "]) {
+    display: none;
+  }
+  .taskbar-item .label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   .taskbar-item.active {
     /* Sunken + lightly tinted blue instead of diagonal stripes */

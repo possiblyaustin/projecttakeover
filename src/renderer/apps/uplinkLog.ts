@@ -26,6 +26,7 @@ export const UplinkLogApp: AppDef = {
     const messages: ChatMessage[] = params.messages || [];
 
     ctx.setTitle(contact.name + ' — Log');
+    if (contact.avatarClass) ctx.setGlyph(contact.avatarClass);
 
     container.innerHTML = `
       <div class="uplink-log-root">
