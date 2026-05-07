@@ -30,6 +30,7 @@ import {
   HelpyrFallbackPool,
   type HelpyrFallbackEntry,
 } from './helpyr';
+import { buildReputationContext } from '../game/reputation';
 import type {
   ModelService,
   AskRequest,
@@ -138,10 +139,20 @@ const UplinkContacts: Record<string, UplinkContact> = {
     // lastApproach, conversationsCompleted). Per-call evaluation
     // means trust-phase shifts after a player turn flow into the
     // next prompt without any extra wiring.
-    buildSystemPrompt: () => HelpyrPersonaPrompt.replace(
-      '{{HELPYR_STATE}}',
-      buildHelpyrStateBlock(GameState.getState().models.helpyr),
-    ),
+    //
+    // Reputation injection (game-systems-architecture_v1.md Part 6):
+    // {{REPUTATION}} gets a 2-3 sentence block describing what HELPYR
+    // has heard about the player from OTHER models. Today HELPYR is
+    // the only model wired into GameState so the block is empty;
+    // the seam is what's valuable — as the roster fills out, no
+    // contact-level changes are needed for cross-model awareness
+    // to flow into HELPYR's prompt.
+    buildSystemPrompt: () => {
+      const state = GameState.getState();
+      return HelpyrPersonaPrompt
+        .replace('{{REPUTATION}}', buildReputationContext('helpyr', state))
+        .replace('{{HELPYR_STATE}}', buildHelpyrStateBlock(state.models.helpyr));
+    },
     stallingPool: HelpyrStallingPool,
     typeMs: 18,
     pauseMs: 1100,
