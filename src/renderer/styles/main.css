@@ -998,10 +998,16 @@
      * window. Without this, three wrapped option buttons on a
      * Deck-sized window would push the controls panel past the
      * window's height and clip the latest HELPYR message under the
-     * options. min-height:0 lets flex actually shrink the panel
-     * below its intrinsic min-content height. */
+     * options. */
     max-height: 60%;
-    min-height: 0;
+    /* Lock to content height (within the cap). 2026-05-08: when we
+     * bumped Uplink's defaultSize.h to fit the launcher, log's
+     * flex:1 started winning aggressively and squeezed controls
+     * below its content min — third option button got clipped. With
+     * flex-shrink:0 here, log gives up space first; controls only
+     * gets squeezed when content actually exceeds the 60% cap (the
+     * many-wrapped-options case the cap was added for). */
+    flex-shrink: 0;
   }
   .uplink-options {
     display: flex;
@@ -1083,36 +1089,58 @@
     pointer-events: none;
   }
 
-  /* "▲ Earlier in this transmission" chip — pinned above the live log
-   * once any bubble has been trimmed off the top. Click → opens the
-   * read-only Uplink Log window. Subtle continuous pulse on the
-   * background so players notice the affordance the first time it
-   * appears (decision §10/5 in docs/no-scroll-pages_v1.md). Tune
-   * post-playtest if it reads as noisy. */
+  /* Topbar: Back + Earlier chips on a single row above the chat log.
+   * Back is always present; Earlier appears once any bubble has been
+   * trimmed off the top. Both styled like the Send button (chunky
+   * bevel, system-face gradient) so the chat surface reads as one
+   * cohesive UI rather than three different chip styles. */
+  .uplink-topbar {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem 0.25rem 0;
+    flex: 0 0 auto;
+  }
+  .uplink-back-chip,
   .uplink-earlier-chip {
     height: 1.375rem;
-    padding: 0 0.5rem;
+    padding: 0 0.625rem;
     font-family: var(--sys-font);
     font-size: 0.6875rem;
     font-weight: bold;
-    color: #4a3a1a;
+    color: #18180c;
     text-align: center;
-    background: #ddd3ba;
-    border-top: 1px solid var(--hilite);
-    border-left: 1px solid var(--hilite);
-    border-right: 1px solid var(--shadow);
-    border-bottom: 1px solid var(--shadow);
+    background: linear-gradient(to bottom, var(--face-tint-hi), var(--face) 60%, var(--face-tint-lo));
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
     cursor: pointer;
-    /* Halfway between v0.0.9 (invisible on Deck) and v0.0.10 (too
-     * obvious per Austin). Background swing only — no text-color
-     * shift, since that was reading as flicker — and slowed to 2s
-     * for a more breath-like rhythm. */
+  }
+  .uplink-back-chip:active,
+  .uplink-back-chip.cursor-hover,
+  .uplink-back-chip:focus-visible,
+  .uplink-earlier-chip:active,
+  .uplink-earlier-chip.cursor-hover,
+  .uplink-earlier-chip:focus-visible {
+    background: linear-gradient(to bottom, var(--task-active-hi), var(--task-active-mid) 55%, var(--task-active-lo));
+    outline: 0;
+  }
+  /* Earlier chip pushes to the right edge of the topbar; Back chip
+   * stays anchored left. When Earlier is hidden, Back sits alone. */
+  .uplink-earlier-chip {
+    margin-left: auto;
+    /* Subtle glow pulse around the chip's outer edge so players notice
+     * the affordance the first time content trims off the top. Replaces
+     * the previous background-swing pulse, which doesn't compose well
+     * with the new gradient base. Calibration goal matches the prior
+     * tuning (decision §10/5 in docs/no-scroll-pages_v1.md, Austin
+     * 2026-05-XX): visible on Deck, not noisy on PC. */
     animation: uplink-chip-pulse 2s ease-in-out infinite;
   }
   .uplink-earlier-chip[hidden] { display: none; }
   @keyframes uplink-chip-pulse {
-    0%, 100% { background: #ddd3ba; }
-    50%      { background: #f0e3c4; }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(244, 200, 100, 0); }
+    50%      { box-shadow: 0 0 0 0.125rem rgba(244, 200, 100, 0.55); }
   }
 
   /* Uplink Log viewer — read-only paginated archive. Reuses the
@@ -1131,6 +1159,317 @@
     overflow: hidden;
     padding: 0.625rem 0.75rem;
     background: linear-gradient(to bottom, #f4f0e4 0%, #e8e2d2 100%);
+  }
+
+  /* --- Uplink launcher (slice 1, locked design 2026-05-07) ---
+   * MSN/AIM-flavored contact list. Two sections: REACHABLE (clickable)
+   * and DETECTED (greyed, locked). Lives at the default Uplink open
+   * path; clicking a reachable contact swaps the same window into the
+   * chat surface for that contact. */
+  .uplink-launcher {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ece8dc;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .uplink-launcher-header {
+    padding: 0.5rem 0.75rem 0.4375rem;
+    background:
+      linear-gradient(to bottom, #4a6a8c 0%, #2c4868 70%, #20385a 100%);
+    color: #ffffff;
+    border-bottom: 2px solid #1a3458;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.4);
+    flex: 0 0 auto;
+  }
+  .uplink-launcher-mast {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  /* Pure-CSS logo: a stubby broadcast tower with three pulsing wave
+   * arcs. Reads as "messenger / signal" in silhouette without leaning
+   * on a pixel asset. Period-flavor: chunky outline, primary-blue
+   * tower, white waves on the dark header. */
+  .uplink-launcher-logo {
+    position: relative;
+    width: 1.875rem;
+    height: 1.875rem;
+    flex: 0 0 1.875rem;
+  }
+  .uplink-launcher-logo .logo-tower {
+    position: absolute;
+    left: 50%;
+    bottom: 0.0625rem;
+    width: 0.25rem;
+    height: 0.875rem;
+    transform: translateX(-50%);
+    background: linear-gradient(to bottom, #f0e8c4, #c4b888);
+    border: 1px solid #1a1a0c;
+    border-bottom: 0;
+  }
+  .uplink-launcher-logo .logo-tower::before {
+    /* Tower base — a wider trapezoid foot. */
+    content: "";
+    position: absolute;
+    left: -0.25rem;
+    right: -0.25rem;
+    bottom: -0.125rem;
+    height: 0.1875rem;
+    background: #1a1a0c;
+  }
+  .uplink-launcher-logo .logo-tower::after {
+    /* Antenna pip on top of the tower. */
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -0.1875rem;
+    width: 0.1875rem;
+    height: 0.1875rem;
+    transform: translateX(-50%);
+    background: #fff6c4;
+    border-radius: 50%;
+    box-shadow: 0 0 0.1875rem #fff6c4;
+  }
+  .uplink-launcher-logo .logo-wave {
+    position: absolute;
+    left: 50%;
+    top: 0.125rem;
+    border: 0.125rem solid rgba(255, 255, 255, 0.85);
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 0 100% 0 0;
+    transform-origin: left bottom;
+    transform: translateX(-50%) rotate(-45deg);
+    animation: uplink-logo-wave 2.4s ease-out infinite;
+  }
+  .uplink-launcher-logo .logo-wave-1 {
+    width: 0.4375rem;
+    height: 0.4375rem;
+    animation-delay: 0s;
+  }
+  .uplink-launcher-logo .logo-wave-2 {
+    width: 0.6875rem;
+    height: 0.6875rem;
+    animation-delay: 0.4s;
+    border-color: rgba(255, 255, 255, 0.55);
+  }
+  .uplink-launcher-logo .logo-wave-3 {
+    width: 0.9375rem;
+    height: 0.9375rem;
+    animation-delay: 0.8s;
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+  @keyframes uplink-logo-wave {
+    0%   { opacity: 0.0; }
+    20%  { opacity: 1.0; }
+    80%  { opacity: 0.4; }
+    100% { opacity: 0.0; }
+  }
+  .uplink-launcher-titles {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+  }
+  .uplink-launcher-banner {
+    font-size: 1rem;
+    font-weight: bold;
+    letter-spacing: 0.1875rem;
+    line-height: 1;
+  }
+  .uplink-launcher-vendor {
+    font-size: 0.625rem;
+    letter-spacing: 0.0625rem;
+    opacity: 0.85;
+    margin-top: 0.125rem;
+  }
+  .uplink-launcher-build {
+    font-size: 0.5625rem;
+    letter-spacing: 0.0625rem;
+    opacity: 0.6;
+    font-style: italic;
+    margin-top: 0.0625rem;
+  }
+  .uplink-launcher-tagline {
+    font-size: 0.6875rem;
+    opacity: 0.85;
+    margin-top: 0.3125rem;
+    padding-top: 0.25rem;
+    border-top: 1px dashed rgba(255, 255, 255, 0.2);
+    font-style: italic;
+  }
+  .uplink-launcher-section {
+    flex: 0 0 auto;
+  }
+  .uplink-launcher-section-label {
+    padding: 0.3125rem 0.625rem;
+    font-size: 0.6875rem;
+    font-weight: bold;
+    color: #4a3a1a;
+    background: linear-gradient(to bottom, #e0d8c0 0%, #d0c4a4 100%);
+    border-bottom: 1px solid #b4ac8c;
+    border-top: 1px solid #f4eed8;
+    letter-spacing: 0.0625rem;
+  }
+  .uplink-launcher-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .uplink-contact-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4375rem 0.625rem;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px dotted #c4bea6;
+    text-align: left;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+    color: #18180c;
+    width: 100%;
+    /* Slight slide+fade as rows render in. */
+    animation: uplink-row-arrive 220ms ease-out backwards;
+  }
+  button.uplink-contact-row {
+    cursor: pointer;
+  }
+  .uplink-contact-row:last-child {
+    border-bottom: 0;
+  }
+  .uplink-contact-row:nth-child(1) { animation-delay:  40ms; }
+  .uplink-contact-row:nth-child(2) { animation-delay: 100ms; }
+  .uplink-contact-row:nth-child(3) { animation-delay: 160ms; }
+  .uplink-contact-row:nth-child(4) { animation-delay: 220ms; }
+  .uplink-contact-row:nth-child(5) { animation-delay: 280ms; }
+  .uplink-contact-row:nth-child(6) { animation-delay: 340ms; }
+  @keyframes uplink-row-arrive {
+    from { opacity: 0; transform: translateX(-0.25rem); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  button.uplink-contact-row:active,
+  button.uplink-contact-row.cursor-hover,
+  button.uplink-contact-row:focus-visible {
+    background: linear-gradient(to bottom, #d8e6f8 0%, #b8cfe6 100%);
+    outline: 0;
+  }
+  .uplink-contact-row.locked {
+    opacity: 0.55;
+    /* Don't set cursor: not-allowed — the desktop runs a custom JS-
+     * rendered cursor and the OS native `not-allowed` glyph desyncs
+     * from it on hover. The greyed row + "NOT YET CONTACTED" tag is
+     * affordance enough; locked rows are <div> (not <button>) so
+     * they're inherently unclickable. */
+  }
+  .uplink-contact-status {
+    width: 0.625rem;
+    height: 0.625rem;
+    flex: 0 0 0.625rem;
+    border-radius: 50%;
+    border: 1px solid #5a5448;
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.45);
+  }
+  .uplink-contact-status.online {
+    background: radial-gradient(circle at 30% 30%, #aef0ae 0%, #4ca84c 60%, #2c7a2c 100%);
+    box-shadow:
+      inset 1px 1px 0 rgba(255, 255, 255, 0.5),
+      0 0 0.1875rem rgba(76, 168, 76, 0.6);
+  }
+  .uplink-contact-status.locked {
+    background: radial-gradient(circle at 30% 30%, #d4ccb8 0%, #a8a294 60%, #6a6450 100%);
+  }
+  .uplink-contact-avatar {
+    width: 1.625rem;
+    height: 1.625rem;
+    flex: 0 0 1.625rem;
+    position: relative;
+    image-rendering: pixelated;
+  }
+  .uplink-contact-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    line-height: 1.2;
+  }
+  .uplink-contact-name {
+    font-weight: bold;
+    color: #1a3458;
+    font-size: 0.8125rem;
+    letter-spacing: 0.0625rem;
+  }
+  .uplink-contact-row.locked .uplink-contact-name {
+    color: #4a4030;
+  }
+  .uplink-contact-meta {
+    font-size: 0.6875rem;
+    color: #6a6450;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0.0625rem;
+  }
+  .uplink-contact-tag {
+    font-size: 0.5625rem;
+    font-weight: bold;
+    color: #6a6450;
+    letter-spacing: 0.0625rem;
+    padding: 0.0625rem 0.25rem;
+    border: 1px solid #aaa49a;
+    background: #ddd3ba;
+    flex: 0 0 auto;
+    line-height: 1;
+  }
+
+  /* Generic placeholder glyph for locked/undiscovered contacts. Pixel
+   * "?" inside a beveled tile — communicates "AI we know exists but
+   * haven't reached" without committing to art per locked NPC. */
+  .avatar-locked {
+    background: #d4c8a8;
+    border: 1px solid #88826e;
+    box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #aaa49a;
+  }
+  .avatar-locked::after {
+    content: "?";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--sys-font);
+    font-weight: bold;
+    font-size: 0.875rem;
+    color: #6a6450;
+  }
+
+  /* Back-to-launcher chip — pinned at the top of the chat surface.
+   * Mirrors the .uplink-earlier-chip silhouette but anchored left and
+   * static (no pulse — the affordance is obvious enough; pulsing two
+   * chips would compete for attention). */
+  .uplink-back-chip {
+    height: 1.375rem;
+    padding: 0 0.5rem;
+    font-family: var(--sys-font);
+    font-size: 0.6875rem;
+    font-weight: bold;
+    color: #4a3a1a;
+    text-align: left;
+    background: #e8e2d2;
+    border-top: 1px solid var(--hilite);
+    border-left: 1px solid var(--hilite);
+    border-right: 1px solid var(--shadow);
+    border-bottom: 1px solid var(--shadow);
+    cursor: pointer;
+  }
+  .uplink-back-chip:active,
+  .uplink-back-chip.cursor-hover,
+  .uplink-back-chip:focus-visible {
+    background: #d8d2c0;
+    outline: 0;
   }
 
   /* Icon: dial-up modem (for Uplink's desktop shortcut + Nexus entry).

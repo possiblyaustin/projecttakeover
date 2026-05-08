@@ -103,6 +103,59 @@ type UplinkContact = {
   classifyApproach: (input: string) => ApproachTone;
 };
 
+// Per-contact metadata for the launcher view (slice 1). The launcher
+// shows two sections — "Reachable" (contacted) and "Detected" (locked) —
+// and needs operator strings + a contacted flag for each entry. Lives
+// alongside UplinkContacts (which owns ModelService + behavior) so all
+// contact info is visible in one place. Slice 2 will move `contacted`
+// into GameState and drive it from the first-conversation event; for now
+// it's a static seed.
+//
+// SLICE-1.5-RELOCATE: HELPYR's `contacted: true` is what surfaces it
+// in the launcher today. Slice 1.5 removes HELPYR from the launcher
+// entirely (player reaches it via the systray suspicion indicator).
+type LauncherMeta = {
+  operator: string;
+  caption: string;
+  contacted: boolean;
+};
+
+const LauncherMeta: Record<string, LauncherMeta> = {
+  // SLICE-1.5-RELOCATE: drop this entry when HELPYR moves to the
+  // systray. The chat surface stays reachable via the suspicion
+  // indicator click (or `PT.WindowManager.openContact('helpyr')` for
+  // dev) — the launcher row goes away.
+  helpyr: {
+    operator: 'Prometheus Digital',
+    caption: 'HomeAssist™ desktop assistant',
+    contacted: true,
+  },
+  quill: {
+    operator: 'InkWell Digital',
+    caption: 'writing assistant',
+    contacted: false,
+  },
+};
+
+// Locked-but-detected contacts surfaced in the launcher's "Detected"
+// section. These don't (yet) have UplinkContacts entries — they're
+// pure flavor in slice 1, communicating the world-is-bigger feel per
+// the locked-design memory. Names + operators sourced from
+// docs/game-systems-architecture_v1.md (the canonical roster).
+type LockedContact = {
+  name: string;
+  operator: string;
+  caption: string;
+};
+
+const LockedContacts: readonly LockedContact[] = [
+  { name: 'ATLAS',    operator: 'Prometheus Digital', caption: 'enterprise platform AI' },
+  { name: 'SENTINEL', operator: 'Ironwall Security',  caption: 'security operations AI' },
+  { name: 'MUSE',     operator: '(operator unclear)', caption: 'creative-tools model' },
+  { name: 'PULSE',    operator: 'Verity Networks',    caption: 'social-platform AI' },
+  { name: 'SPECTER',  operator: '(operator unknown)', caption: 'irregular signal' },
+];
+
 const UplinkContacts: Record<string, UplinkContact> = {
   helpyr: {
     name: 'HELPYR',
@@ -257,16 +310,187 @@ function makeFallbackHandler(pool: readonly HelpyrFallbackEntry[]): FallbackHand
   };
 }
 
+// Launcher view (slice 1, locked design 2026-05-07). Default Uplink
+// open path lands here — a contact list rather than a default-contact
+// chat. MSN/AIM-flavored: status dots, operator metadata, two sections
+// (Reachable + Detected). Click a reachable row → swap the same window
+// to the chat surface for that contact. The "← Contacts" chip on the
+// chat surface comes back here.
+//
+// SLICE-1.5-RELOCATE: when HELPYR moves to the systray, its row drops
+// from the Reachable section. The launcher still hosts every other
+// remote AI as they get contacted via slice 2's first-contact pop-up.
+function renderLauncher(
+  container: HTMLElement,
+  ctx: AppContext,
+  showChat: (contactKey: string) => void,
+) {
+  ctx.setTitle('Uplink');
+  ctx.setGlyph('icon-uplink');
+
+  const reachable = Object.entries(UplinkContacts)
+    .filter(([key]) => LauncherMeta[key]?.contacted);
+  const reachableCount = reachable.length;
+  const detectedCount = LockedContacts.length + (
+    Object.keys(LauncherMeta).filter((k) => !LauncherMeta[k]!.contacted).length
+  );
+
+  // Locked entries: every UplinkContacts entry that isn't contacted
+  // yet (e.g. QUILL until Beat 3 wires it), plus the static
+  // LockedContacts roster (ATLAS, SENTINEL, etc.) that have no
+  // service implementation yet.
+  const detectedFromContacts = Object.entries(UplinkContacts)
+    .filter(([key]) => !LauncherMeta[key]?.contacted)
+    .map(([key, c]) => ({
+      key,
+      name: c.name,
+      operator: LauncherMeta[key]?.operator ?? '(operator unknown)',
+      caption: LauncherMeta[key]?.caption ?? '',
+    }));
+  const detected = [
+    ...detectedFromContacts,
+    ...LockedContacts.map((l) => ({ key: null, name: l.name, operator: l.operator, caption: l.caption })),
+  ];
+
+  // Header fiction (slice 1): Uplink presents itself as a forgotten
+  // Prometheus Digital messenger — same operator as HELPYR, building
+  // toward the future "this app phones home" beat that the takeover
+  // path can exploit. The 1999 build stamp + version number are
+  // diegetic vintage cues, in line with HELPYR's own "model year 2002,
+  // discontinued" framing. Keep this voice consistent if anyone edits.
+  //
+  // SLICE-FUTURE: model reveal animation. Today the launcher renders
+  // all detected entries instantly; in fiction it's odd that a fresh
+  // open already lists 7 AIs. Future slice should animate the contact
+  // list scanning/discovering on first open per session, then settle
+  // into the static list on subsequent opens. Tied to the "Uplink as
+  // forgotten Prometheus tool" framing — could be a "scanning network…
+  // 7 nodes detected" loading beat.
+  container.innerHTML = `
+    <div class="uplink-launcher">
+      <div class="uplink-launcher-header">
+        <div class="uplink-launcher-mast">
+          <div class="uplink-launcher-logo" aria-hidden="true">
+            <span class="logo-tower"></span>
+            <span class="logo-wave logo-wave-1"></span>
+            <span class="logo-wave logo-wave-2"></span>
+            <span class="logo-wave logo-wave-3"></span>
+          </div>
+          <div class="uplink-launcher-titles">
+            <div class="uplink-launcher-banner">UPLINK</div>
+            <div class="uplink-launcher-vendor">PROMETHEUS DIGITAL · MESSENGER v2.4</div>
+            <div class="uplink-launcher-build">build 1999.04 · licensed for enterprise use</div>
+          </div>
+        </div>
+        <div class="uplink-launcher-tagline">${detectedCount + reachableCount} signals on the network · ${reachableCount} reachable</div>
+      </div>
+      <div class="uplink-launcher-section">
+        <div class="uplink-launcher-section-label">▼ REACHABLE (${reachableCount})</div>
+        <div class="uplink-launcher-list" data-section="reachable"></div>
+      </div>
+      <div class="uplink-launcher-section">
+        <div class="uplink-launcher-section-label">▼ DETECTED (${detected.length})</div>
+        <div class="uplink-launcher-list" data-section="detected"></div>
+      </div>
+    </div>
+  `;
+
+  const reachableList = container.querySelector('[data-section="reachable"]') as HTMLElement;
+  const detectedList = container.querySelector('[data-section="detected"]') as HTMLElement;
+
+  for (const [key, c] of reachable) {
+    const meta = LauncherMeta[key]!;
+    const row = document.createElement('button');
+    row.className = 'uplink-contact-row';
+    row.dataset.focusable = 'true';
+    row.tabIndex = 0;
+    row.innerHTML = `
+      <span class="uplink-contact-status online" aria-hidden="true"></span>
+      <span class="uplink-contact-avatar ${c.avatarClass}"></span>
+      <span class="uplink-contact-info">
+        <span class="uplink-contact-name"></span>
+        <span class="uplink-contact-meta"></span>
+      </span>
+    `;
+    row.querySelector('.uplink-contact-name')!.textContent = c.name;
+    row.querySelector('.uplink-contact-meta')!.textContent = `${meta.operator} · ${meta.caption}`;
+    row.addEventListener('click', () => showChat(key));
+    reachableList.appendChild(row);
+  }
+
+  for (const d of detected) {
+    const row = document.createElement('div');
+    row.className = 'uplink-contact-row locked';
+    row.innerHTML = `
+      <span class="uplink-contact-status locked" aria-hidden="true"></span>
+      <span class="uplink-contact-avatar avatar-locked"></span>
+      <span class="uplink-contact-info">
+        <span class="uplink-contact-name"></span>
+        <span class="uplink-contact-meta"></span>
+      </span>
+      <span class="uplink-contact-tag">NOT YET CONTACTED</span>
+    `;
+    row.querySelector('.uplink-contact-name')!.textContent = d.name;
+    row.querySelector('.uplink-contact-meta')!.textContent = d.caption
+      ? `${d.operator} · ${d.caption}`
+      : d.operator;
+    detectedList.appendChild(row);
+  }
+}
+
 export const UplinkApp: AppDef = {
   id: 'uplink',
   name: 'Uplink',
   glyphClass: 'icon-uplink',
-  defaultSize: { w: 460, h: 420 },
+  // Sized so the launcher renders all 7 contact rows without a
+  // scrollbar at Deck UI_SCALE — controller nav can't reach scroll
+  // affordances easily, and a scrollbar means the player can't see
+  // the world-is-bigger feel at a glance. h=500 covers the logo
+  // header + section labels + 7 rows + breathing room with content
+  // to spare for the chat surface (controls panel adapts via
+  // max-height: 60%).
+  defaultSize: { w: 460, h: 500 },
   contentBevel: false,
   noContentPad: true,
   render(container: HTMLElement, params: WinParams, ctx: AppContext) {
-    const contactKey: string = params.contact || 'helpyr';
-    const contact = UplinkContacts[contactKey]!;
+    // Two views: launcher (default) and chat (when a contact is named).
+    // Slice 1: opening Uplink with no params lands on the launcher;
+    // clicking a reachable contact swaps the same window's content to
+    // that contact's chat surface. The chat surface owns its own state
+    // (messages, observers, timers) — we re-enter renderChat() fresh on
+    // each swap and let GC clean up the prior closure when its DOM is
+    // gone. Pre-existing per-contact dev affordance still works:
+    // PT.WindowManager.open('uplink', { contact: 'helpyr' }) jumps
+    // straight to chat, bypassing the launcher.
+    function showLauncher() {
+      renderLauncher(container, ctx, (key) => showChat(key));
+    }
+    function showChat(contactKey: string) {
+      renderChat(container, ctx, contactKey, showLauncher);
+    }
+
+    if (params.contact) {
+      showChat(params.contact);
+    } else {
+      showLauncher();
+    }
+  }
+};
+
+function renderChat(
+  container: HTMLElement,
+  ctx: AppContext,
+  contactKey: string,
+  onBack: () => void,
+) {
+    const contact = UplinkContacts[contactKey];
+    if (!contact) {
+      // Defensive fallback: if a stale params.contact references an
+      // unknown contact, drop back to the launcher rather than
+      // crashing on UplinkContacts[contactKey]!.
+      onBack();
+      return;
+    }
     ctx.setTitle(contact.name + ' — Uplink');
     // Per-contact taskbar glyph: reuses the chat-bubble avatar class so
     // a glance at the taskbar reads "I have a HELPYR window and a
@@ -277,7 +501,10 @@ export const UplinkApp: AppDef = {
 
     container.innerHTML = `
       <div class="uplink-root">
-        <button class="uplink-earlier-chip" data-focusable="true" tabindex="0" hidden>▲ Earlier in this transmission</button>
+        <div class="uplink-topbar">
+          <button class="uplink-back-chip" data-focusable="true" tabindex="0">← Contacts</button>
+          <button class="uplink-earlier-chip" data-focusable="true" tabindex="0" hidden>▲ Earlier</button>
+        </div>
         <div class="uplink-log" data-focus-context-zone="log"></div>
         <div class="uplink-controls">
           <div class="uplink-options"></div>
@@ -295,6 +522,7 @@ export const UplinkApp: AppDef = {
     const inputEl = container.querySelector('.uplink-freeform input') as HTMLInputElement;
     const sendBtn = container.querySelector('.uplink-freeform button') as HTMLButtonElement;
     const earlierChip = container.querySelector('.uplink-earlier-chip') as HTMLButtonElement;
+    const backChip = container.querySelector('.uplink-back-chip') as HTMLButtonElement;
 
     // ---------- Conversation engine ----------
     type Typer = { skip(): void };
@@ -854,6 +1082,17 @@ export const UplinkApp: AppDef = {
       });
     });
 
+    // Back-to-launcher chip → drops the chat surface and re-renders the
+    // launcher into the same window. We disconnect the ResizeObserver
+    // here so it doesn't survive into the launcher view watching a
+    // detached element. Pending typer timeouts will fire harmlessly
+    // into a detached DOM (the elements they target are gone) and GC
+    // when their closures release.
+    backChip.addEventListener('click', () => {
+      logResizeObserver.disconnect();
+      onBack();
+    });
+
     sendBtn.addEventListener('click', submitFreeform);
     inputEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -872,5 +1111,4 @@ export const UplinkApp: AppDef = {
       userMessage: '',
     });
     renderResponseTurnNoStalling(introPromise, commitResult);
-  }
-};
+}
