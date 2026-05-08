@@ -33,9 +33,12 @@ const CLICK_SNAP_RADIUS = 28 * UI_SCALE; // clicks within this fall through to n
 // Exported so FocusNav can traverse the same set — there's only one
 // notion of "interactable target" in the shell.
 //
-// #systray is included for FocusNav reachability even though it has
-// no click action — focusing it surfaces the suspicion tooltip via
-// the .focus-ring::after rule in main.css.
+// Tray items snap individually (slice 1.5, 2026-05-08): #systray-helpyr
+// is a clickable button that opens HELPYR chat; #systray-suspicion is
+// informational but reachable so the focus tooltip surfaces the
+// in-fiction status text. The wrapping #systray container is no longer
+// in the selector — focus moves directly to whichever child item the
+// player is targeting.
 export const SNAP_SELECTOR = [
   '.desktop-icon',
   '.titlebar-btn',
@@ -43,7 +46,8 @@ export const SNAP_SELECTOR = [
   '.taskbar-item',
   '#start-btn',
   '#start-menu.open li',
-  '#systray',
+  '#systray-helpyr',
+  '#systray-suspicion',
   '.page-nav-btn',
   '.browser-address input',
   '.scratchpad-textarea',
