@@ -1,6 +1,7 @@
 // Desktop shell wiring — pure plumbing layer that builds the
 // retro UI from data. Owns the desktop icons, Nexus menu, taskbar
-// focus context, clock, and system tray (suspicion indicator).
+// focus context, clock, and system tray (HELPYR button + suspicion
+// indicator).
 //
 // All app launching goes through WindowManager.open(); this module
 // has no app-specific logic, just the launch table.
@@ -168,16 +169,46 @@ export function initDesktop(): void {
   tick();
   setInterval(tick, 15000);
 
-  // -- System tray: suspicion signal-bars --
-  // Subscribes to GameState. Maps suspicion 0-100 to a 1-5 bar fill
-  // (min 1 bar so the indicator never reads as "off") and a tier
-  // color (nominal/stable/degraded/compromised/critical). Tooltip
-  // uses in-fiction language only; never expose the raw number.
+  // -- System tray: HELPYR button + suspicion signal-bars --
+  // Two items live here. HELPYR is the player's local AI assistant
+  // (slice 1.5 relocation 2026-05-08 from the Uplink launcher); click
+  // opens its chat surface. Suspicion bars subscribe to GameState and
+  // map 0-100 to a 1-5 fill + tier color + in-fiction label.
   initSystray();
 }
 
 function initSystray(): void {
-  const trayEl = document.getElementById('systray')!;
+  initHelpyrTray();
+  initSuspicionTray();
+}
+
+// HELPYR button: opens Uplink chat for HELPYR. If a HELPYR window is
+// already open, focus it instead of stacking another instance — that
+// matches dock/tray conventions and avoids the per-instance taskbar
+// glyph from PR #33 multiplying HELPYR-named entries.
+//
+// Tracking the winId locally (rather than asking WindowManager to
+// search by appId+params) keeps the public WindowManager API minimal.
+// The DOM check covers the case where the window was closed by the
+// titlebar X — winId persists in our local var but the element is
+// gone, so we fall through to opening fresh.
+function initHelpyrTray(): void {
+  const btn = document.getElementById('systray-helpyr');
+  if (!btn) return;
+  let helpyrWinId: string | null = null;
+  btn.setAttribute('data-label', 'HELPYR — local assistant');
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (helpyrWinId && document.getElementById(helpyrWinId)) {
+      WindowManager.focus(helpyrWinId);
+      return;
+    }
+    helpyrWinId = WindowManager.open('uplink', { contact: 'helpyr' });
+  });
+}
+
+function initSuspicionTray(): void {
   const indicatorEl = document.getElementById('systray-suspicion')!;
   const bars = indicatorEl.querySelectorAll('.bar');
 
@@ -205,11 +236,11 @@ function initSystray(): void {
     const text = 'Network Integrity: ' + label;
     indicatorEl.className = 'systray-suspicion level-' + level;
     bars.forEach((bar, i) => { bar.classList.toggle('on', i < count); });
-    trayEl.title = text;
-    // Mirror to data-label so the focus-mode tooltip (#systray.focus-ring::after)
-    // can read it without depending on the title attribute (which only shows
-    // on native hover, not programmatic focus).
-    trayEl.setAttribute('data-label', text);
+    // title for native hover; data-label for focus-mode tooltip
+    // (#systray-suspicion.focus-ring::after) which can't depend on the
+    // title attribute since that only shows on native hover.
+    indicatorEl.title = text;
+    indicatorEl.setAttribute('data-label', text);
   }
 
   render(GameState.getState());

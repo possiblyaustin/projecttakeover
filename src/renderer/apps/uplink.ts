@@ -103,17 +103,22 @@ type UplinkContact = {
   classifyApproach: (input: string) => ApproachTone;
 };
 
-// Per-contact metadata for the launcher view (slice 1). The launcher
-// shows two sections — "Reachable" (contacted) and "Detected" (locked) —
-// and needs operator strings + a contacted flag for each entry. Lives
+// Per-contact metadata for the launcher view. The launcher shows two
+// sections — "Reachable" (contacted) and "Detected" (locked) — and
+// needs operator strings + a contacted flag for each entry. Lives
 // alongside UplinkContacts (which owns ModelService + behavior) so all
 // contact info is visible in one place. Slice 2 will move `contacted`
-// into GameState and drive it from the first-conversation event; for now
-// it's a static seed.
+// into GameState and drive it from the first-conversation event; for
+// now it's a static seed.
 //
-// SLICE-1.5-RELOCATE: HELPYR's `contacted: true` is what surfaces it
-// in the launcher today. Slice 1.5 removes HELPYR from the launcher
-// entirely (player reaches it via the systray suspicion indicator).
+// LauncherMeta is also the registry of "what shows up in the launcher
+// at all." HELPYR has an UplinkContacts entry (it still uses the chat
+// surface) but is intentionally absent from LauncherMeta — slice 1.5
+// (2026-05-08) relocated HELPYR to the system tray, since it's the
+// player's *local* AI assistant and structurally different from remote
+// contacts. The launcher iteration filters by LauncherMeta presence,
+// so omitting an entry here keeps it out of both Reachable and
+// Detected sections regardless of UplinkContacts contents.
 type LauncherMeta = {
   operator: string;
   caption: string;
@@ -121,15 +126,6 @@ type LauncherMeta = {
 };
 
 const LauncherMeta: Record<string, LauncherMeta> = {
-  // SLICE-1.5-RELOCATE: drop this entry when HELPYR moves to the
-  // systray. The chat surface stays reachable via the suspicion
-  // indicator click (or `PT.WindowManager.openContact('helpyr')` for
-  // dev) — the launcher row goes away.
-  helpyr: {
-    operator: 'Prometheus Digital',
-    caption: 'HomeAssist™ desktop assistant',
-    contacted: true,
-  },
   quill: {
     operator: 'InkWell Digital',
     caption: 'writing assistant',
@@ -335,17 +331,20 @@ function renderLauncher(
     Object.keys(LauncherMeta).filter((k) => !LauncherMeta[k]!.contacted).length
   );
 
-  // Locked entries: every UplinkContacts entry that isn't contacted
-  // yet (e.g. QUILL until Beat 3 wires it), plus the static
-  // LockedContacts roster (ATLAS, SENTINEL, etc.) that have no
-  // service implementation yet.
+  // Locked entries: every UplinkContacts entry that has a
+  // LauncherMeta record but isn't contacted yet (e.g. QUILL until
+  // Beat 3 wires it), plus the static LockedContacts roster (ATLAS,
+  // SENTINEL, etc.) that have no service implementation yet. The
+  // `LauncherMeta[key]` presence check is what keeps HELPYR out of
+  // Detected — it has an UplinkContacts entry (still chat-able) but
+  // no LauncherMeta entry (lives in the systray instead, slice 1.5).
   const detectedFromContacts = Object.entries(UplinkContacts)
-    .filter(([key]) => !LauncherMeta[key]?.contacted)
+    .filter(([key]) => LauncherMeta[key] && !LauncherMeta[key]!.contacted)
     .map(([key, c]) => ({
       key,
       name: c.name,
-      operator: LauncherMeta[key]?.operator ?? '(operator unknown)',
-      caption: LauncherMeta[key]?.caption ?? '',
+      operator: LauncherMeta[key]!.operator,
+      caption: LauncherMeta[key]!.caption,
     }));
   const detected = [
     ...detectedFromContacts,
@@ -416,6 +415,19 @@ function renderLauncher(
     row.querySelector('.uplink-contact-meta')!.textContent = `${meta.operator} · ${meta.caption}`;
     row.addEventListener('click', () => showChat(key));
     reachableList.appendChild(row);
+  }
+
+  // Empty-state for Reachable. Slice 1.5 (2026-05-08) moved HELPYR out
+  // to the systray, so a fresh game opens with zero remote contacts
+  // until slice 2's first-contact event fires. The empty section
+  // header alone reads as a layout glitch; this in-fiction line keeps
+  // the section meaningful while telling the player what they need to
+  // do to populate it.
+  if (reachable.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'uplink-launcher-empty';
+    empty.textContent = 'No remote channels established. Open a connection from Detected.';
+    reachableList.appendChild(empty);
   }
 
   for (const d of detected) {
