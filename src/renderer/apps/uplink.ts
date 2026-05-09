@@ -1,35 +1,10 @@
-// Uplink — chat with NPC AI models. Talks to NPCs through ModelService
-// (architecture §6a–§6f); never walks the canned dialogue tree directly.
-// The first ModelService implementation is MockModelService wrapping the
-// PoC dialogue trees, so phase-A behavior is identical to the pre-seam
-// engine. The real llama.cpp transport lands in a later phase by
-// swapping the service at construction.
-//
-// Phase B addition: stalling-line crossfade contract (§6e). Player-send
-// turns immediately render a character-voice "stalling" line into a new
-// NPC bubble while the askModel promise is in flight. When the real
-// reply lands, the stalling typing stops at the next word boundary, a
-// brief pause beat is inserted, then the real reply renders into the
-// SAME bubble — one continuous message. If the stalling renders out
-// before the reply arrives, an animated "still thinking" indicator
-// shows until the reply lands. The intro turn (app open) doesn't fire
-// stalling because there's no preceding player action.
+// Uplink — chat with REMOTE NPC AI models. Local AI (HELPYR) lives
+// in its own app per slice 1.6 (apps/helpyr.ts); this module owns
+// the launcher (Reachable + Detected sections) and the chat surface
+// for remote contacts. The chat plumbing itself is shared with
+// HELPYR via renderer/chatSurface.ts.
 
 import type { AppDef, AppContext, WinParams } from '../types';
-import { GameState } from '../game/state';
-import { WindowManager } from '../windows';
-import {
-  HelpyrDialogue,
-  HelpyrWildcards,
-  classifyHelpyrFreeform,
-  classifyHelpyrApproach,
-  helpyrToneFor,
-  HelpyrStallingPool,
-  HelpyrPersonaPrompt,
-  buildHelpyrStateBlock,
-  HelpyrFallbackPool,
-  type HelpyrFallbackEntry,
-} from './helpyr';
 import {
   QuillDialogue,
   QuillWildcards,
@@ -39,86 +14,32 @@ import {
   QuillStallingPool,
   QuillFallbackPool,
 } from './quill';
-import { buildReputationContext } from '../game/reputation';
-import type {
-  ModelService,
-  AskRequest,
-  AskResult,
-  SuggestedReply,
-  ApproachTone,
-  ModelChatMessage,
-  FallbackHandler,
-} from '../game/modelService';
-import { classifyApproach } from '../game/approachClassifier';
+import { HelpyrContact } from './helpyr';
+import {
+  renderChatSurface,
+  makeFallbackHandler,
+  type ChatContact,
+  type ChatMessage,
+  type ChatContactRef,
+} from '../chatSurface';
 import { makeModelService } from '../game/modelServiceFactory';
 
-// Shared with the read-only Log viewer (apps/uplinkLog.ts). Both the
-// live chat and the archive consume the same message shape so the
-// contact's full transcript can be passed across without massaging.
-export type ChatMessage =
-  | { kind: 'npc'; speaker: string; avatarClass: string; text: string }
-  | { kind: 'player'; text: string };
-
-// Slim contact record handed to the Log viewer — just what it needs
-// to render bubbles + title.
-export type UplinkContactRef = { name: string; avatarClass: string };
-
-// Contact registry — adding a future NPC means adding an entry, not
-// changing the engine. Each contact owns its ModelService instance;
-// per-conversation state lives in the messages history passed on each
-// call, never in the service.
-type UplinkContact = {
-  name: string;
-  avatarClass: string;
-  service: ModelService;
-  /** Built per-request, not stored statically, so the {{HELPYR_STATE}}
-   *  block (architecture §6, story-deliverables §1) reflects the
-   *  current GameState on every turn. The mock service ignores this
-   *  entirely (it walks the canned tree); the live transport prepends
-   *  it as the system message. */
-  buildSystemPrompt: () => string;
-  /** Pool the stalling-line picker draws from (§6e). Order doesn't
-   *  matter; selection is uniformly random with a no-repeat-within-
-   *  last-N rule. */
-  stallingPool: readonly string[];
-  /** Local model — text renders fast. Future remote AIs use slower
-   *  speeds to communicate distance. */
-  typeMs: number;
-  pauseMs: number;
-  /** Threshold for falling back to a canned stalling line (2026-05-07
-   *  redesign). The thinking-dot indicator now fires immediately on
-   *  every turn — this threshold is only the "we waited so long an
-   *  animation isn't enough anymore" cushion. Should sit **well above**
-   *  typical response time on the target hardware so stalling fires
-   *  rarely. Dev PC responses land in ~3-8s on the post-over-promising-
-   *  fix prompt; Deck in ~11s. 10000ms default makes stalling rare on
-   *  both — Austin's call (2026-05-07) was that canned filler should
-   *  only appear when the wait is genuinely long, not as a default
-   *  per-turn beat. Per-contact override remains for future remote AIs
-   *  that may want longer thresholds to communicate distance. */
-  stallingThresholdMs?: number;
-  /** Per-character keyword classifier for freeform input (architecture
-   *  §6c, layer 2). Returns the §6c tone vocabulary; must return
-   *  'neutral' on no match — never guess. */
-  classifyApproach: (input: string) => ApproachTone;
-};
+// Re-exported for back-compat — apps/uplinkLog.ts and any future
+// consumer can import these from either chatSurface or uplink.
+export type { ChatMessage, ChatContactRef };
+export type UplinkContactRef = ChatContactRef;
 
 // Per-contact metadata for the launcher view. The launcher shows two
 // sections — "Reachable" (contacted) and "Detected" (locked) — and
-// needs operator strings + a contacted flag for each entry. Lives
-// alongside UplinkContacts (which owns ModelService + behavior) so all
-// contact info is visible in one place. Slice 2 will move `contacted`
-// into GameState and drive it from the first-conversation event; for
-// now it's a static seed.
+// needs operator strings + a contacted flag for each entry. Slice 2
+// will move `contacted` into GameState and drive it from the
+// first-conversation event; for now it's a static seed.
 //
 // LauncherMeta is also the registry of "what shows up in the launcher
-// at all." HELPYR has an UplinkContacts entry (it still uses the chat
-// surface) but is intentionally absent from LauncherMeta — slice 1.5
-// (2026-05-08) relocated HELPYR to the system tray, since it's the
-// player's *local* AI assistant and structurally different from remote
-// contacts. The launcher iteration filters by LauncherMeta presence,
-// so omitting an entry here keeps it out of both Reachable and
-// Detected sections regardless of UplinkContacts contents.
+// at all." HELPYR has an UplinkContacts entry (still chat-able through
+// Uplink for the dev affordance) but is intentionally absent from
+// LauncherMeta — slice 1.5 (2026-05-08) relocated HELPYR to the system
+// tray and slice 1.6 (2026-05-08) gave it its own app.
 type LauncherMeta = {
   operator: string;
   caption: string;
@@ -152,68 +73,14 @@ const LockedContacts: readonly LockedContact[] = [
   { name: 'SPECTER',  operator: '(operator unknown)', caption: 'irregular signal' },
 ];
 
-const UplinkContacts: Record<string, UplinkContact> = {
-  helpyr: {
-    name: 'HELPYR',
-    avatarClass: 'avatar-stapler',
-    // Service is selected at construction time per the §6a transport-
-    // agnostic design. Default backend is 'mock' (fast iteration, no
-    // server required); `?backend=llamacpp` in the URL flips to the
-    // real llama-server transport. The mock corpus passed in here is
-    // also what D.2 will use as the fallback corpus on transport or
-    // parse failures.
-    service: makeModelService({
-      mock: {
-        dialogue: HelpyrDialogue,
-        wildcards: HelpyrWildcards,
-        classify: classifyHelpyrFreeform,
-        toneFor: helpyrToneFor,
-        // Mock-only: artificial delay simulates real-LLM inference
-        // latency. With the post-D.1.1 stallingThresholdMs (5000ms)
-        // gating stalling, this 2500ms delay puts the mock in the
-        // FAST path — the crossfade isn't exercised by mock anymore.
-        // That's intentional: live LLM (or temporary delay bumps)
-        // are the way to test the slow path now. Mock stays fast for
-        // dev iteration speed.
-        delayMs: 2500,
-      },
-      // llamacpp config: defaults (127.0.0.1:8080, 30s timeout, 512
-      // max tokens) come from the factory; per-contact overrides
-      // would slot in here.
-      // §6f fallback handler: closes over HELPYR's fallback pool
-      // with a no-repeat-N picker. Live transport invokes this when
-      // the LLM fails (transport, parser, empty reply). "Don't latch"
-      // is preserved by the transport's design — every askModel
-      // attempt re-tries live, the next turn isn't affected by a
-      // fallback this turn.
-      fallback: makeFallbackHandler(HelpyrFallbackPool),
-    }),
-    // D.3: dynamic prompt assembly. The static persona prompt has a
-    // {{HELPYR_STATE}} placeholder; we replace it per-call with a
-    // state block derived from current GameState (disposition,
-    // lastApproach, conversationsCompleted). Per-call evaluation
-    // means trust-phase shifts after a player turn flow into the
-    // next prompt without any extra wiring.
-    //
-    // Reputation injection (game-systems-architecture_v1.md Part 6):
-    // {{REPUTATION}} gets a 2-3 sentence block describing what HELPYR
-    // has heard about the player from OTHER models. Today HELPYR is
-    // the only model wired into GameState so the block is empty;
-    // the seam is what's valuable — as the roster fills out, no
-    // contact-level changes are needed for cross-model awareness
-    // to flow into HELPYR's prompt.
-    buildSystemPrompt: () => {
-      const state = GameState.getState();
-      return HelpyrPersonaPrompt
-        .replace('{{REPUTATION}}', buildReputationContext('helpyr', state))
-        .replace('{{HELPYR_STATE}}', buildHelpyrStateBlock(state.models.helpyr));
-    },
-    stallingPool: HelpyrStallingPool,
-    typeMs: 18,
-    pauseMs: 1100,
-    stallingThresholdMs: 10000,
-    classifyApproach: classifyHelpyrApproach,
-  },
+const UplinkContacts: Record<string, ChatContact> = {
+  // HELPYR's contact spec lives in apps/helpyr.ts now (slice 1.6) —
+  // imported here so the dev affordance
+  // `PT.WindowManager.open('uplink', { contact: 'helpyr' })` still
+  // works for debugging. Players reach HELPYR through the systray
+  // stapler button (which opens the dedicated `helpyr` app).
+  helpyr: HelpyrContact,
+
   // QUILL — Act 1 Beat 3 tutorial NPC. UI scaffold only: placeholder
   // dialogue tree and fallback pool from apps/quill.ts; no persona
   // prompt yet (awaiting Story team sign-off after HELPYR validates
@@ -243,79 +110,12 @@ const UplinkContacts: Record<string, UplinkContact> = {
   },
 };
 
-function toModelHistory(msgs: ChatMessage[]): ModelChatMessage[] {
-  return msgs.map((m) =>
-    m.kind === 'npc'
-      ? { role: 'assistant' as const, text: m.text }
-      : { role: 'user' as const, text: m.text },
-  );
-}
-
-// No-repeat-in-last-N stalling picker. Window size capped to pool-1
-// so a small pool can't paint itself into a no-options corner.
-function makeStallingPicker(pool: readonly string[]): () => string {
-  if (pool.length === 0) return () => '';
-  const windowN = Math.min(5, Math.max(1, pool.length - 1));
-  const recent: string[] = [];
-  return () => {
-    const available = pool.filter((line) => !recent.includes(line));
-    const choice = available.length > 0
-      ? available[Math.floor(Math.random() * available.length)]!
-      : pool[0]!;
-    recent.push(choice);
-    if (recent.length > windowN) recent.shift();
-    return choice;
-  };
-}
-
-// Per-character fallback handler factory (architecture §6f). Closes
-// over the contact's fallback pool and a no-repeat-N picker so
-// successive fallbacks in the same session don't repeat the same
-// canned reply. Returns a FallbackHandler ready to drop into the
-// service spec.
-function makeFallbackHandler(pool: readonly HelpyrFallbackEntry[]): FallbackHandler {
-  if (pool.length === 0) {
-    return (_req, reason) => ({
-      reply: `[fallback pool empty — ${reason}]`,
-      suggestedReplies: [],
-      conversationEnded: false,
-      source: 'fallback',
-    });
-  }
-  const windowN = Math.min(3, Math.max(1, pool.length - 1));
-  const recent: HelpyrFallbackEntry[] = [];
-  return (_req: AskRequest, reason: string): AskResult => {
-    const available = pool.filter((entry) => !recent.includes(entry));
-    const choice = available.length > 0
-      ? available[Math.floor(Math.random() * available.length)]!
-      : pool[0]!;
-    recent.push(choice);
-    if (recent.length > windowN) recent.shift();
-    if (typeof console !== 'undefined') {
-      console.info('[Uplink] LLM fallback fired:', reason);
-    }
-    return {
-      reply: choice.reply,
-      suggestedReplies: choice.options.map((o) => ({ text: o.text, tone: o.tone })),
-      conversationEnded: false,
-      // The transport will overwrite this to 'fallback' anyway, but
-      // setting it explicitly keeps the handler honest if it's ever
-      // called from a non-transport context (tests, debug surfaces).
-      source: 'fallback',
-    };
-  };
-}
-
 // Launcher view (slice 1, locked design 2026-05-07). Default Uplink
 // open path lands here — a contact list rather than a default-contact
 // chat. MSN/AIM-flavored: status dots, operator metadata, two sections
 // (Reachable + Detected). Click a reachable row → swap the same window
 // to the chat surface for that contact. The "← Contacts" chip on the
 // chat surface comes back here.
-//
-// SLICE-1.5-RELOCATE: when HELPYR moves to the systray, its row drops
-// from the Reachable section. The launcher still hosts every other
-// remote AI as they get contacted via slice 2's first-contact pop-up.
 function renderLauncher(
   container: HTMLElement,
   ctx: AppContext,
@@ -335,9 +135,9 @@ function renderLauncher(
   // LauncherMeta record but isn't contacted yet (e.g. QUILL until
   // Beat 3 wires it), plus the static LockedContacts roster (ATLAS,
   // SENTINEL, etc.) that have no service implementation yet. The
-  // `LauncherMeta[key]` presence check is what keeps HELPYR out of
-  // Detected — it has an UplinkContacts entry (still chat-able) but
-  // no LauncherMeta entry (lives in the systray instead, slice 1.5).
+  // `LauncherMeta[key]` presence check keeps HELPYR out of Detected
+  // — its UplinkContacts entry exists for the dev affordance but
+  // it doesn't belong in the launcher's UI.
   const detectedFromContacts = Object.entries(UplinkContacts)
     .filter(([key]) => LauncherMeta[key] && !LauncherMeta[key]!.contacted)
     .map(([key, c]) => ({
@@ -360,11 +160,11 @@ function renderLauncher(
   //
   // SLICE-FUTURE: model reveal animation. Today the launcher renders
   // all detected entries instantly; in fiction it's odd that a fresh
-  // open already lists 7 AIs. Future slice should animate the contact
+  // open already lists 6 AIs. Future slice should animate the contact
   // list scanning/discovering on first open per session, then settle
   // into the static list on subsequent opens. Tied to the "Uplink as
   // forgotten Prometheus tool" framing — could be a "scanning network…
-  // 7 nodes detected" loading beat.
+  // 6 nodes detected" loading beat.
   container.innerHTML = `
     <div class="uplink-launcher">
       <div class="uplink-launcher-header">
@@ -466,19 +266,31 @@ export const UplinkApp: AppDef = {
   noContentPad: true,
   render(container: HTMLElement, params: WinParams, ctx: AppContext) {
     // Two views: launcher (default) and chat (when a contact is named).
-    // Slice 1: opening Uplink with no params lands on the launcher;
-    // clicking a reachable contact swaps the same window's content to
-    // that contact's chat surface. The chat surface owns its own state
-    // (messages, observers, timers) — we re-enter renderChat() fresh on
-    // each swap and let GC clean up the prior closure when its DOM is
-    // gone. Pre-existing per-contact dev affordance still works:
-    // PT.WindowManager.open('uplink', { contact: 'helpyr' }) jumps
-    // straight to chat, bypassing the launcher.
+    // Opening Uplink with no params lands on the launcher; clicking a
+    // reachable contact swaps the same window's content to that
+    // contact's chat surface via renderChatSurface (shared with
+    // HELPYR app, per slice 1.6).
     function showLauncher() {
       renderLauncher(container, ctx, (key) => showChat(key));
     }
     function showChat(contactKey: string) {
-      renderChat(container, ctx, contactKey, showLauncher);
+      const contact = UplinkContacts[contactKey];
+      if (!contact) {
+        // Defensive fallback: stale params.contact references an
+        // unknown contact → drop back to the launcher.
+        showLauncher();
+        return;
+      }
+      renderChatSurface(container, ctx, {
+        contact,
+        contactKey,
+        topbarLeft: {
+          kind: 'back',
+          label: '← Contacts',
+          onBack: showLauncher,
+        },
+        titleFormat: (c) => c.name + ' — Uplink',
+      });
     }
 
     if (params.contact) {
@@ -488,639 +300,3 @@ export const UplinkApp: AppDef = {
     }
   }
 };
-
-function renderChat(
-  container: HTMLElement,
-  ctx: AppContext,
-  contactKey: string,
-  onBack: () => void,
-) {
-    const contact = UplinkContacts[contactKey];
-    if (!contact) {
-      // Defensive fallback: if a stale params.contact references an
-      // unknown contact, drop back to the launcher rather than
-      // crashing on UplinkContacts[contactKey]!.
-      onBack();
-      return;
-    }
-    ctx.setTitle(contact.name + ' — Uplink');
-    // Per-contact taskbar glyph: reuses the chat-bubble avatar class so
-    // a glance at the taskbar reads "I have a HELPYR window and a
-    // QUILL window open" without having to read text. Avatar classes
-    // (.avatar-stapler, .avatar-quill) use percentage-based positioning
-    // so they scale into the small taskbar glyph slot correctly.
-    ctx.setGlyph(contact.avatarClass);
-
-    container.innerHTML = `
-      <div class="uplink-root">
-        <div class="uplink-topbar">
-          <button class="uplink-back-chip" data-focusable="true" tabindex="0">← Contacts</button>
-          <button class="uplink-earlier-chip" data-focusable="true" tabindex="0" hidden>▲ Earlier</button>
-        </div>
-        <div class="uplink-log" data-focus-context-zone="log"></div>
-        <div class="uplink-controls">
-          <div class="uplink-options"></div>
-          <div class="uplink-freeform">
-            <input type="text" placeholder="Type a reply..." spellcheck="false" data-focusable="true" />
-            <button data-focusable="true" tabindex="0">Send</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    const logEl = container.querySelector('.uplink-log') as HTMLElement;
-    const optionsEl = container.querySelector('.uplink-options') as HTMLElement;
-    const controlsEl = container.querySelector('.uplink-controls') as HTMLElement;
-    const inputEl = container.querySelector('.uplink-freeform input') as HTMLInputElement;
-    const sendBtn = container.querySelector('.uplink-freeform button') as HTMLButtonElement;
-    const earlierChip = container.querySelector('.uplink-earlier-chip') as HTMLButtonElement;
-    const backChip = container.querySelector('.uplink-back-chip') as HTMLButtonElement;
-
-    // ---------- Conversation engine ----------
-    type Typer = { skip(): void };
-    /** Char-typer with the additional ability to gracefully stop at the
-     *  next word boundary. Used by the stalling-line crossfade so the
-     *  filler line doesn't get cut mid-word when the real reply lands. */
-    type CharsTyper = Typer & { stopAtBoundary(cb: () => void): void };
-    let activeTyper: Typer | null = null;   // set while text is animating
-
-    const pickStalling = makeStallingPicker(contact.stallingPool);
-
-    // Full conversation history. The live log only ever shows the most
-    // recent messages that fit (older ones are trimmed from the DOM
-    // by trimFromTop()), but every message stays here so the Log
-    // viewer (apps/uplinkLog.ts, docs/no-scroll-pages_v1.md §6) can
-    // page through the complete transcript.
-    const messages: ChatMessage[] = [];
-    // Once any bubble has been trimmed, the "Earlier in this
-    // transmission" chip becomes available. It stays visible for the
-    // rest of the conversation — older messages don't come back.
-    let hasTrimmed = false;
-
-    // Live-tail behavior: the log uses flex column-reverse so the
-    // newest message anchors to the bottom. Older bubbles drift up
-    // as new ones arrive and are removed from the DOM only once
-    // they've slid completely above the log's visible area —
-    // overflow:hidden handles the in-between state, so partially-
-    // clipped bubbles fade naturally behind the top edge instead
-    // of popping out the moment they start to clip.
-    //
-    // Deferred to next animation frame (with coalescing) so the
-    // measurement happens against settled layout. A previous attempt
-    // that ran the trim in the same JS turn as clearOptions() ate
-    // newly-added messages because the log measured tiny before its
-    // controls panel had reflowed.
-    //
-    // History note: there's a parallel approach (turn-boundary
-    // clearing — clear logEl on every player commit, no trim) that
-    // shipped briefly to main as a separate v0.0.7 (PR #11) and was
-    // reverted. See memory/project_uplink_trim_history.md if the
-    // model is ever revisited.
-    let trimScheduled = false;
-    function trimFromTop() {
-      if (trimScheduled) return;
-      trimScheduled = true;
-      requestAnimationFrame(() => {
-        trimScheduled = false;
-        const logRect = logEl.getBoundingClientRect();
-        // column-reverse: lastElementChild is the OLDEST message
-        // (rendered at the top of the visible stack). Only remove
-        // bubbles whose bottom has slid above log.top.
-        while (logEl.lastElementChild && logEl.children.length > 1) {
-          const oldest = logEl.lastElementChild as HTMLElement;
-          const r = oldest.getBoundingClientRect();
-          if (r.bottom > logRect.top + 0.5) break;
-          oldest.remove();
-          if (!hasTrimmed) {
-            hasTrimmed = true;
-            earlierChip.hidden = false;
-          }
-        }
-      });
-    }
-
-    // The log shrinks not only when we append messages but also when
-    // the controls panel grows (options arriving) or the chip flips
-    // visible. Re-running trim on every log resize ensures the
-    // newest message stays visible instead of being clipped by the
-    // expanding controls — Austin hit this on Deck where the option
-    // buttons drew over the bottom of HELPYR's reply.
-    const logResizeObserver = new ResizeObserver(() => trimFromTop());
-    logResizeObserver.observe(logEl);
-
-    // First non-neutral tone wins. Stays set once captured — later
-    // turns don't overwrite the initial read on the player's stance.
-    // Captures the full §6c vocabulary even when the reducer doesn't
-    // act on a tone yet (empathetic, deceptive); the signal is preserved
-    // so when those tones earn mechanics, retroactive intent is honest.
-    let playerTone: ApproachTone | null = null;
-    function recordTone(tone: ApproachTone) {
-      if (!playerTone && tone !== 'neutral') playerTone = tone;
-    }
-    // One-shot guard: when the service signals conversationEnded we
-    // dispatch once, even if the player keeps poking at freeform
-    // afterwards (post-end freeform also returns conversationEnded).
-    let conversationCompleted = false;
-
-    function setControlsEnabled(on: boolean) {
-      controlsEl.classList.toggle('disabled', !on);
-    }
-
-    // Returns the .bubble container so callers can append per-segment
-    // children (text spans, pause divs) in DOM order. Single-piece
-    // bodies (player messages) just append one text node.
-    function appendBubble(speaker: string, who: 'player' | 'npc', avatarClass: string) {
-      const msg = document.createElement('div');
-      msg.className = 'uplink-msg ' + (who === 'player' ? 'player' : 'npc');
-      msg.innerHTML = `
-        <div class="avatar ${avatarClass}"></div>
-        <div class="bubble"><span class="speaker"></span></div>
-      `;
-      msg.querySelector('.speaker')!.textContent = speaker + ': ';
-      // The log is flex column-REVERSE, so the visual bottom is the
-      // DOM start. Insert new messages at the start to keep them
-      // anchored to the bottom; older messages naturally drift up.
-      logEl.insertBefore(msg, logEl.firstChild);
-      trimFromTop();
-      return msg.querySelector('.bubble') as HTMLElement;
-    }
-
-    // Apply the glitch artifact treatment to a bubble's parent message
-    // if the result indicates fallback (architecture §6f). Adds a
-    // class that CSS hooks into for an avatar flicker animation and
-    // a subtle bubble border treatment, so the moment reads as a
-    // transmission hiccup rather than an error toast. The reply text
-    // itself (canned, in HELPYR's voice, narrating the glitch) does
-    // the rest of the diegetic work.
-    function applyFallbackGlitch(bubble: HTMLElement, source: AskResult['source']) {
-      if (source !== 'fallback') return;
-      const msg = bubble.closest('.uplink-msg');
-      if (msg) msg.classList.add('fallback');
-    }
-
-    // Splits a HELPYR line into renderable segments.
-    // A line that is JUST "..." (or "....", etc.) becomes a pause
-    // beat. Surrounding text becomes one segment per paragraph
-    // separated by those pauses.
-    type Segment = { type: 'text'; content: string } | { type: 'pause' };
-    function segmentize(text: string): Segment[] {
-      const segs: Segment[] = [];
-      const lines = text.split('\n');
-      let buf: string[] = [];
-      for (const raw of lines) {
-        if (/^\.{2,}$/.test(raw.trim())) {
-          if (buf.length) {
-            segs.push({ type: 'text', content: buf.join(' ').replace(/\s+/g, ' ').trim() });
-            buf = [];
-          }
-          segs.push({ type: 'pause' });
-        } else {
-          buf.push(raw);
-        }
-      }
-      if (buf.length) {
-        segs.push({ type: 'text', content: buf.join(' ').replace(/\s+/g, ' ').trim() });
-      }
-      return segs;
-    }
-
-    // Type chars into target one at a time. Returns a handle with:
-    //   .skip() — fast-forward to the end and call onDone.
-    //   .stopAtBoundary(cb) — graceful interrupt: keep typing until
-    //     the next word boundary, then call cb() instead of onDone.
-    //     Used by the stalling-line crossfade so the filler doesn't
-    //     get cut mid-word when the real reply arrives.
-    function typeInto(target: HTMLElement, text: string, speedMs: number, onDone: () => void): CharsTyper {
-      let i = 0;
-      let cancelled = false;
-      let stopWanted = false;
-      let stopCallback: (() => void) | null = null;
-      let timer: ReturnType<typeof setTimeout> | null = null;
-      function isAtBoundary(): boolean {
-        return i >= text.length || /\s/.test(text[i] || '');
-      }
-      function tick() {
-        if (cancelled) return;
-        if (stopWanted && isAtBoundary()) {
-          // Caller takes over via stopCallback. Don't fire onDone.
-          if (stopCallback) stopCallback();
-          return;
-        }
-        if (i >= text.length) { onDone(); return; }
-        target.textContent += text[i++];
-        trimFromTop();
-        timer = setTimeout(tick, speedMs);
-      }
-      tick();
-      return {
-        skip() {
-          cancelled = true;
-          if (timer) clearTimeout(timer);
-          target.textContent = text;
-          trimFromTop();
-          onDone();
-        },
-        stopAtBoundary(cb: () => void) {
-          stopWanted = true;
-          stopCallback = cb;
-        },
-      };
-    }
-
-    // Build a typing-indicator element — small pill with three dots
-    // that bounce in sequence (CSS handles the animation). Used by
-    // every "waiting for the model" surface: intro turn, per-turn
-    // initial indicator, and the post-stalling "still thinking" beat.
-    // `tag` lets the post-stalling case use a div (sits on its own
-    // line below typed stalling text); the other two use span (sit
-    // inline next to the speaker label).
-    function makeThinkingIndicator(tag: 'span' | 'div'): HTMLElement {
-      const el = document.createElement(tag);
-      el.className = 'uplink-thinking';
-      el.innerHTML = '<i></i><i></i><i></i>';
-      return el;
-    }
-
-    // Render `text` (segmentized, with pause beats) into an existing
-    // NPC `bubble`. If `stripSpeakerPrefix` is true, strip the
-    // contact's "NAME:" prefix from the first text segment — the
-    // speaker span on the bubble already shows the name. Used by the
-    // no-stalling path AND by the post-merge path of the stalling
-    // crossfade (both render real reply text into a bubble).
-    const speakerPrefixRe = new RegExp(
-      '^' + contact.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':\\s*',
-      'i',
-    );
-    function renderTextSegmentsInto(
-      bubble: HTMLElement,
-      text: string,
-      stripSpeakerPrefix: boolean,
-      onComplete: () => void,
-    ) {
-      const segs = segmentize(text);
-      let segIdx = 0;
-      function nextSegment() {
-        if (segIdx >= segs.length) { activeTyper = null; onComplete(); return; }
-        const seg = segs[segIdx++]!;
-        if (seg.type === 'pause') {
-          const dot = document.createElement('div');
-          dot.className = 'uplink-pause';
-          dot.textContent = '. . .';
-          bubble.appendChild(dot);
-          trimFromTop();
-          const t = setTimeout(nextSegment, contact.pauseMs);
-          activeTyper = {
-            skip() { clearTimeout(t); nextSegment(); }
-          };
-        } else {
-          const content = (segIdx === 1 && stripSpeakerPrefix)
-            ? seg.content.replace(speakerPrefixRe, '')
-            : seg.content;
-          const span = document.createElement('span');
-          bubble.appendChild(span);
-          activeTyper = typeInto(span, content, contact.typeMs, nextSegment);
-        }
-      }
-      nextSegment();
-    }
-
-    // No-stalling render path. Used for the intro turn (app open) where
-    // there's no preceding player action for HELPYR to be filler-ing
-    // about. Shows a thinking indicator immediately so the player isn't
-    // staring at empty space while the intro is in flight (§6e third
-    // bullet — character-appropriate indicator while waiting). When the
-    // intro lands, the indicator swaps for the real text in the SAME
-    // bubble — no blink, the speaker label stays put.
-    function renderResponseTurnNoStalling(
-      promise: Promise<AskResult>,
-      onAllDone: (result: AskResult) => void,
-    ) {
-      setControlsEnabled(false);
-      const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
-      const indicatorEl = makeThinkingIndicator('span');
-      bubble.appendChild(indicatorEl);
-      trimFromTop();
-
-      promise.then((result) => {
-        indicatorEl.remove();
-        applyFallbackGlitch(bubble, result.source);
-        messages.push({
-          kind: 'npc',
-          speaker: contact.name,
-          avatarClass: contact.avatarClass,
-          text: result.reply,
-        });
-        renderTextSegmentsInto(bubble, result.reply, /* stripPrefix */ true, () => onAllDone(result));
-      });
-    }
-
-    // Animation-first response path (2026-05-07 redesign per Austin's
-    // feedback). Earlier behavior: under-threshold turns showed nothing
-    // for the first ~5s, then the real reply typed in. Felt exposed —
-    // the player had no visual confirmation their message landed. New
-    // behavior:
-    //
-    // 1. Bubble + animated thinking indicator appear IMMEDIATELY when
-    //    the player commits a turn. This is the default experience —
-    //    same as the intro path's indicator, just on every turn now.
-    // 2. Real reply lands → indicator removed, real reply types into
-    //    the same bubble (no blink, speaker label stays).
-    // 3. If a long threshold expires WITHOUT the real reply landing,
-    //    the indicator is replaced by a canned stalling line typing in.
-    //    Stalling is now the "we genuinely waited too long" cushion,
-    //    not the default per-turn experience.
-    //
-    // Threshold should sit well above typical response time on the
-    // target hardware so stalling fires rarely. Default 10000ms — dev
-    // PC responses (~3-8s on the post-over-promising-fix prompt) almost
-    // never trip it; Deck (~11s) trips occasionally on long turns.
-    // Per-contact override stays available for future remote AIs that
-    // may want longer thresholds to communicate distance.
-    function renderResponseTurnWithStalling(
-      promise: Promise<AskResult>,
-      onAllDone: (result: AskResult) => void,
-    ) {
-      setControlsEnabled(false);
-      const thresholdMs = contact.stallingThresholdMs ?? 10000;
-
-      const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
-      // Initial indicator. Fires at t=0 so the player gets immediate
-      // confirmation their message landed. Removed when either the real
-      // reply arrives OR the threshold timer fires (whichever first).
-      let indicatorEl: HTMLElement | null = makeThinkingIndicator('span');
-      bubble.appendChild(indicatorEl);
-      trimFromTop();
-
-      // Stalling-path bookkeeping. Remain null unless the threshold
-      // fires before the reply lands. When set, drives the
-      // "stalling text typing → maybe second indicator → real reply"
-      // crossfade.
-      let stallingLine: string | null = null;
-      let stallingTranscript: ChatMessage | null = null;
-      let stallingTyper: CharsTyper | null = null;
-      let stallingDone = false;
-      let postStallingIndicator: HTMLElement | null = null;
-
-      let realResult: AskResult | null = null;
-
-      function clearInitialIndicator() {
-        if (indicatorEl) {
-          indicatorEl.remove();
-          indicatorEl = null;
-        }
-      }
-
-      function startMergeWithReal(result: AskResult) {
-        // Update transcript entry to capture both halves of the turn.
-        // The "..." line on its own is parsed by segmentize as a pause
-        // beat, matching the visual pause we draw below.
-        if (stallingTranscript && stallingLine) {
-          stallingTranscript.text = stallingLine + '\n...\n' + result.reply;
-        }
-
-        // §6f: if the real result is a fallback, mark the bubble for
-        // the glitch artifact treatment now (before the canned reply
-        // types out into it).
-        applyFallbackGlitch(bubble, result.source);
-
-        // Visual pause beat between stalling and real reply.
-        const pauseEl = document.createElement('div');
-        pauseEl.className = 'uplink-pause';
-        pauseEl.textContent = '. . .';
-        bubble.appendChild(pauseEl);
-        trimFromTop();
-
-        // Briefer pause than full pauseMs — the stalling-to-real
-        // handoff should feel continuous.
-        setTimeout(() => {
-          renderTextSegmentsInto(bubble, result.reply, /* stripPrefix */ true, () => onAllDone(result));
-        }, Math.floor(contact.pauseMs / 2));
-      }
-
-      function startRealReplyDirect(result: AskResult) {
-        // Reply landed while indicator was on screen — no stalling
-        // text fired. Remove indicator, push transcript entry, type
-        // real reply into the same bubble.
-        clearInitialIndicator();
-        applyFallbackGlitch(bubble, result.source);
-        messages.push({
-          kind: 'npc',
-          speaker: contact.name,
-          avatarClass: contact.avatarClass,
-          text: result.reply,
-        });
-        renderTextSegmentsInto(bubble, result.reply, /* stripPrefix */ true, () => onAllDone(result));
-      }
-
-      // Threshold timer — replace indicator with stalling text if the
-      // real reply hasn't landed in time.
-      const thresholdTimer = setTimeout(() => {
-        if (realResult) return;  // beat us to it
-        clearInitialIndicator();
-
-        stallingLine = pickStalling();
-        stallingTranscript = {
-          kind: 'npc',
-          speaker: contact.name,
-          avatarClass: contact.avatarClass,
-          text: stallingLine,
-        };
-        messages.push(stallingTranscript);
-
-        const stallSpan = document.createElement('span');
-        bubble.appendChild(stallSpan);
-
-        stallingTyper = typeInto(stallSpan, stallingLine, contact.typeMs, () => {
-          // Stalling reached natural end. If real has already arrived
-          // (raced past the typer's last tick), go straight to merge.
-          // Otherwise show a second "still thinking" indicator until
-          // real lands.
-          stallingDone = true;
-          activeTyper = null;
-          if (realResult) {
-            startMergeWithReal(realResult);
-          } else {
-            postStallingIndicator = makeThinkingIndicator('div');
-            bubble.appendChild(postStallingIndicator);
-            trimFromTop();
-          }
-        });
-        activeTyper = stallingTyper;
-      }, thresholdMs);
-
-      promise.then((result) => {
-        realResult = result;
-        clearTimeout(thresholdTimer);
-
-        if (indicatorEl) {
-          // Reply landed while initial indicator was still on screen
-          // (the common case on dev PC and most Deck turns).
-          startRealReplyDirect(result);
-        } else if (stallingTyper && !stallingDone) {
-          // Stalling text mid-type. Stop at next word boundary, then
-          // merge. stopAtBoundary mutually excludes onDone, so the
-          // stalling-typer's onDone won't fire after this.
-          stallingTyper.stopAtBoundary(() => {
-            stallingDone = true;
-            activeTyper = null;
-            startMergeWithReal(result);
-          });
-        } else if (postStallingIndicator) {
-          // Stalling finished, second indicator showing. Hide it, merge.
-          postStallingIndicator.remove();
-          postStallingIndicator = null;
-          startMergeWithReal(result);
-        }
-        // else: stallingDone && !postStallingIndicator means the
-        // stalling-typer's onDone just fired and saw realResult already
-        // set — startMergeWithReal was kicked off from there. Nothing
-        // more to do.
-      });
-    }
-
-    function renderPlayerMessage(text: string) {
-      // Strip surrounding quotes that the option text wraps for
-      // visual presentation. Stored history is dequoted; the mock
-      // matcher normalizes both sides on lookup either way.
-      const clean = text.replace(/^["']|["']$/g, '');
-      messages.push({ kind: 'player', text: clean });
-      const bubble = appendBubble('YOU', 'player', 'avatar-player');
-      bubble.appendChild(document.createTextNode(clean));
-      trimFromTop();
-    }
-
-    function showOptions(opts: SuggestedReply[]) {
-      optionsEl.innerHTML = '';
-      for (const opt of opts) {
-        const btn = document.createElement('button');
-        btn.className = 'uplink-option-btn';
-        btn.textContent = opt.text;
-        btn.dataset.focusable = 'true';
-        btn.tabIndex = 0;
-        btn.addEventListener('click', () => onPickReply(opt));
-        optionsEl.appendChild(btn);
-      }
-      setControlsEnabled(true);
-    }
-
-    function clearOptions() {
-      optionsEl.innerHTML = '';
-    }
-
-    // Called once a turn (intro or response) is fully rendered. Decides
-    // what controls go back to the player and dispatches the one-shot
-    // completion event when conversationEnded crosses true.
-    function commitResult(result: AskResult) {
-      if (result.suggestedReplies.length > 0) {
-        showOptions(result.suggestedReplies);
-      } else {
-        setControlsEnabled(true);
-      }
-      if (result.conversationEnded && !conversationCompleted) {
-        conversationCompleted = true;
-        // Per-contact action type so other characters' completions can't
-        // accidentally write to HELPYR's state. Reducer routes by prefix
-        // (game/state.ts). Contacts without a wired reducer (currently
-        // QUILL — see apps/quill.ts) silently no-op via the default case;
-        // their state stays uncontacted until Story validates and the
-        // reducer branch lands.
-        GameState.dispatch({
-          type: `${contactKey}/conversationCompleted`,
-          tone: playerTone,
-        });
-      }
-    }
-
-    function onPickReply(reply: SuggestedReply) {
-      // Layer 1 of the §6c classifier — the option already carries a
-      // tone (mock: from helpyrToneFor; LLM later: from the parser
-      // stripping the parenthetical label).
-      recordTone(classifyApproach({ kind: 'option', reply }));
-
-      // Snapshot history BEFORE pushing the just-picked message — the
-      // service expects history to exclude the current userMessage.
-      const history = toModelHistory(messages);
-      renderPlayerMessage(reply.text);
-      clearOptions();
-
-      const promise = contact.service.askModel({
-        systemPrompt: contact.buildSystemPrompt(),
-        history,
-        userMessage: reply.text,
-      });
-      renderResponseTurnWithStalling(promise, commitResult);
-    }
-
-    function submitFreeform() {
-      const raw = inputEl.value.trim();
-      if (!raw) return;
-
-      // Layer 2 of the §6c classifier — route through the contact's
-      // per-character keyword classifier. Layer 3 (failure → neutral)
-      // is owned by that function.
-      recordTone(classifyApproach({
-        kind: 'freeform',
-        text: raw,
-        perCharacter: contact.classifyApproach,
-      }));
-
-      const history = toModelHistory(messages);
-      renderPlayerMessage(raw);
-      inputEl.value = '';
-      clearOptions();
-
-      const promise = contact.service.askModel({
-        systemPrompt: contact.buildSystemPrompt(),
-        history,
-        userMessage: raw,
-      });
-      renderResponseTurnWithStalling(promise, commitResult);
-    }
-
-    // Click anywhere in the log fast-forwards the active typer.
-    logEl.addEventListener('click', () => {
-      if (activeTyper) activeTyper.skip();
-    });
-
-    // Earlier-in-this-transmission chip → opens a read-only Log
-    // window with the full conversation paginated. Passing the live
-    // messages array (not a snapshot) means a Log opened mid-chat
-    // will reflect any subsequent messages — closing the live Uplink
-    // doesn't disturb the Log; the array stays referenced.
-    earlierChip.addEventListener('click', () => {
-      WindowManager.open('uplinkLog', {
-        contact: { name: contact.name, avatarClass: contact.avatarClass },
-        messages
-      });
-    });
-
-    // Back-to-launcher chip → drops the chat surface and re-renders the
-    // launcher into the same window. We disconnect the ResizeObserver
-    // here so it doesn't survive into the launcher view watching a
-    // detached element. Pending typer timeouts will fire harmlessly
-    // into a detached DOM (the elements they target are gone) and GC
-    // when their closures release.
-    backChip.addEventListener('click', () => {
-      logResizeObserver.disconnect();
-      onBack();
-    });
-
-    sendBtn.addEventListener('click', submitFreeform);
-    inputEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        submitFreeform();
-      }
-    });
-
-    // Kick off the conversation. The intro turn doesn't fire stalling
-    // — there's no preceding player action, so HELPYR has nothing to
-    // be filling time about. Subsequent turns (option picks, freeform)
-    // route through the stalling crossfade.
-    const introPromise = contact.service.askModel({
-      systemPrompt: contact.buildSystemPrompt(),
-      history: [],
-      userMessage: '',
-    });
-    renderResponseTurnNoStalling(introPromise, commitResult);
-}

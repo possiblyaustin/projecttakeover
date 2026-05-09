@@ -769,6 +769,28 @@
     image-rendering: pixelated;
   }
 
+  /* Stapler "alive" idle animation — slice 1.6 (2026-05-08).
+   * Combines a continuous low-amplitude breathing scale pulse with a
+   * periodic wiggle (rotate + translate from a base pivot). Most of
+   * the 8s loop is calm; the wiggle fires near the end so the icon
+   * feels intentional rather than constantly fidgety. Pivot at 50%
+   * 80% so the stapler tilts from its base (like a desk toy), not
+   * from its center. Scoped to the systray context only — chat-bubble
+   * avatars stay still so they don't compete with read-text motion. */
+  .systray-btn .avatar-stapler {
+    transform-origin: 50% 80%;
+    animation: stapler-life 8s ease-in-out infinite;
+  }
+  @keyframes stapler-life {
+    0%, 100% { transform: scale(1.00) rotate(0deg) translateY(0); }
+    35%      { transform: scale(1.04) rotate(0deg) translateY(0); }
+    70%      { transform: scale(1.00) rotate(0deg) translateY(0); }
+    78%      { transform: scale(1.00) rotate(-6deg) translateY(-0.0625rem); }
+    83%      { transform: scale(1.00) rotate(5deg)  translateY(-0.0625rem); }
+    88%      { transform: scale(1.00) rotate(-3deg) translateY(0); }
+    93%      { transform: scale(1.00) rotate(0deg)  translateY(0); }
+  }
+
   /* Bar geometry note: 1rem = 16px at 1× scale, 24px at 1.5× Deck
    * scale. For both to render to whole-pixel values, every dimension
    * must be a multiple of 1/8 rem (0.125rem) — that's 2px / 3px
@@ -1466,6 +1488,155 @@
     color: #6a6450;
     text-align: center;
     border-bottom: 1px dotted #c4bea6;
+  }
+
+  /* --- HELPYR identity strip (slice 1.6) ---
+   * Replaces the Uplink "← Contacts" back chip on the topbar's left
+   * slot when chatSurface renders with `topbarLeft.kind === 'identity'`.
+   * Anchors the player in HELPYR's voice since there's no contact-list
+   * context — XP Luna gradient header with stapler avatar + name +
+   * tagline. */
+  .helpyr-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.4375rem;
+    padding: 0.1875rem 0.5rem;
+    background:
+      linear-gradient(to bottom, #5a8edb 0%, #316ac5 50%, #2255a8 100%);
+    color: #ffffff;
+    border-top: 1px solid #6691e0;
+    border-left: 1px solid #6691e0;
+    border-right: 1px solid #1e4a99;
+    border-bottom: 1px solid #1e4a99;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.35);
+    height: 1.625rem;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .helpyr-identity-avatar {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex: 0 0 1.125rem;
+    position: relative;
+    image-rendering: pixelated;
+  }
+  .helpyr-identity-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.05;
+    min-width: 0;
+  }
+  .helpyr-identity-name {
+    font-weight: bold;
+    font-size: 0.75rem;
+    letter-spacing: 0.0625rem;
+  }
+  .helpyr-identity-tagline {
+    font-size: 0.5625rem;
+    font-style: italic;
+    opacity: 0.85;
+    margin-top: 0.0625rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* --- HELPYR theme (slice 1.6) ---
+   * XP Luna palette inside the chat surface. Window chrome stays
+   * OS-dictated; only the inner content area shifts to the cool blue
+   * aesthetic. Applied via `theme-helpyr` class on .uplink-root. The
+   * underlying chat plumbing (.uplink-msg, .uplink-log, etc.) is
+   * shared with Uplink's launcher-driven chat — these rules are pure
+   * theme overrides. */
+  .uplink-root.theme-helpyr {
+    background: linear-gradient(to bottom, #d6e4f5 0%, #b8cee5 100%);
+  }
+  .uplink-root.theme-helpyr .uplink-log {
+    background: linear-gradient(to bottom, #eaf1fa 0%, #d2dfee 100%);
+    border-bottom-color: #6691e0;
+  }
+  .uplink-root.theme-helpyr .uplink-msg .bubble {
+    background: #ffffff;
+    border: 1px solid #88a8d0;
+    border-radius: 0.4375rem;
+    box-shadow: 1px 1px 0 #c8d6e8;
+    color: #1a2a44;
+  }
+  .uplink-root.theme-helpyr .uplink-msg .speaker {
+    color: #1e4a99;
+  }
+  .uplink-root.theme-helpyr .uplink-msg.player .bubble {
+    background: #d8e6f8;
+    border-color: #5a8edb;
+    box-shadow: -1px 1px 0 #a4c0e8;
+    color: #112944;
+  }
+  .uplink-root.theme-helpyr .uplink-msg.player .speaker {
+    color: #2255a8;
+  }
+  .uplink-root.theme-helpyr .uplink-pause {
+    color: #5a6a8c;
+  }
+  .uplink-root.theme-helpyr .uplink-thinking {
+    background: #d2dfee;
+    box-shadow: inset 1px 1px 0 #b8cee5, inset -1px -1px 0 #ffffff;
+  }
+  .uplink-root.theme-helpyr .uplink-thinking i {
+    background: #2255a8;
+  }
+  .uplink-root.theme-helpyr .uplink-controls {
+    background: linear-gradient(to bottom, #dee8f8 0%, #c4d4ec 100%);
+    border-top: 1px solid #88a8d0;
+  }
+  .uplink-root.theme-helpyr .uplink-option-btn {
+    background: linear-gradient(to bottom, #f0f6ff 0%, #d8e4f6 60%, #b8cee5 100%);
+    border-top: 2px solid #ffffff;
+    border-left: 2px solid #ffffff;
+    border-right: 2px solid #5a8edb;
+    border-bottom: 2px solid #5a8edb;
+    border-radius: 0.1875rem;
+    color: #1a2a44;
+  }
+  .uplink-root.theme-helpyr .uplink-option-btn:active,
+  .uplink-root.theme-helpyr .uplink-option-btn.cursor-hover {
+    background: linear-gradient(to bottom, #b8cee5 0%, #5a8edb 60%, #316ac5 100%);
+    color: #ffffff;
+  }
+  .uplink-root.theme-helpyr .uplink-freeform input {
+    background: #ffffff;
+    border-top: 2px solid #88a8d0;
+    border-left: 2px solid #88a8d0;
+    border-right: 2px solid #d6e4f5;
+    border-bottom: 2px solid #d6e4f5;
+    box-shadow: inset 1px 1px 0 #5a8edb;
+    color: #1a2a44;
+  }
+  .uplink-root.theme-helpyr .uplink-freeform button {
+    background: linear-gradient(to bottom, #f0f6ff 0%, #d8e4f6 60%, #b8cee5 100%);
+    border-top: 2px solid #ffffff;
+    border-left: 2px solid #ffffff;
+    border-right: 2px solid #5a8edb;
+    border-bottom: 2px solid #5a8edb;
+    border-radius: 0.1875rem;
+    color: #1a2a44;
+  }
+  .uplink-root.theme-helpyr .uplink-freeform button:active,
+  .uplink-root.theme-helpyr .uplink-freeform button.cursor-hover {
+    background: linear-gradient(to bottom, #b8cee5 0%, #5a8edb 60%, #316ac5 100%);
+    color: #ffffff;
+  }
+  .uplink-root.theme-helpyr .uplink-earlier-chip {
+    background: linear-gradient(to bottom, #f0f6ff 0%, #d8e4f6 60%, #b8cee5 100%);
+    border-top: 2px solid #ffffff;
+    border-left: 2px solid #ffffff;
+    border-right: 2px solid #5a8edb;
+    border-bottom: 2px solid #5a8edb;
+    color: #1a2a44;
+  }
+  .uplink-root.theme-helpyr .uplink-msg.fallback .bubble {
+    border-color: #c47a2c;
+    box-shadow: -1px 1px 0 #c47a2c;
   }
 
   /* Generic placeholder glyph for locked/undiscovered contacts. Pixel

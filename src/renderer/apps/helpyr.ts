@@ -456,3 +456,86 @@ Phase: ${phase}
 ${directive}
 [/HELPYR_STATE]`;
 }
+
+// =============================================================================
+// HelpyrContact + HelpyrApp — slice 1.6 (2026-05-08)
+// =============================================================================
+//
+// HELPYR's chat surface lives in its own app rather than being a contact in
+// the Uplink launcher. It's the player's *local* desktop assistant — same
+// chat plumbing as Uplink (shared via renderer/chatSurface.ts) but a
+// distinct visual identity (XP-blue Luna theme inside the OS-dictated
+// window chrome) and a distinct entry point (the systray stapler icon).
+//
+// HelpyrContact is also imported by apps/uplink.ts for its UplinkContacts
+// registry, so the dev affordance `PT.WindowManager.openContact('helpyr')`
+// keeps working through Uplink for backward-compat / debugging. The chat
+// experience is identical either way; the only difference is the host
+// app's window chrome + theme.
+
+import type { AppDef, AppContext, WinParams } from '../types';
+import type { ChatContact } from '../chatSurface';
+import { renderChatSurface, makeFallbackHandler } from '../chatSurface';
+import { GameState } from '../game/state';
+import { buildReputationContext } from '../game/reputation';
+import { makeModelService } from '../game/modelServiceFactory';
+
+export const HelpyrContact: ChatContact = {
+  name: 'HELPYR',
+  avatarClass: 'avatar-stapler',
+  // Service is selected at construction time per the §6a transport-
+  // agnostic design. Default backend is 'mock'; `?backend=llamacpp`
+  // in the URL flips to the real llama-server transport.
+  service: makeModelService({
+    mock: {
+      dialogue: HelpyrDialogue,
+      wildcards: HelpyrWildcards,
+      classify: classifyHelpyrFreeform,
+      toneFor: helpyrToneFor,
+      delayMs: 2500,
+    },
+    fallback: makeFallbackHandler(HelpyrFallbackPool),
+  }),
+  // D.3: dynamic prompt assembly — {{HELPYR_STATE}} and {{REPUTATION}}
+  // resolved per-call so trust-phase shifts and cross-model awareness
+  // flow into the next prompt without extra wiring.
+  buildSystemPrompt: () => {
+    const state = GameState.getState();
+    return HelpyrPersonaPrompt
+      .replace('{{REPUTATION}}', buildReputationContext('helpyr', state))
+      .replace('{{HELPYR_STATE}}', buildHelpyrStateBlock(state.models.helpyr));
+  },
+  stallingPool: HelpyrStallingPool,
+  typeMs: 18,
+  pauseMs: 1100,
+  stallingThresholdMs: 10000,
+  classifyApproach: classifyHelpyrApproach,
+};
+
+export const HelpyrApp: AppDef = {
+  id: 'helpyr',
+  name: 'HELPYR',
+  glyphClass: 'avatar-stapler',
+  // Slightly smaller than Uplink (460×500) — HELPYR is a one-on-one
+  // assistant, no launcher to fit, so the window can feel cozier.
+  // Still clears the launcher rule (no scrollbars at Deck UI_SCALE)
+  // since the chat surface auto-trims overflowing history.
+  defaultSize: { w: 440, h: 460 },
+  contentBevel: false,
+  noContentPad: true,
+  render(container: HTMLElement, _params: WinParams, ctx: AppContext) {
+    renderChatSurface(container, ctx, {
+      contact: HelpyrContact,
+      contactKey: 'helpyr',
+      themeClass: 'theme-helpyr',
+      titleFormat: () => 'HELPYR',
+      glyphFormat: () => 'avatar-stapler',
+      topbarLeft: {
+        kind: 'identity',
+        avatarClass: 'avatar-stapler',
+        name: 'HELPYR',
+        tagline: 'local desktop assistant',
+      },
+    });
+  },
+};

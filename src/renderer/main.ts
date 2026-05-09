@@ -31,6 +31,7 @@ import { ScratchpadApp } from './apps/scratchpad';
 import { WebDynamoApp } from './apps/webDynamo';
 import { UplinkApp } from './apps/uplink';
 import { UplinkLogApp } from './apps/uplinkLog';
+import { HelpyrApp } from './apps/helpyr';
 
 // ---- Boot order ----
 // 1. Register every app the system knows about.
@@ -38,6 +39,7 @@ registerApp(ScratchpadApp);
 registerApp(WebDynamoApp);
 registerApp(UplinkApp);
 registerApp(UplinkLogApp);
+registerApp(HelpyrApp);
 
 // 2. Build the shell (desktop icons, Nexus menu, taskbar, clock,
 //    systray). Subscribes the systray to GameState.

@@ -204,7 +204,10 @@ function initHelpyrTray(): void {
       WindowManager.focus(helpyrWinId);
       return;
     }
-    helpyrWinId = WindowManager.open('uplink', { contact: 'helpyr' });
+    // Slice 1.6 (2026-05-08): tray click opens HELPYR's dedicated app
+    // (XP-themed local-assistant chat) rather than Uplink-with-helpyr.
+    // The dev affordance via Uplink still works for debugging.
+    helpyrWinId = WindowManager.open('helpyr');
   });
 }
 
