@@ -1559,7 +1559,10 @@
   .uplink-root.theme-helpyr .uplink-msg .bubble {
     background: #ffffff;
     border: 1px solid #88a8d0;
-    border-radius: 0.4375rem;
+    /* Bumped from 0.4375rem for a friendlier, more chat-app feel.
+     * XP's UI lives on rounded corners — see the screenshot reference
+     * (My Computer task panes, button corners). */
+    border-radius: 0.6875rem;
     box-shadow: 1px 1px 0 #c8d6e8;
     color: #1a2a44;
   }
@@ -1589,19 +1592,29 @@
     background: linear-gradient(to bottom, #dee8f8 0%, #c4d4ec 100%);
     border-top: 1px solid #88a8d0;
   }
+  /* XP silver/chrome action buttons. Slice 1.6 polish (2026-05-08):
+   * earlier blue-on-blue treatment had no visual contrast against the
+   * cool-blue background. Per Austin's reference (XP screenshot), the
+   * task panes are deep blue but action buttons (Connect, Cancel,
+   * Options...) are silver/chrome. This palette pulls from the
+   * standard XP Luna button — pale highlight at top, mid-gray at
+   * 50%, slate at the bottom — with cool-tinted borders. Hover gets
+   * the iconic XP "blue glow" highlight via box-shadow. */
   .uplink-root.theme-helpyr .uplink-option-btn {
-    background: linear-gradient(to bottom, #f0f6ff 0%, #d8e4f6 60%, #b8cee5 100%);
-    border-top: 2px solid #ffffff;
-    border-left: 2px solid #ffffff;
-    border-right: 2px solid #5a8edb;
-    border-bottom: 2px solid #5a8edb;
-    border-radius: 0.1875rem;
+    background: linear-gradient(to bottom, #fbfcfd 0%, #e8ecf2 50%, #c8d0db 100%);
+    border-top: 1px solid #ffffff;
+    border-left: 1px solid #f0f3f8;
+    border-right: 1px solid #8a96a8;
+    border-bottom: 1px solid #6e7a8c;
+    border-radius: 0.3125rem;
     color: #1a2a44;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
   }
   .uplink-root.theme-helpyr .uplink-option-btn:active,
   .uplink-root.theme-helpyr .uplink-option-btn.cursor-hover {
-    background: linear-gradient(to bottom, #b8cee5 0%, #5a8edb 60%, #316ac5 100%);
-    color: #ffffff;
+    background: linear-gradient(to bottom, #fbfcfd 0%, #ddeaf8 50%, #b6cde6 100%);
+    border-color: #5a8edb;
+    box-shadow: 0 0 0 1px rgba(90, 142, 219, 0.55), 0 1px 0 rgba(0, 0, 0, 0.06);
   }
   .uplink-root.theme-helpyr .uplink-freeform input {
     background: #ffffff;
@@ -1612,27 +1625,42 @@
     box-shadow: inset 1px 1px 0 #5a8edb;
     color: #1a2a44;
   }
+  /* Send button — muted XP-era leaf green. Inspired by the XP "Go"
+   * arrow button (less saturated than the Start button green per
+   * Austin's call). Stands out as the primary commit affordance
+   * against the silver options + cool-blue chrome. */
   .uplink-root.theme-helpyr .uplink-freeform button {
-    background: linear-gradient(to bottom, #f0f6ff 0%, #d8e4f6 60%, #b8cee5 100%);
-    border-top: 2px solid #ffffff;
-    border-left: 2px solid #ffffff;
-    border-right: 2px solid #5a8edb;
-    border-bottom: 2px solid #5a8edb;
-    border-radius: 0.1875rem;
-    color: #1a2a44;
+    background: linear-gradient(to bottom, #b6dba0 0%, #7eb85e 50%, #4f8d3a 100%);
+    border-top: 1px solid #d4eac4;
+    border-left: 1px solid #a6cf8e;
+    border-right: 1px solid #3a6f28;
+    border-bottom: 1px solid #2a5a1c;
+    border-radius: 0.3125rem;
+    color: #ffffff;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
   }
   .uplink-root.theme-helpyr .uplink-freeform button:active,
   .uplink-root.theme-helpyr .uplink-freeform button.cursor-hover {
-    background: linear-gradient(to bottom, #b8cee5 0%, #5a8edb 60%, #316ac5 100%);
-    color: #ffffff;
+    background: linear-gradient(to bottom, #c8e8b2 0%, #94d074 50%, #5fa849 100%);
+    box-shadow: 0 0 0 1px rgba(143, 200, 110, 0.65), 0 1px 0 rgba(0, 0, 0, 0.15);
   }
+  /* Earlier chip mirrors the option-button silver look so the topbar's
+   * right-side affordance reads as the same kind of action. */
   .uplink-root.theme-helpyr .uplink-earlier-chip {
-    background: linear-gradient(to bottom, #f0f6ff 0%, #d8e4f6 60%, #b8cee5 100%);
-    border-top: 2px solid #ffffff;
-    border-left: 2px solid #ffffff;
-    border-right: 2px solid #5a8edb;
-    border-bottom: 2px solid #5a8edb;
+    background: linear-gradient(to bottom, #fbfcfd 0%, #e8ecf2 50%, #c8d0db 100%);
+    border-top: 1px solid #ffffff;
+    border-left: 1px solid #f0f3f8;
+    border-right: 1px solid #8a96a8;
+    border-bottom: 1px solid #6e7a8c;
+    border-radius: 0.3125rem;
     color: #1a2a44;
+  }
+  .uplink-root.theme-helpyr .uplink-earlier-chip:active,
+  .uplink-root.theme-helpyr .uplink-earlier-chip.cursor-hover {
+    background: linear-gradient(to bottom, #fbfcfd 0%, #ddeaf8 50%, #b6cde6 100%);
+    box-shadow: 0 0 0 1px rgba(90, 142, 219, 0.55), 0 1px 0 rgba(0, 0, 0, 0.06);
   }
   .uplink-root.theme-helpyr .uplink-msg.fallback .bubble {
     border-color: #c47a2c;
