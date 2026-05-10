@@ -12,6 +12,8 @@ import { WindowManager } from './windows';
 import { GameState, type GameStateShape } from './game/state';
 import { devSpawnRandomBubble } from './helpyrBubble';
 import { showHelpyrApp } from './apps/helpyr';
+import { UplinkContacts } from './apps/uplink';
+import { devFirePinPrompt } from './firstContactWatcher';
 
 type DesktopShortcut = {
   id: string;
@@ -72,15 +74,30 @@ const NexusMenu: NexusEntry[] = [
     action: () => WindowManager.open('uplink')
   },
   { type: 'sep' },
-  // [DEV] entries — slice 1.7 (2026-05-10). Visible in-game so the
-  // tester can fire bubbles without devtools (Deck-friendly per
-  // feedback_dev_test_affordances). Drop these once event triggers
-  // ship in slice 3 and the surface fires on its own.
+  // [DEV] entries — visible in-game so the tester can fire surfaces
+  // without devtools (Deck-friendly per feedback_dev_test_affordances).
+  // Drop these as the underlying triggers ship.
+  // - Spawn HELPYR Bubble: slice 1.7. Drops in slice 3 when real event
+  //   triggers (suspicion/idle/etc.) auto-fire library bubbles.
+  // - Fire QUILL pin prompt: slice 2. Fires the "add to desktop?"
+  //   first-contact prompt without needing to walk through QUILL's
+  //   dialogue. Drops once playtest confirms the auto-firing path
+  //   works end-to-end on real hardware.
   { type: 'item', label: '[DEV] Spawn HELPYR Bubble',
     action: () => devSpawnRandomBubble() },
+  { type: 'item', label: '[DEV] Fire QUILL pin prompt',
+    action: () => devFirePinPrompt('quill') },
   { type: 'sep' },
   { type: 'item', label: 'Shut Down...', action: () => alert('Shutdown not wired up yet.') }
 ];
+
+// Y-positions for desktop icons — first 3 slots are taken by the
+// static shortcuts (README, Web Dynamo, Uplink at top 14/100/186).
+// Pinned contacts stack from slot 4 onward at 86px stride. Authored
+// at scale 1.0 and multiplied by UI_SCALE at render time.
+const PIN_COL_LEFT = 16;
+const PIN_TOP_BASE = 272;
+const PIN_TOP_STRIDE = 86;
 
 export function initDesktop(): void {
   // -- Desktop icons --
@@ -88,22 +105,20 @@ export function initDesktop(): void {
   FocusManager.registerContext('desktop', desktopEl, { root: true });
 
   DesktopShortcuts.forEach(sc => {
-    const icon = document.createElement('div');
-    icon.className = 'desktop-icon';
-    icon.tabIndex = 0;
-    icon.dataset.focusable = 'true';
-    icon.style.left = (sc.pos.left * UI_SCALE) + 'px';
-    icon.style.top  = (sc.pos.top  * UI_SCALE) + 'px';
-    icon.innerHTML = `<div class="glyph ${sc.glyphClass}"></div><div class="label"></div>`;
-    icon.querySelector('.label')!.textContent = sc.label;
-    // Cursor-first: a single click (physical, A button, or Enter)
-    // launches the app. The hover highlight indicates what's selected.
-    icon.addEventListener('click', (e) => {
-      e.stopPropagation();
-      sc.launch();
-    });
-    desktopEl.appendChild(icon);
+    desktopEl.appendChild(makeDesktopIcon({
+      label: sc.label,
+      glyphClass: sc.glyphClass,
+      left: sc.pos.left,
+      top: sc.pos.top,
+      onClick: sc.launch,
+    }));
   });
+
+  // Pinned contacts (slice 2). Renders icons for each entry in
+  // state.desktopPins below the static shortcuts. Subscribes to
+  // GameState so adding/removing a pin updates icons live.
+  renderPinnedIcons(GameState.getState(), desktopEl);
+  GameState.subscribe(s => renderPinnedIcons(s, desktopEl));
 
   // -- Taskbar (focus context) --
   const taskbarEl = document.getElementById('taskbar')!;
@@ -189,6 +204,65 @@ export function initDesktop(): void {
 function initSystray(): void {
   initHelpyrTray();
   initSuspicionTray();
+}
+
+// Build a single desktop icon at an authored (scale-1.0) position.
+// Shared between the static shortcut list and the dynamic pinned-
+// contact list so both render with identical chrome + behavior.
+type DesktopIconSpec = {
+  label: string;
+  glyphClass: string;
+  left: number;
+  top: number;
+  onClick: () => void;
+  pinnedContactId?: string;
+};
+function makeDesktopIcon(spec: DesktopIconSpec): HTMLElement {
+  const icon = document.createElement('div');
+  icon.className = 'desktop-icon';
+  icon.tabIndex = 0;
+  icon.dataset.focusable = 'true';
+  if (spec.pinnedContactId) icon.dataset.pinnedContact = spec.pinnedContactId;
+  icon.style.left = (spec.left * UI_SCALE) + 'px';
+  icon.style.top  = (spec.top  * UI_SCALE) + 'px';
+  icon.innerHTML = `<div class="glyph ${spec.glyphClass}"></div><div class="label"></div>`;
+  icon.querySelector('.label')!.textContent = spec.label;
+  // Cursor-first: a single click (physical, A button, or Enter)
+  // launches the app. The hover highlight indicates what's selected.
+  icon.addEventListener('click', (e) => {
+    e.stopPropagation();
+    spec.onClick();
+  });
+  return icon;
+}
+
+// Reconcile the pinned-icon row from state.desktopPins. Removes any
+// existing pinned-contact icons and rebuilds — desktop pins are a
+// short list (player adds them one-at-a-time after each first
+// conversation), so the cost of full rebuild is negligible and the
+// logic is simpler than a diff.
+function renderPinnedIcons(state: GameStateShape, desktopEl: HTMLElement): void {
+  desktopEl.querySelectorAll('[data-pinned-contact]').forEach(el => el.remove());
+  state.desktopPins.forEach((pin, i) => {
+    const contact = UplinkContacts[pin.contactId];
+    if (!contact) {
+      // Save references a contact that's no longer in the registry —
+      // shouldn't happen during normal play but could after a content
+      // refactor that renamed contacts. Skip silently rather than
+      // crash; the save will eventually self-heal as new pins land.
+      console.warn('[desktop] pinned contact missing from registry:', pin.contactId);
+      return;
+    }
+    const icon = makeDesktopIcon({
+      label: contact.name,
+      glyphClass: contact.avatarClass,
+      left: PIN_COL_LEFT,
+      top: PIN_TOP_BASE + i * PIN_TOP_STRIDE,
+      onClick: () => WindowManager.open('uplink', { contact: pin.contactId }),
+      pinnedContactId: pin.contactId,
+    });
+    desktopEl.appendChild(icon);
+  });
 }
 
 // HELPYR tray button: opens the HELPYR app window, or focuses it if

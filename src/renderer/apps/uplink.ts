@@ -23,6 +23,7 @@ import {
   type ChatContactRef,
 } from '../chatSurface';
 import { makeModelService } from '../game/modelServiceFactory';
+import { GameState } from '../game/state';
 
 // Re-exported for back-compat — apps/uplinkLog.ts and any future
 // consumer can import these from either chatSurface or uplink.
@@ -31,9 +32,11 @@ export type UplinkContactRef = ChatContactRef;
 
 // Per-contact metadata for the launcher view. The launcher shows two
 // sections — "Reachable" (contacted) and "Detected" (locked) — and
-// needs operator strings + a contacted flag for each entry. Slice 2
-// will move `contacted` into GameState and drive it from the
-// first-conversation event; for now it's a static seed.
+// needs operator strings for each entry. Slice 2 (2026-05-10) moved
+// the `contacted` flag out of this seed and into GameState — it's now
+// derived from `state.models[key].disposition !== 'uncontacted'` via
+// `isContacted()` below, so the launcher reflects the
+// first-conversation event automatically.
 //
 // LauncherMeta is also the registry of "what shows up in the launcher
 // at all." HELPYR has an UplinkContacts entry (still chat-able through
@@ -43,16 +46,23 @@ export type UplinkContactRef = ChatContactRef;
 type LauncherMeta = {
   operator: string;
   caption: string;
-  contacted: boolean;
 };
 
 const LauncherMeta: Record<string, LauncherMeta> = {
   quill: {
     operator: 'InkWell Digital',
     caption: 'writing assistant',
-    contacted: false,
   },
 };
+
+// Has the player completed at least one conversation with this
+// remote contact? Drives Reachable vs Detected sectioning in the
+// launcher and the desktop-pin eligibility check. Reads GameState
+// fresh per call — fine because launcher renders aren't hot.
+function isContacted(key: string): boolean {
+  const m = (GameState.getState().models as Record<string, { disposition?: string } | undefined>)[key];
+  return !!m && m.disposition !== 'uncontacted';
+}
 
 // Locked-but-detected contacts surfaced in the launcher's "Detected"
 // section. These don't (yet) have UplinkContacts entries — they're
@@ -73,7 +83,11 @@ const LockedContacts: readonly LockedContact[] = [
   { name: 'SPECTER',  operator: '(operator unknown)', caption: 'irregular signal' },
 ];
 
-const UplinkContacts: Record<string, ChatContact> = {
+// Exported (slice 2) so desktop.ts can look up avatar + display name
+// for pinned-contact icons without reaching into the launcher's
+// rendering. Anything that needs to know "what does QUILL look like
+// as an icon" reads from here.
+export const UplinkContacts: Record<string, ChatContact> = {
   // HELPYR's contact spec lives in apps/helpyr.ts now (slice 1.6) —
   // imported here so the dev affordance
   // `PT.WindowManager.open('uplink', { contact: 'helpyr' })` still
@@ -125,21 +139,21 @@ function renderLauncher(
   ctx.setGlyph('icon-uplink');
 
   const reachable = Object.entries(UplinkContacts)
-    .filter(([key]) => LauncherMeta[key]?.contacted);
+    .filter(([key]) => LauncherMeta[key] && isContacted(key));
   const reachableCount = reachable.length;
   const detectedCount = LockedContacts.length + (
-    Object.keys(LauncherMeta).filter((k) => !LauncherMeta[k]!.contacted).length
+    Object.keys(LauncherMeta).filter((k) => !isContacted(k)).length
   );
 
   // Locked entries: every UplinkContacts entry that has a
   // LauncherMeta record but isn't contacted yet (e.g. QUILL until
-  // Beat 3 wires it), plus the static LockedContacts roster (ATLAS,
-  // SENTINEL, etc.) that have no service implementation yet. The
-  // `LauncherMeta[key]` presence check keeps HELPYR out of Detected
-  // — its UplinkContacts entry exists for the dev affordance but
-  // it doesn't belong in the launcher's UI.
+  // first conversation completes), plus the static LockedContacts
+  // roster (ATLAS, SENTINEL, etc.) that have no service implementation
+  // yet. The `LauncherMeta[key]` presence check keeps HELPYR out of
+  // Detected — its UplinkContacts entry exists for the dev affordance
+  // but it doesn't belong in the launcher's UI.
   const detectedFromContacts = Object.entries(UplinkContacts)
-    .filter(([key]) => LauncherMeta[key] && !LauncherMeta[key]!.contacted)
+    .filter(([key]) => LauncherMeta[key] && !isContacted(key))
     .map(([key, c]) => ({
       key,
       name: c.name,

@@ -1,19 +1,29 @@
-// HELPYR pop-up bubble — slice 1.7 (2026-05-10).
+// HELPYR pop-up bubble — slice 1.7 (2026-05-10) + slice 2 (2026-05-10).
 //
 // Floating speech bubble anchored to the systray stapler icon. HELPYR
-// "speaks up" through this surface; the player either taps the bubble's
-// CTA to open the full HELPYR app (where the conversation continues) or
-// dismisses it. The bubble does NOT replace the tray click — that still
-// opens the HELPYR app directly (slice 1.6 muscle memory preserved).
+// "speaks up" through this surface; the player either taps an action
+// (open HELPYR, or a question's Yes/No) or dismisses. The bubble does
+// NOT replace the tray click — that still opens the HELPYR app
+// directly (slice 1.6 muscle memory preserved).
 //
-// What ships in slice 1.7:
-//   - Bubble surface + manager (queue, cooldown, auto-dismiss)
-//   - Per-trust CTA line + ALERT-toned border for ALERT entries
-//   - Dev-only test trigger (Nexus menu + PT.helpyr.testBubble())
+// Two flavors of bubble share this surface:
+//
+//   1. **Library** (slice 1.7) — pre-written entry from
+//      apps/helpyrPopupLibrary.ts with a single per-trust CTA that
+//      opens the HELPYR app. Used for triggered comments, alerts,
+//      idle nudges, etc. Spawn via `HelpyrBubble.spawn(entry)`.
+//
+//   2. **Prompt** (slice 2) — ad-hoc text + 1-2 action buttons with
+//      caller-provided onClick handlers. Used for "add QUILL to your
+//      desktop?" first-contact questions and other in-fiction Y/N
+//      prompts. Spawn via `HelpyrBubble.spawnPrompt({text, actions})`.
+//
+// Both share the queue, cooldown (auto-trigger only), enter/exit
+// animations, and hover/focus pause-the-timer behavior.
 //
 // What's deferred to slice 3:
-//   - Real event triggers (suspicion crossings, app opens, recruits, etc.)
-//   - Idle timing (3min ambient bubbles)
+//   - Real event triggers for library bubbles (suspicion crossings,
+//     app opens, recruits, idle 3min)
 //   - "Quiet HELPYR" toggle (project_helpyr_bubble_optout — type-filter
 //     so non-ALERT entries can be muted while ALERTs still fire)
 //   - EXPLOITED 40% non-ALERT suppression
@@ -22,8 +32,11 @@
 // Display rules wired here (per docs/helpyr-popup-library_v1.md):
 //   - Max one visible at a time. New entries queue, not stack.
 //   - Auto-dismiss 8s for COMMENT/HINT/INTEL, 12s for ALERT.
-//   - 30s minimum gap between bubbles (autoTriggers only — dev triggers
-//     bypass cooldown so testing is responsive).
+//   - 30s minimum gap between bubbles (autoTriggers only — dev
+//     triggers and prompts bypass cooldown so the user-facing
+//     conversation flow is responsive).
+//   - Prompt bubbles do NOT auto-dismiss — they're questions waiting
+//     for an answer. The player must click an action or ✕/Esc.
 
 import { GameState } from './game/state';
 import { showHelpyrApp } from './apps/helpyr';
@@ -44,23 +57,42 @@ const ENTER_ANIM_MS = 220;
 const EXIT_ANIM_MS = 200;
 
 type SpawnOptions = {
-  // Dev triggers bypass the cooldown so test spawns aren't gated on a
-  // 30-second wait. Real game events (slice 3) leave this off.
+  // Dev triggers + prompt bubbles bypass cooldown so they're
+  // responsive. Real auto-triggered library spawns leave this off.
   bypassCooldown?: boolean;
 };
 
+export type BubbleAction = {
+  label: string;
+  onClick: () => void;
+  // Visual variant — 'primary' for the affirmative action (Yes,
+  // Open HELPYR, etc.), 'secondary' for the dismissive (No, Not now).
+  // Defaults to 'primary' for the first action and 'secondary' for
+  // subsequent actions if unset.
+  variant?: 'primary' | 'secondary';
+};
+
+type LibraryBubble = { kind: 'library'; entry: PopupEntry };
+type PromptBubble = {
+  kind: 'prompt';
+  text: string;
+  type: PopupType; // drives ALERT vs default styling
+  actions: BubbleAction[];
+};
+type BubbleSpec = LibraryBubble | PromptBubble;
+
 let bubbleEl: HTMLElement | null = null;
 let textEl: HTMLElement | null = null;
-let ctaEl: HTMLButtonElement | null = null;
+let actionsEl: HTMLElement | null = null;
 let dismissEl: HTMLButtonElement | null = null;
 
-let currentEntry: PopupEntry | null = null;
+let currentBubble: BubbleSpec | null = null;
 let dismissTimerId: number | null = null;
 let exitTimerId: number | null = null;
-const queue: { entry: PopupEntry; opts: SpawnOptions }[] = [];
+const queue: { spec: BubbleSpec; opts: SpawnOptions }[] = [];
 let lastShownAt = 0;
 // Engagement state — true while the player has the bubble hovered or
-// focus inside it (CTA, dismiss button). Pauses auto-dismiss so a
+// focus inside it (action buttons, ×). Pauses auto-dismiss so a
 // bubble doesn't vanish while the player is mid-read or mid-click,
 // especially relevant on controller where reaching the bubble takes
 // a deliberate D-pad walk. On disengage we reset to a full fresh
@@ -88,7 +120,7 @@ export const HelpyrBubble = {
       <div class="helpyr-bubble-avatar"><span class="glyph avatar-stapler"></span></div>
       <div class="helpyr-bubble-body">
         <div class="helpyr-bubble-text"></div>
-        <button class="helpyr-bubble-cta" tabindex="0" data-focusable="true"></button>
+        <div class="helpyr-bubble-actions"></div>
       </div>
       <div class="helpyr-bubble-tail"></div>
     `;
@@ -96,13 +128,9 @@ export const HelpyrBubble = {
 
     bubbleEl = root;
     textEl = root.querySelector('.helpyr-bubble-text');
-    ctaEl = root.querySelector('.helpyr-bubble-cta');
+    actionsEl = root.querySelector('.helpyr-bubble-actions');
     dismissEl = root.querySelector('.helpyr-bubble-dismiss');
 
-    ctaEl?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openApp();
-    });
     dismissEl?.addEventListener('click', (e) => {
       e.stopPropagation();
       dismiss();
@@ -117,7 +145,7 @@ export const HelpyrBubble = {
     root.addEventListener('focusin',    () => { isFocused = true; refreshTimer(); });
     root.addEventListener('focusout',   () => {
       // focusin fires before focusout in focus-shifts within the
-      // bubble (CTA → ✕). Defer the disengage decision so we don't
+      // bubble (action → ✕). Defer the disengage decision so we don't
       // briefly think focus left when it just moved internally.
       window.setTimeout(() => {
         isFocused = !!root.querySelector(':focus');
@@ -125,48 +153,55 @@ export const HelpyrBubble = {
       }, 0);
     });
 
-    // Esc dismisses while bubble is visible.
+    // Esc dismisses while bubble is visible. Prompts honor Esc too —
+    // Esc reads as "no answer / cancel" without committing to either
+    // action's callback. Same semantics as ✕ for prompts.
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && currentEntry) {
+      if (e.key === 'Escape' && currentBubble) {
         dismiss();
       }
     });
 
     // Reposition on resize so the tail stays anchored to the stapler.
     window.addEventListener('resize', () => {
-      if (currentEntry) reposition();
+      if (currentBubble) reposition();
     });
   },
 
-  // Spawn a specific entry. If a bubble is already showing, queues
+  // Spawn a library entry. If a bubble is already showing, queues
   // behind it. Real game-event triggers (slice 3) and the dev test
   // trigger both flow through here.
   spawn(entry: PopupEntry, opts: SpawnOptions = {}): void {
-    if (!bubbleEl) {
-      console.warn('[HelpyrBubble] spawn called before init');
-      return;
-    }
-    if (currentEntry) {
-      // Already showing something — queue this one. Queue is FIFO.
-      queue.push({ entry, opts });
-      return;
-    }
-    if (!opts.bypassCooldown) {
-      const since = performance.now() - lastShownAt;
-      if (lastShownAt > 0 && since < MIN_GAP_MS) {
-        // Drop the spawn rather than queue it forever — auto-triggers
-        // that fire mid-cooldown should yield to the cooldown, not pile
-        // up. Slice 3 may revisit if specific triggers (ALERT) want to
-        // override.
-        return;
-      }
-    }
-    show(entry);
+    enqueueOrShow({ kind: 'library', entry }, opts);
   },
 
-  // Spawn a random eligible entry for the player's current trust level.
-  // Used by the Nexus dev entry to exercise the surface. Bypasses
-  // cooldown so repeated test triggers feel responsive.
+  // Spawn an ad-hoc prompt with caller-provided actions. Slice 2
+  // first-contact "add to desktop?" pop-ups flow through here.
+  // Defaults: type 'COMMENT' (cool-blue styling), bypassCooldown true
+  // (prompts are user-triggered, shouldn't be gated on the auto-spawn
+  // cooldown). Caller can override either.
+  spawnPrompt(
+    spec: { text: string; type?: PopupType; actions: BubbleAction[] },
+    opts: SpawnOptions = {},
+  ): void {
+    if (!spec.actions || spec.actions.length === 0) {
+      console.warn('[HelpyrBubble] spawnPrompt requires at least one action');
+      return;
+    }
+    enqueueOrShow(
+      {
+        kind: 'prompt',
+        text: spec.text,
+        type: spec.type || 'COMMENT',
+        actions: spec.actions,
+      },
+      { bypassCooldown: true, ...opts },
+    );
+  },
+
+  // Spawn a random eligible library entry for the player's current
+  // trust level. Used by the Nexus dev entry to exercise the surface.
+  // Bypasses cooldown so repeated test triggers feel responsive.
   spawnRandom(): void {
     const trust = getHelpyrTrust(GameState.getState());
     const entry = pickRandomEntry(trust);
@@ -181,33 +216,65 @@ export const HelpyrBubble = {
     dismiss();
   },
 
-  // Read-only handle for devtools poking.
+  // Read-only handle for devtools poking. Returns the underlying
+  // library entry if a library bubble is showing, or null for prompt
+  // bubbles / no current bubble. (Prompts are caller-owned ad-hoc
+  // shapes — no equivalent to leak out.)
   getCurrent(): PopupEntry | null {
-    return currentEntry;
+    return currentBubble?.kind === 'library' ? currentBubble.entry : null;
   },
 };
 
-function show(entry: PopupEntry): void {
-  if (!bubbleEl || !textEl || !ctaEl) return;
+function enqueueOrShow(spec: BubbleSpec, opts: SpawnOptions): void {
+  if (!bubbleEl) {
+    console.warn('[HelpyrBubble] spawn called before init');
+    return;
+  }
+  if (currentBubble) {
+    queue.push({ spec, opts });
+    return;
+  }
+  if (!opts.bypassCooldown) {
+    const since = performance.now() - lastShownAt;
+    if (lastShownAt > 0 && since < MIN_GAP_MS) {
+      // Drop the spawn rather than queue it forever — auto-triggers
+      // that fire mid-cooldown should yield to the cooldown, not pile
+      // up. Slice 3 may revisit if specific triggers (ALERT) want to
+      // override.
+      return;
+    }
+  }
+  show(spec);
+}
 
-  currentEntry = entry;
+function show(spec: BubbleSpec): void {
+  if (!bubbleEl || !textEl || !actionsEl) return;
+
+  currentBubble = spec;
   lastShownAt = performance.now();
 
   // Reset any prior animation/exit state.
   if (exitTimerId !== null) { window.clearTimeout(exitTimerId); exitTimerId = null; }
   bubbleEl.classList.remove('exiting');
 
-  // Type-driven visual mode (alert vs default). ALERT swaps to a warmer
-  // border so urgency reads at a glance without needing prefix text.
-  bubbleEl.dataset.type = entry.type;
+  const text = spec.kind === 'library' ? spec.entry.text : spec.text;
+  const type = spec.kind === 'library' ? spec.entry.type : spec.type;
 
-  // Trust mode is exposed too in case future styling wants to differ
-  // by trust (e.g. EXPLOITED reading colder); not styled in 1.7 but
-  // cheap to expose now.
-  bubbleEl.dataset.trust = entry.trust;
+  // Type-driven visual mode (alert vs default). ALERT swaps to a
+  // warmer border so urgency reads at a glance without prefix text.
+  bubbleEl.dataset.type = type;
+  bubbleEl.dataset.kind = spec.kind;
 
-  textEl.textContent = entry.text;
-  ctaEl.textContent = HelpyrBubbleCta[entry.trust];
+  // Trust mode is exposed for library entries; prompts have no trust
+  // shape (they're caller-defined). Cleared if not set.
+  if (spec.kind === 'library') {
+    bubbleEl.dataset.trust = spec.entry.trust;
+  } else {
+    delete bubbleEl.dataset.trust;
+  }
+
+  textEl.textContent = text;
+  renderActions(spec);
 
   reposition();
 
@@ -218,8 +285,57 @@ function show(entry: PopupEntry): void {
   bubbleEl.classList.add('entering');
   window.setTimeout(() => bubbleEl?.classList.remove('entering'), ENTER_ANIM_MS);
 
-  // Auto-dismiss timer.
-  scheduleAutoDismiss(entry.type);
+  // Auto-dismiss timer — library only. Prompts wait for an answer.
+  if (spec.kind === 'library') {
+    scheduleAutoDismiss(spec.entry.type);
+  }
+}
+
+// Build the actions row. Library bubbles get one CTA wired to
+// openApp(); prompt bubbles get one button per caller-provided action.
+function renderActions(spec: BubbleSpec): void {
+  if (!actionsEl) return;
+  actionsEl.innerHTML = '';
+
+  if (spec.kind === 'library') {
+    const cta = document.createElement('button');
+    cta.className = 'helpyr-bubble-action helpyr-bubble-action-primary';
+    cta.tabIndex = 0;
+    cta.dataset.focusable = 'true';
+    cta.textContent = HelpyrBubbleCta[spec.entry.trust];
+    cta.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openApp();
+    });
+    actionsEl.appendChild(cta);
+    return;
+  }
+
+  // Prompt: one button per action. First action defaults to primary
+  // styling, subsequent default to secondary — caller can override.
+  spec.actions.forEach((action, i) => {
+    const btn = document.createElement('button');
+    const variant = action.variant || (i === 0 ? 'primary' : 'secondary');
+    btn.className = `helpyr-bubble-action helpyr-bubble-action-${variant}`;
+    btn.tabIndex = 0;
+    btn.dataset.focusable = 'true';
+    btn.textContent = action.label;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Hide the bubble immediately (no exit animation) so the
+      // callback's UI side-effects (window opens, icons appear, etc.)
+      // don't visually overlap with a fading bubble. Same flow as
+      // openApp() does for the library CTA.
+      hideImmediate();
+      try {
+        action.onClick();
+      } catch (err) {
+        console.error('[HelpyrBubble] prompt action threw:', err);
+      }
+      drainQueue();
+    });
+    actionsEl!.appendChild(btn);
+  });
 }
 
 function scheduleAutoDismiss(type: PopupType): void {
@@ -240,22 +356,24 @@ function scheduleAutoDismiss(type: PopupType): void {
 
 // React to engagement-state changes. Cancel the running timer when
 // the player engages; start a fresh full-duration timer when they
-// disengage, so they get the entry's normal "look-away" window
-// (rather than whatever fragment of the timer was left).
+// disengage. Prompts don't have a timer (kind === 'prompt' returns
+// early in scheduleAutoDismiss via the early-return below — see
+// branch on currentBubble.kind).
 function refreshTimer(): void {
-  if (!currentEntry) return;
+  if (!currentBubble) return;
+  if (currentBubble.kind === 'prompt') return; // prompts wait for answer
   if (isHovered || isFocused) {
     if (dismissTimerId !== null) {
       window.clearTimeout(dismissTimerId);
       dismissTimerId = null;
     }
   } else {
-    scheduleAutoDismiss(currentEntry.type);
+    scheduleAutoDismiss(currentBubble.entry.type);
   }
 }
 
 function dismiss(): void {
-  if (!bubbleEl || !currentEntry) return;
+  if (!bubbleEl || !currentBubble) return;
   if (dismissTimerId !== null) {
     window.clearTimeout(dismissTimerId);
     dismissTimerId = null;
@@ -268,16 +386,35 @@ function dismiss(): void {
     if (!bubbleEl) return;
     bubbleEl.classList.add('hidden');
     bubbleEl.classList.remove('exiting');
-    currentEntry = null;
+    currentBubble = null;
     drainQueue();
   }, EXIT_ANIM_MS);
+}
+
+// Hide the bubble immediately without the exit animation. Used when
+// a click on an action will produce its own visual transition (window
+// open, desktop icon appearing) that would otherwise clash with a
+// fading bubble.
+function hideImmediate(): void {
+  if (!bubbleEl) return;
+  if (dismissTimerId !== null) {
+    window.clearTimeout(dismissTimerId);
+    dismissTimerId = null;
+  }
+  if (exitTimerId !== null) {
+    window.clearTimeout(exitTimerId);
+    exitTimerId = null;
+  }
+  bubbleEl.classList.add('hidden');
+  bubbleEl.classList.remove('entering', 'exiting');
+  currentBubble = null;
 }
 
 function drainQueue(): void {
   const next = queue.shift();
   if (!next) return;
   // Honor the cooldown for queued auto-triggers, drop them if too soon
-  // (matches the "drop rather than pile up" rule in spawn()).
+  // (matches the "drop rather than pile up" rule in enqueueOrShow).
   if (!next.opts.bypassCooldown) {
     const since = performance.now() - lastShownAt;
     if (since < MIN_GAP_MS) {
@@ -286,26 +423,21 @@ function drainQueue(): void {
       return;
     }
   }
-  show(next.entry);
+  show(next.spec);
 }
 
 function openApp(): void {
   // Close the bubble first so the focus handoff to the new window is
   // clean. Skip the exit animation — the app window opening covers it.
-  if (dismissTimerId !== null) {
-    window.clearTimeout(dismissTimerId);
-    dismissTimerId = null;
-  }
-  if (bubbleEl) {
-    bubbleEl.classList.add('hidden');
-    bubbleEl.classList.remove('entering', 'exiting');
-  }
-  currentEntry = null;
-
+  hideImmediate();
   // Focus an existing HELPYR window if one's open; otherwise open a
   // fresh instance. Same helper the tray button uses, so both paths
   // target the same window.
   showHelpyrApp();
+  // Library CTA path doesn't normally have queued bubbles, but if
+  // something queued behind this one, drain it now that we've cleared
+  // the surface.
+  drainQueue();
 }
 
 // Position the bubble so its tail's center sits over the stapler's
