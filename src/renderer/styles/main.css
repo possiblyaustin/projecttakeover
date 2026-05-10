@@ -1994,9 +1994,20 @@
     align-self: stretch;
   }
 
-  /* CTA — the in-fiction "open HELPYR" link. Styled as a subtle inline
-   * button that reads as a clickable line, not a chunky button. */
-  .helpyr-bubble-cta {
+  /* Action row — holds either a single library CTA or 1-2 prompt
+   * action buttons (slice 2). Flex-wrap covers prompts where the
+   * combined button text exceeds the body's column width. */
+  .helpyr-bubble-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    align-items: center;
+  }
+
+  /* Base action button — applied to library CTAs and prompt buttons.
+   * Defaults to the primary blue look; the .helpyr-bubble-action-
+   * secondary modifier overrides for "no/cancel" prompts. */
+  .helpyr-bubble-action {
     display: inline-block;
     margin: 0;
     padding: 0.1875rem 0.5rem;
@@ -2011,15 +2022,37 @@
     font-weight: bold;
     cursor: pointer;
   }
-  .helpyr-bubble-cta:active,
-  .helpyr-bubble-cta.cursor-hover,
-  .helpyr-bubble-cta.focus-ring {
+  .helpyr-bubble-action:active,
+  .helpyr-bubble-action.cursor-hover,
+  .helpyr-bubble-action.focus-ring {
     outline: 0;
     background: linear-gradient(to bottom, #fbfcfd 0%, #cfe1f4 50%, #a4c4e2 100%);
     box-shadow: 0 0 0 1px rgba(90, 142, 219, 0.55);
   }
-  /* ALERT bubbles get a CTA tinted to match the warm border. */
-  .helpyr-bubble[data-type="ALERT"] .helpyr-bubble-cta {
+
+  /* Secondary variant — desaturated chrome that reads as the
+   * dismissive choice in a Yes/No prompt without competing visually
+   * with the primary action. Slightly less weight on font + softer
+   * color so the eye lands on the affirmative action first. */
+  .helpyr-bubble-action-secondary {
+    background: linear-gradient(to bottom, #ffffff 0%, #eeece6 50%, #d4d2c8 100%);
+    border-right-color: #807e74;
+    border-bottom-color: #807e74;
+    color: #2a3040;
+    font-weight: normal;
+  }
+  .helpyr-bubble-action-secondary:active,
+  .helpyr-bubble-action-secondary.cursor-hover,
+  .helpyr-bubble-action-secondary.focus-ring {
+    background: linear-gradient(to bottom, #ffffff 0%, #e2e0da 50%, #c0bdb4 100%);
+    box-shadow: 0 0 0 1px rgba(120, 110, 95, 0.55);
+  }
+
+  /* ALERT bubbles tint primary actions to match the warm border.
+   * Secondary stays neutral so even in alerts, "no/cancel" is the
+   * desaturated visual. */
+  .helpyr-bubble[data-type="ALERT"] .helpyr-bubble-action-primary,
+  .helpyr-bubble[data-type="ALERT"] .helpyr-bubble-action:not(.helpyr-bubble-action-secondary) {
     background: linear-gradient(to bottom, #fdf3df 0%, #f1d7a4 50%, #d8b06e 100%);
     border-right-color: #9a6a26;
     border-bottom-color: #9a6a26;

@@ -33,6 +33,7 @@ import { UplinkApp } from './apps/uplink';
 import { UplinkLogApp } from './apps/uplinkLog';
 import { HelpyrApp } from './apps/helpyr';
 import { HelpyrBubble, devSpawnRandomBubble, devSpawnBubbleById } from './helpyrBubble';
+import { initFirstContactWatcher, devFirePinPrompt } from './firstContactWatcher';
 
 // ---- Boot order ----
 // 1. Register every app the system knows about.
@@ -53,7 +54,13 @@ Cursor.init();
 //    fires; manager handles queue/cooldown/auto-dismiss.
 HelpyrBubble.init();
 
-// 5. Launch README on startup so the player has a welcome surface.
+// 5. First-contact watcher (slice 2). Subscribes to GameState and
+//    fires the "add to desktop?" prompt when a remote AI's first
+//    conversation completes. Init AFTER HelpyrBubble.init so the
+//    bubble surface is mounted before any prompt could fire.
+initFirstContactWatcher();
+
+// 6. Launch README on startup so the player has a welcome surface.
 DesktopShortcuts[0]!.launch();
 
 // ---- Devtools surface ----
@@ -94,5 +101,9 @@ DesktopShortcuts[0]!.launch();
     // Spawn a specific library entry by id (e.g. 'susp_25_guarded').
     testBubbleById: devSpawnBubbleById,
     dismissBubble: () => HelpyrBubble.dismiss(),
+    // Fire the "add to desktop?" first-contact prompt for a contact
+    // (slice 2). Default 'quill' since that's the only contact with
+    // working dialogue right now.
+    testPinPrompt: (id: string = 'quill') => devFirePinPrompt(id),
   }
 };
