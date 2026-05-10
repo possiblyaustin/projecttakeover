@@ -10,6 +10,8 @@ import { UI_SCALE } from './scale';
 import { FocusManager } from './focusManager';
 import { WindowManager } from './windows';
 import { GameState, type GameStateShape } from './game/state';
+import { devSpawnRandomBubble } from './helpyrBubble';
+import { showHelpyrApp } from './apps/helpyr';
 
 type DesktopShortcut = {
   id: string;
@@ -69,6 +71,13 @@ const NexusMenu: NexusEntry[] = [
   { type: 'item', label: 'Uplink', glyphClass: 'icon-uplink',
     action: () => WindowManager.open('uplink')
   },
+  { type: 'sep' },
+  // [DEV] entries — slice 1.7 (2026-05-10). Visible in-game so the
+  // tester can fire bubbles without devtools (Deck-friendly per
+  // feedback_dev_test_affordances). Drop these once event triggers
+  // ship in slice 3 and the surface fires on its own.
+  { type: 'item', label: '[DEV] Spawn HELPYR Bubble',
+    action: () => devSpawnRandomBubble() },
   { type: 'sep' },
   { type: 'item', label: 'Shut Down...', action: () => alert('Shutdown not wired up yet.') }
 ];
@@ -182,32 +191,19 @@ function initSystray(): void {
   initSuspicionTray();
 }
 
-// HELPYR button: opens Uplink chat for HELPYR. If a HELPYR window is
-// already open, focus it instead of stacking another instance — that
-// matches dock/tray conventions and avoids the per-instance taskbar
-// glyph from PR #33 multiplying HELPYR-named entries.
-//
-// Tracking the winId locally (rather than asking WindowManager to
-// search by appId+params) keeps the public WindowManager API minimal.
-// The DOM check covers the case where the window was closed by the
-// titlebar X — winId persists in our local var but the element is
-// gone, so we fall through to opening fresh.
+// HELPYR tray button: opens the HELPYR app window, or focuses it if
+// one's already open. Slice 1.7 (2026-05-10): the focus-existing logic
+// moved into apps/helpyr.ts §showHelpyrApp so the bubble CTA and the
+// tray button share one source of truth — without that, both paths
+// could spawn separate HELPYR windows.
 function initHelpyrTray(): void {
   const btn = document.getElementById('systray-helpyr');
   if (!btn) return;
-  let helpyrWinId: string | null = null;
   btn.setAttribute('data-label', 'HELPYR — local assistant');
 
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (helpyrWinId && document.getElementById(helpyrWinId)) {
-      WindowManager.focus(helpyrWinId);
-      return;
-    }
-    // Slice 1.6 (2026-05-08): tray click opens HELPYR's dedicated app
-    // (XP-themed local-assistant chat) rather than Uplink-with-helpyr.
-    // The dev affordance via Uplink still works for debugging.
-    helpyrWinId = WindowManager.open('helpyr');
+    showHelpyrApp();
   });
 }
 

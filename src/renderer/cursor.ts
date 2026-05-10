@@ -55,6 +55,8 @@ export const SNAP_SELECTOR = [
   '.uplink-freeform input',
   '.uplink-freeform button',
   '.uplink-earlier-chip',
+  '.helpyr-bubble-cta',
+  '.helpyr-bubble-dismiss',
   'a[data-href]'
 ].join(', ');
 
