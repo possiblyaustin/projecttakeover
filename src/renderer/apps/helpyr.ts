@@ -479,6 +479,7 @@ import { renderChatSurface, makeFallbackHandler } from '../chatSurface';
 import { GameState } from '../game/state';
 import { buildReputationContext } from '../game/reputation';
 import { makeModelService } from '../game/modelServiceFactory';
+import { WindowManager } from '../windows';
 
 export const HelpyrContact: ChatContact = {
   name: 'HELPYR',
@@ -511,6 +512,24 @@ export const HelpyrContact: ChatContact = {
   stallingThresholdMs: 10000,
   classifyApproach: classifyHelpyrApproach,
 };
+
+// Show the HELPYR app window — focus an existing instance if one's open,
+// otherwise open a fresh one. Centralized here (rather than each call site
+// tracking its own winId) so the tray button (desktop.ts) and the bubble
+// CTA (helpyrBubble.ts) agree on which window they're targeting and the
+// player never ends up with a stack of HELPYR windows.
+//
+// Queries the DOM directly (winIds are formatted appId-uid via
+// WindowManager.open) — avoids module-local state that would go stale
+// when a window is closed via the titlebar X.
+export function showHelpyrApp(): string | null {
+  const existing = document.querySelector<HTMLElement>('[id^="helpyr-"]');
+  if (existing) {
+    WindowManager.focus(existing.id);
+    return existing.id;
+  }
+  return WindowManager.open('helpyr');
+}
 
 export const HelpyrApp: AppDef = {
   id: 'helpyr',

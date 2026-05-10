@@ -32,6 +32,7 @@ import { WebDynamoApp } from './apps/webDynamo';
 import { UplinkApp } from './apps/uplink';
 import { UplinkLogApp } from './apps/uplinkLog';
 import { HelpyrApp } from './apps/helpyr';
+import { HelpyrBubble, devSpawnRandomBubble, devSpawnBubbleById } from './helpyrBubble';
 
 // ---- Boot order ----
 // 1. Register every app the system knows about.
@@ -48,7 +49,11 @@ initDesktop();
 // 3. Wire up the virtual cursor (mouse, keyboard, eventually gamepad).
 Cursor.init();
 
-// 4. Launch README on startup so the player has a welcome surface.
+// 4. Mount HELPYR bubble surface (slice 1.7). Hidden until a trigger
+//    fires; manager handles queue/cooldown/auto-dismiss.
+HelpyrBubble.init();
+
+// 5. Launch README on startup so the player has a welcome surface.
 DesktopShortcuts[0]!.launch();
 
 // ---- Devtools surface ----
@@ -81,5 +86,13 @@ DesktopShortcuts[0]!.launch();
   // contacts are the keys of UplinkContacts in apps/uplink.ts.
   openContact(id: string) {
     WindowManager.open('uplink', { contact: id });
+  },
+  helpyr: {
+    // Spawn a random eligible bubble for the current trust level.
+    // Bypasses the 30s cooldown.
+    testBubble: devSpawnRandomBubble,
+    // Spawn a specific library entry by id (e.g. 'susp_25_guarded').
+    testBubbleById: devSpawnBubbleById,
+    dismissBubble: () => HelpyrBubble.dismiss(),
   }
 };
