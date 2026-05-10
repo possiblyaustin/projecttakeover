@@ -112,17 +112,37 @@ export function initFirstContactWatcher(): void {
   });
 }
 
-// Dev affordance — bypasses the watcher's transition gating so the
-// tester can re-fire the prompt on demand. The prompt itself still
-// honors "already-pinned suppress" (firePinToDesktopPrompt no-ops if
-// the contact's already on the desktop), so to test the prompt
-// repeatedly, unpin via PT.GameState.dispatch first.
+// Dev affordance — fire the pin prompt the way real gameplay would
+// produce it. If the contact is still uncontacted, we dispatch
+// conversationCompleted (with neutral tone so suspicion isn't
+// artificially bumped) — that flips disposition to 'contacted' AND
+// triggers the watcher to fire the prompt, exactly mirroring what the
+// player sees after walking through the dialogue. If the contact is
+// already contacted (tester re-firing the prompt), we skip the
+// dispatch and fire the prompt directly so the surface can be
+// exercised repeatedly without inflating conversationsCompleted.
+//
+// Without this dispatch, the dev path used to show the prompt + pin
+// the icon while leaving the Uplink launcher stuck on Detected for
+// QUILL — bug noticed 2026-05-10 right after slice 2 merged.
 export function devFirePinPrompt(contactId: string): void {
   if (!UplinkContacts[contactId]) {
     console.warn('[firstContactWatcher] unknown contact:', contactId,
       '— available:', Object.keys(UplinkContacts).join(', '));
     return;
   }
+  const m = (GameState.getState().models as Record<string, { disposition?: string } | undefined>)[contactId];
+  if (m && m.disposition === 'uncontacted') {
+    // Simulate the full game-state effect of completing a first
+    // conversation. The watcher (already subscribed) will pick up
+    // the 0→1 transition and fire the prompt, so we don't call
+    // firePinToDesktopPrompt directly here — that would double-fire.
+    GameState.dispatch({ type: `${contactId}/conversationCompleted`, tone: null });
+    return;
+  }
+  // Already contacted. Re-fire the prompt without re-dispatching the
+  // conversation event (which would inflate conversationsCompleted on
+  // every dev click).
   firePinToDesktopPrompt(contactId);
 }
 
