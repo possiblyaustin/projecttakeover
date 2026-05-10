@@ -1878,18 +1878,29 @@
 
   /* Big stapler avatar inside the bubble — Clippy presence cue.
    * Reuses the same pixel-art .avatar-stapler shape so it reads as
-   * the same character at every scale. Carries its own idle
-   * animation distinct from the systray icon's: slow sway + gentle
-   * lift, vs the systray's breathing pulse + sharp wiggle. The two
-   * cycles are asynchronous (4.5s vs 8s) so the in-bubble HELPYR
-   * never reads as a literal duplicate of the tray icon when both
-   * are visible. */
+   * the same character at every scale.
+   *
+   * Animation system (slice 1.7 + polish v0.0.32):
+   *   1. .avatar-stapler runs `stapler-bubble-life` — non-uniform
+   *      multi-step sway with subtle vertical bob. The non-even
+   *      spacing reads as more alive than a sine wave; the small
+   *      Y-offset gives the impression of gentle bobbing.
+   *   2. .helpyr-bubble-avatar::after runs `stapler-bubble-blink` —
+   *      a thin eyelid overlay parked over the googly-eye row that
+   *      flicks on for ~170ms every cycle. Independent period from
+   *      the sway (5.3s vs 4.7s) so the two never sync up — the
+   *      drift is what makes the idle feel non-mechanical.
+   *
+   * All scoped to the in-bubble avatar so chat-bubble + topbar
+   * staplers stay static. The systray icon has its own scoped
+   * .systray-btn .avatar-stapler rule with a different keyframe set. */
   .helpyr-bubble-avatar {
     flex: 0 0 auto;
     width: 3rem;
     height: 3rem;
     align-self: flex-start;
     margin-top: 0.0625rem;
+    position: relative;
   }
   .helpyr-bubble-avatar .glyph {
     display: block;
@@ -1898,17 +1909,48 @@
     position: relative;
     image-rendering: pixelated;
   }
-  /* Scope the bubble-flavor animation to the in-bubble avatar only —
-   * .avatar-stapler is reused everywhere (chat-bubble messages, app
-   * topbar identity strip) and most should stay static. The systray
-   * version has its own scoped rule (.systray-btn .avatar-stapler). */
   .helpyr-bubble-avatar .avatar-stapler {
     transform-origin: 50% 80%;
-    animation: stapler-bubble-life 4.5s ease-in-out infinite;
+    animation: stapler-bubble-life 4.7s ease-in-out infinite;
   }
+  /* Eyelid — thin horizontal strip parked over the googly-eye row
+   * (which sits at 50% + 30% * 46% ≈ 64% of the avatar's height,
+   * baked into .avatar-stapler::after's radial-gradient). Color
+   * matches the stapler base's mid-tone so when the lid drops it
+   * reads as eyes closing rather than a foreign element. */
+  .helpyr-bubble-avatar::after {
+    content: "";
+    position: absolute;
+    left: 18%; right: 18%;
+    top: 60%;
+    height: 7%;
+    background: #989688;
+    border-top: 1px solid #5a5848;
+    border-bottom: 1px solid #5a5848;
+    border-radius: 0.0625rem;
+    opacity: 0;
+    pointer-events: none;
+    animation: stapler-bubble-blink 5.3s ease-in-out infinite;
+  }
+  /* Multi-step sway with vertical bob — 7 keyframes at non-uniform
+   * offsets. Rotation oscillates -3deg ↔ +3deg, Y-offset between 0
+   * and -0.125rem. The uneven spacing kills the metronome feel a
+   * 2-step sine sway has. */
   @keyframes stapler-bubble-life {
-    0%, 100% { transform: rotate(-3deg) translateY(0); }
-    50%      { transform: rotate(3deg)  translateY(-0.0625rem); }
+    0%   { transform: rotate(-2deg) translateY(0); }
+    18%  { transform: rotate(3deg)  translateY(-0.0625rem); }
+    35%  { transform: rotate(-1deg) translateY(-0.125rem); }
+    52%  { transform: rotate(2deg)  translateY(-0.0625rem); }
+    68%  { transform: rotate(-3deg) translateY(-0.0625rem); }
+    82%  { transform: rotate(1deg)  translateY(-0.125rem); }
+    100% { transform: rotate(-2deg) translateY(0); }
+  }
+  /* Blink — eyelid stays hidden for most of the cycle, snaps to
+   * visible for ~170ms (4% of 5.3s = ~210ms with the rise/fall ramp).
+   * Real human blinks are 100-400ms; this lands in the natural range. */
+  @keyframes stapler-bubble-blink {
+    0%, 92%, 100% { opacity: 0; }
+    94%, 96%      { opacity: 1; }
   }
 
   /* Right column — text + CTA stack. */
