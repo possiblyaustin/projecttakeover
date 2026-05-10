@@ -57,6 +57,7 @@ export const SNAP_SELECTOR = [
   '.uplink-earlier-chip',
   '.helpyr-bubble-action',
   '.helpyr-bubble-dismiss',
+  '.helpyr-quiet-toggle',
   'a[data-href]'
 ].join(', ');
 

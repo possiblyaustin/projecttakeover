@@ -556,5 +556,64 @@ export const HelpyrApp: AppDef = {
         tagline: 'local desktop assistant',
       },
     });
+    // Slice 3: Quiet toggle inside the identity strip. Post-mount so
+    // chatSurface stays free of HELPYR-specific UI; the strip is the
+    // discoverable place for the toggle since it's where the player
+    // looks when HELPYR is being chatty.
+    const identityEl = container.querySelector<HTMLElement>('.helpyr-identity');
+    if (identityEl) mountQuietToggle(identityEl);
   },
 };
+
+// Quiet HELPYR toggle — slice 3 (2026-05-10).
+//
+// Mounted inside HELPYR's identity strip so a player who finds her
+// chatty has a one-click escape that lives RIGHT NEXT to HELPYR
+// herself. Toggles state.settings.helpyrQuiet; the bubble manager's
+// fireLibraryTrigger filter suppresses non-ALERT entries when on.
+// ALERTs (suspicion crossings) bypass the filter so the player
+// doesn't lose critical signal.
+//
+// Visual state mirrors GameState — subscribes so flipping the value
+// from devtools updates the button without a re-render.
+function mountQuietToggle(host: HTMLElement): void {
+  const btn = document.createElement('button');
+  btn.className = 'helpyr-quiet-toggle';
+  btn.tabIndex = 0;
+  btn.dataset.focusable = 'true';
+  btn.setAttribute('type', 'button');
+
+  function paint(quiet: boolean) {
+    btn.classList.toggle('is-quiet', quiet);
+    btn.textContent = quiet ? '🔕 Quiet' : '🔔 Listening';
+    btn.setAttribute('aria-label',
+      quiet ? 'HELPYR is quiet — click to let her speak again'
+            : 'HELPYR is listening — click to quiet her');
+    btn.title = quiet
+      ? 'HELPYR is quiet (alerts still fire). Click to un-quiet.'
+      : 'HELPYR can speak up. Click to quiet her.';
+  }
+
+  paint(GameState.getState().settings.helpyrQuiet);
+  const unsub = GameState.subscribe(s => paint(s.settings.helpyrQuiet));
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const cur = GameState.getState().settings.helpyrQuiet;
+    GameState.dispatch({ type: 'settings/setHelpyrQuiet', value: !cur });
+  });
+
+  // Window destruction: WindowManager removes the DOM but doesn't
+  // call cleanup hooks, so we drop the subscription when the host
+  // disappears via a MutationObserver. Cheap insurance against
+  // listener leaks if the player opens/closes HELPYR many times.
+  const obs = new MutationObserver(() => {
+    if (!host.isConnected) {
+      unsub();
+      obs.disconnect();
+    }
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+
+  host.appendChild(btn);
+}

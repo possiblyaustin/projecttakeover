@@ -12,6 +12,8 @@
 //   quill/conversationCompleted  { tone: ApproachTone | null }
 //   desktop/pinContact           { contactId: string }
 //   desktop/unpinContact         { contactId: string }   (no UI today; for save-tinkering)
+//   flags/set                    { key: string, value: unknown }
+//   settings/setHelpyrQuiet      { value: boolean }
 //
 // The full §6c tone vocabulary is friendly|curious|direct|empathetic|
 // aggressive|deceptive|neutral|null. The reducer maps tone → approach
@@ -19,11 +21,16 @@
 // and stores the raw tone in lastApproach so the signal is preserved
 // for tones the reducer doesn't yet act on (empathetic, deceptive).
 
-// Bumped v1 → v2 in slice 2 (2026-05-10) — added desktopPins; pre-
-// release no-migration policy means old saves get dropped (see
-// loadFromStorage).
+// Bumped v1 → v2 → v3:
+//   v2 (slice 2, 2026-05-10) — added desktopPins
+//   v3 (slice 3, 2026-05-10) — added settings (helpyrQuiet); flags/set
+//                              action lets first-open / pin-declined /
+//                              other one-shot triggers persist via the
+//                              existing flags bag without growing fields.
+// Pre-release no-migration policy means old saves get dropped on
+// version mismatch (see loadFromStorage).
 const STORAGE_KEY = 'pt.gamestate.v1';
-const VERSION = 2;
+const VERSION = 3;
 const SAVE_DEBOUNCE_MS = 250;
 
 export type GameStateShape = ReturnType<typeof defaultGameState>;
@@ -63,6 +70,21 @@ export function defaultGameState() {
     // first-contact "add to desktop?" prompt (slice 2). Persisted
     // across reload. Order is insertion-order: each pin appends.
     desktopPins: [] as { contactId: string; addedAt: number }[],
+    // Player-facing settings (slice 3). Distinct from `flags` — flags
+    // are one-shot trigger gates (firstOpen.X, pinDeclined.X) that
+    // game systems read and write; settings are deliberate player
+    // preferences surfaced in UI.
+    settings: {
+      // Quiet HELPYR — suppresses non-ALERT bubbles (COMMENT, HINT,
+      // INTEL) so a player who finds HELPYR chatty still gets the
+      // suspicion warnings she really shouldn't miss. Toggled from
+      // HELPYR's app topbar. ALERT bypasses this regardless.
+      helpyrQuiet: false,
+    },
+    // Generic flag bag for one-shot trigger gates: firstOpen.X,
+    // pinDeclined.X, etc. Game systems set these via `flags/set` and
+    // read them via direct key lookup. Don't put preferences here —
+    // those go in `settings` so the distinction stays clean.
     flags: {} as Record<string, unknown>
   };
 }
@@ -107,6 +129,20 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
       const next = state.desktopPins.filter(p => p.contactId !== id);
       if (next.length === state.desktopPins.length) return state;
       return { ...state, desktopPins: next };
+    }
+    case 'flags/set': {
+      const key = String(action.key || '');
+      if (!key) return state;
+      // No-op if value didn't actually change — keeps the listener
+      // chain from firing for redundant writes (matters for the
+      // first-open watchers, which dispatch on every launch).
+      if (state.flags[key] === action.value) return state;
+      return { ...state, flags: { ...state.flags, [key]: action.value } };
+    }
+    case 'settings/setHelpyrQuiet': {
+      const value = !!action.value;
+      if (state.settings.helpyrQuiet === value) return state;
+      return { ...state, settings: { ...state.settings, helpyrQuiet: value } };
     }
     default:
       return state;

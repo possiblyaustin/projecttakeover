@@ -33,7 +33,10 @@ import { UplinkApp } from './apps/uplink';
 import { UplinkLogApp } from './apps/uplinkLog';
 import { HelpyrApp } from './apps/helpyr';
 import { HelpyrBubble, devSpawnRandomBubble, devSpawnBubbleById } from './helpyrBubble';
-import { initFirstContactWatcher, devFirePinPrompt } from './firstContactWatcher';
+import { initFirstContactWatcher, devFirePinPrompt, devFireRepinNudge } from './firstContactWatcher';
+import { initSuspicionWatcher } from './suspicionWatcher';
+import { initIdleWatcher, devFireIdleTrigger } from './idleWatcher';
+import { fireLibraryTrigger } from './helpyrTriggers';
 
 // ---- Boot order ----
 // 1. Register every app the system knows about.
@@ -60,7 +63,14 @@ HelpyrBubble.init();
 //    bubble surface is mounted before any prompt could fire.
 initFirstContactWatcher();
 
-// 6. Launch README on startup so the player has a welcome surface.
+// 6. Library-trigger watchers (slice 3). Suspicion-crossing fires on
+//    25/50/75/90 boundaries; idle fires after 3min of no activity.
+//    Both flow through fireLibraryTrigger which applies the
+//    Quiet/EXPLOITED/Uplink-active filters before HelpyrBubble.spawn.
+initSuspicionWatcher();
+initIdleWatcher();
+
+// 7. Launch README on startup so the player has a welcome surface.
 DesktopShortcuts[0]!.launch();
 
 // ---- Devtools surface ----
@@ -95,8 +105,9 @@ DesktopShortcuts[0]!.launch();
     WindowManager.open('uplink', { contact: id });
   },
   helpyr: {
-    // Spawn a random eligible bubble for the current trust level.
-    // Bypasses the 30s cooldown.
+    // Spawn a random eligible bubble for the current trust level
+    // (slice 1.7). Bypasses the 30s cooldown but also bypasses the
+    // fireLibraryTrigger filter pipeline — straight to the surface.
     testBubble: devSpawnRandomBubble,
     // Spawn a specific library entry by id (e.g. 'susp_25_guarded').
     testBubbleById: devSpawnBubbleById,
@@ -105,5 +116,18 @@ DesktopShortcuts[0]!.launch();
     // (slice 2). Default 'quill' since that's the only contact with
     // working dialogue right now.
     testPinPrompt: (id: string = 'quill') => devFirePinPrompt(id),
+    // Fire the slice 3 "you keep coming back" re-pin nudge for a
+    // contact. Sets pinDeclined.<id> first, then spawns the prompt.
+    testRepinNudge: (id: string = 'quill') => devFireRepinNudge(id),
+    // Fire any library trigger by id, exercising the full
+    // fireLibraryTrigger pipeline (Uplink-active guard, trust
+    // fallback, Quiet filter, EXPLOITED suppression). Bypasses
+    // cooldown so back-to-back dev calls work; real auto-triggers
+    // leave the cooldown intact so the player gets breathing room.
+    testTrigger: (triggerId: string) => fireLibraryTrigger(triggerId, { bypassCooldown: true }),
+    // Fire the idle trigger immediately, without waiting the 3min
+    // activity threshold. Resets the timer so the next auto-fire
+    // is again 3min away.
+    testIdle: devFireIdleTrigger,
   }
 };

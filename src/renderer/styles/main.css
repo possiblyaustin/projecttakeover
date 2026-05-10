@@ -1542,6 +1542,55 @@
     text-overflow: ellipsis;
   }
 
+  /* Quiet HELPYR toggle (slice 3) — pinned to the right edge of the
+   * identity strip via margin-left:auto so the avatar+text grow to
+   * fill the middle and the toggle stays at the far end. Tinted to
+   * match the XP-blue chrome; the .is-quiet state desaturates +
+   * dims so a glance reads "I told her to be quiet right now."
+   *
+   * Visual + label both flip with state so a player who returns to
+   * the app can immediately see whether HELPYR is muted. ALERTs
+   * still fire regardless of this toggle (the filter is in
+   * fireLibraryTrigger). */
+  .helpyr-quiet-toggle {
+    margin-left: auto;
+    flex: 0 0 auto;
+    height: 1.25rem;
+    padding: 0 0.4375rem;
+    background: linear-gradient(to bottom, #6ea0e6 0%, #3a76cb 50%, #1e4a99 100%);
+    border-top: 1px solid rgba(255, 255, 255, 0.4);
+    border-left: 1px solid rgba(255, 255, 255, 0.3);
+    border-right: 1px solid rgba(0, 0, 0, 0.35);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.35);
+    border-radius: 0.25rem;
+    color: #ffffff;
+    font-family: var(--sys-font);
+    font-size: 0.625rem;
+    font-weight: bold;
+    letter-spacing: 0.03125rem;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .helpyr-quiet-toggle:active,
+  .helpyr-quiet-toggle.cursor-hover,
+  .helpyr-quiet-toggle.focus-ring {
+    outline: 0;
+    background: linear-gradient(to bottom, #82b3f0 0%, #4d8adb 50%, #2a5cab 100%);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+  }
+  .helpyr-quiet-toggle.is-quiet {
+    background: linear-gradient(to bottom, #6a7080 0%, #4a4f5a 50%, #2a2e36 100%);
+    border-right-color: rgba(0, 0, 0, 0.55);
+    border-bottom-color: rgba(0, 0, 0, 0.55);
+    color: #d4d4dc;
+  }
+  .helpyr-quiet-toggle.is-quiet:active,
+  .helpyr-quiet-toggle.is-quiet.cursor-hover,
+  .helpyr-quiet-toggle.is-quiet.focus-ring {
+    background: linear-gradient(to bottom, #7a808e 0%, #5a5f6a 50%, #3a3e46 100%);
+  }
+
   /* --- HELPYR theme (slice 1.6) ---
    * XP Luna palette inside the chat surface. Window chrome stays
    * OS-dictated; only the inner content area shifts to the cool blue

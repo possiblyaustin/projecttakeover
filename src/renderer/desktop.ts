@@ -13,7 +13,9 @@ import { GameState, type GameStateShape } from './game/state';
 import { devSpawnRandomBubble } from './helpyrBubble';
 import { showHelpyrApp } from './apps/helpyr';
 import { UplinkContacts } from './apps/uplink';
-import { devFirePinPrompt } from './firstContactWatcher';
+import { devFirePinPrompt, devFireRepinNudge } from './firstContactWatcher';
+import { devFireIdleTrigger } from './idleWatcher';
+import { fireLibraryTrigger } from './helpyrTriggers';
 
 type DesktopShortcut = {
   id: string;
@@ -76,17 +78,30 @@ const NexusMenu: NexusEntry[] = [
   { type: 'sep' },
   // [DEV] entries — visible in-game so the tester can fire surfaces
   // without devtools (Deck-friendly per feedback_dev_test_affordances).
-  // Drop these as the underlying triggers ship.
-  // - Spawn HELPYR Bubble: slice 1.7. Drops in slice 3 when real event
-  //   triggers (suspicion/idle/etc.) auto-fire library bubbles.
-  // - Fire QUILL pin prompt: slice 2. Fires the "add to desktop?"
-  //   first-contact prompt without needing to walk through QUILL's
-  //   dialogue. Drops once playtest confirms the auto-firing path
-  //   works end-to-end on real hardware.
+  // - Spawn HELPYR Bubble: slice 1.7 fallback path; picks a random
+  //   library entry without going through fireLibraryTrigger filters.
+  // - Bump suspicion +25: slice 3 simplest path to test crossing
+  //   triggers — each click moves the meter up one threshold.
+  // - Fire idle bubble: slice 3 — fires the idle trigger without
+  //   waiting 3 minutes of inactivity.
+  // - Fire QUILL pin prompt: slice 2 — fires the "add to desktop?"
+  //   first-contact prompt + dispatches conversationCompleted so the
+  //   launcher reflects the contacted state (per slice 2 fix).
+  // - Fire QUILL re-pin nudge: slice 3 — sets pinDeclined.quill +
+  //   fires the follow-up nudge for the slice 2 "no" branch.
   { type: 'item', label: '[DEV] Spawn HELPYR Bubble',
     action: () => devSpawnRandomBubble() },
+  { type: 'item', label: '[DEV] Bump suspicion +25',
+    action: () => {
+      const cur = (window as any).PT.GameState.getState().player.suspicion;
+      (window as any).PT.GameState.dispatch({ type: 'debug/setSuspicion', value: cur + 25 });
+    } },
+  { type: 'item', label: '[DEV] Fire idle bubble',
+    action: () => devFireIdleTrigger() },
   { type: 'item', label: '[DEV] Fire QUILL pin prompt',
     action: () => devFirePinPrompt('quill') },
+  { type: 'item', label: '[DEV] Fire QUILL re-pin nudge',
+    action: () => devFireRepinNudge('quill') },
   { type: 'sep' },
   { type: 'item', label: 'Shut Down...', action: () => alert('Shutdown not wired up yet.') }
 ];

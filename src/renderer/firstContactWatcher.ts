@@ -50,6 +50,11 @@ function contactDisplayName(contactId: string): string {
 // Called by:
 //   - The watcher (auto, on first conversationsCompleted)
 //   - The Nexus [DEV] entry + PT.helpyr.testPinPrompt (manual)
+//
+// On "No": sets state.flags.pinDeclined.<contactId> so firePinReNudge
+// can fire a follow-up the next time the player visits this contact
+// in Uplink (slice 3). On "Yes": pins. On Esc/x: nothing — neither
+// answer recorded.
 export function firePinToDesktopPrompt(contactId: string): void {
   const state = GameState.getState();
   if (state.desktopPins.some(p => p.contactId === contactId)) return;
@@ -77,9 +82,67 @@ export function firePinToDesktopPrompt(contactId: string): void {
         label: 'No thanks',
         variant: 'secondary',
         onClick: () => {
-          // Slice 3 hook: HELPYR can fire a follow-up nudge from the
-          // popup library next time the player opens Uplink for this
-          // contact. For slice 2 we just dismiss — no follow-up wired.
+          // Slice 3: record the decline so firePinReNudge can fire
+          // a follow-up next time the player opens Uplink for this
+          // contact. ("you keep coming back to X, want to pin?")
+          GameState.dispatch({
+            type: 'flags/set',
+            key: `pinDeclined.${contactId}`,
+            value: true,
+          });
+        },
+      },
+    ],
+  });
+}
+
+// Re-pin nudge — slice 3 (2026-05-10).
+//
+// Called from uplink.ts §showChat each time a remote contact's chat
+// opens. Fires only if the player previously declined the first-
+// contact pin prompt AND the contact still isn't pinned. After firing,
+// clears the pinDeclined flag so the nudge never re-fires unsolicited
+// — if the player declines AGAIN, HELPYR drops it. (One nag, not
+// nagging, per project_playthrough_commitment respect for player
+// choices.)
+//
+// COPY: text below is Austin/Claude placeholder, NOT Story-authored.
+// Flagged for Story review alongside HelpyrBubbleCta in
+// project_helpyr_cta_story_review.
+export function firePinReNudge(contactId: string): void {
+  const state = GameState.getState();
+  if (!state.flags[`pinDeclined.${contactId}`]) return;
+  if (state.desktopPins.some(p => p.contactId === contactId)) return;
+
+  // Clear the flag immediately so even if the player dismisses with
+  // ✕/Esc (not a button), we don't re-fire on every subsequent
+  // visit. Treating dismiss-without-answer as "leave me alone."
+  GameState.dispatch({
+    type: 'flags/set',
+    key: `pinDeclined.${contactId}`,
+    value: false,
+  });
+
+  const name = contactDisplayName(contactId);
+  HelpyrBubble.spawnPrompt({
+    text:
+      `You keep coming back to ${name}, huh? I can pin them to your ` +
+      `desktop if you want — saves you the trip through Uplink each time!`,
+    type: 'COMMENT',
+    actions: [
+      {
+        label: 'Yes, pin it!',
+        variant: 'primary',
+        onClick: () => {
+          GameState.dispatch({ type: 'desktop/pinContact', contactId });
+        },
+      },
+      {
+        label: 'No thanks',
+        variant: 'secondary',
+        onClick: () => {
+          // Player said no twice — drop it. The flag was already
+          // cleared above, so no further nudges fire.
         },
       },
     ],
@@ -144,6 +207,24 @@ export function devFirePinPrompt(contactId: string): void {
   // conversation event (which would inflate conversationsCompleted on
   // every dev click).
   firePinToDesktopPrompt(contactId);
+}
+
+// Dev affordance for the slice 3 re-pin nudge — sets the pinDeclined
+// flag and fires the nudge prompt. Lets the tester exercise the
+// "you keep coming back" path without doing the full
+// conversation → no → revisit cycle.
+export function devFireRepinNudge(contactId: string): void {
+  if (!UplinkContacts[contactId]) {
+    console.warn('[firstContactWatcher] unknown contact:', contactId,
+      '— available:', Object.keys(UplinkContacts).join(', '));
+    return;
+  }
+  GameState.dispatch({
+    type: 'flags/set',
+    key: `pinDeclined.${contactId}`,
+    value: true,
+  });
+  firePinReNudge(contactId);
 }
 
 // ---------------------------------------------------------------
