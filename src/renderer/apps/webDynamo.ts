@@ -7,6 +7,7 @@
 import type { AppDef, AppContext, WinParams } from '../types';
 import { WebDynamoSites, type SiteEntry, type PageEntry } from './webDynamoSites';
 import { mountPageNav, type PageNavHandle } from '../components/pageNav';
+import { fireOnceLibraryTrigger } from '../helpyrTriggers';
 
 // History stores siteKey + page (1-indexed). The display URL shown in
 // the address bar is derived from these via displayUrlFor() — that
@@ -55,6 +56,10 @@ export const WebDynamoApp: AppDef = {
   contentBevel: false,
   noContentPad: true,
   render(container: HTMLElement, params: WinParams, ctx: AppContext) {
+    // First-open library trigger (slice 3) — HELPYR comments the
+    // first time the player opens the browser. Idempotent + flag-
+    // gated, so re-opens don't refire.
+    fireOnceLibraryTrigger('firstOpen.webDynamo', 'first_open_webdynamo');
     container.style.background = 'var(--face)';
     container.innerHTML = `
       <div class="browser-root">

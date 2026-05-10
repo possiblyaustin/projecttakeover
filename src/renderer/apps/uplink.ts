@@ -24,6 +24,8 @@ import {
 } from '../chatSurface';
 import { makeModelService } from '../game/modelServiceFactory';
 import { GameState } from '../game/state';
+import { fireOnceLibraryTrigger } from '../helpyrTriggers';
+import { firePinReNudge } from '../firstContactWatcher';
 
 // Re-exported for back-compat — apps/uplinkLog.ts and any future
 // consumer can import these from either chatSurface or uplink.
@@ -294,6 +296,17 @@ export const UplinkApp: AppDef = {
         // unknown contact → drop back to the launcher.
         showLauncher();
         return;
+      }
+      // First-time-opening-Uplink-for-a-remote-AI library trigger
+      // (slice 3). HELPYR is the local assistant — chatting with
+      // her doesn't count, so we exclude that key.
+      if (contactKey !== 'helpyr') {
+        fireOnceLibraryTrigger('firstOpen.uplinkRemote', 'first_uplink_remote');
+        // Slice 3: if the player previously declined to pin this
+        // contact (slice 2 "no" branch), HELPYR fires a follow-up
+        // nudge. Idempotent — fires at most once, then clears its
+        // own flag.
+        firePinReNudge(contactKey);
       }
       renderChatSurface(container, ctx, {
         contact,
