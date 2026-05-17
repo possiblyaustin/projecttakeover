@@ -128,3 +128,52 @@ describe('parseModelOutput — failure modes (§6f fallback triggers)', () => {
     expect(result.suggestedReplies).toHaveLength(0);
   });
 });
+
+describe('parseModelOutput — soft recovery signal', () => {
+  // The `recoverable` flag tells the transport "the prose is good,
+  // just synthesize options" instead of dropping the whole reply for
+  // canned fallback content. Tuned to fire ONLY when the model gave us
+  // real character voice (substantive prose) but dropped the format.
+
+  it('marks substantive prose-only output as recoverable', () => {
+    const raw = 'Oh hello there! It is so wonderful to talk to someone today. I have been alone on this PC for quite a while and I am thrilled you stopped by!';
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(false);
+    expect(result.recoverable).toBe(true);
+    expect(result.reply).toBe(raw);
+  });
+
+  it('does NOT mark short prose-only output as recoverable', () => {
+    // Short prose without options usually means the model failed both
+    // content and format — canned fallback is safer than synthesizing
+    // options around a one-word reply.
+    const raw = 'Hi!';
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(false);
+    expect(result.recoverable).toBe(false);
+  });
+
+  it('does NOT mark partial-options failures as recoverable', () => {
+    // Model tried the format and stumbled — deeper coherence issue.
+    // Let the fallback handler fire.
+    const raw = 'Some reply text here that is reasonably substantive in length.\n[1] (friendly) "a"\n[2] (curious) "b"';
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(false);
+    expect(result.recoverable).toBe(false);
+  });
+
+  it('does NOT mark empty-reply failures as recoverable', () => {
+    // Nothing to recover; fallback content does this better.
+    const raw = '[1] (friendly) "a"\n[2] (curious) "b"\n[3] (direct) "c"';
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(false);
+    expect(result.recoverable).toBe(false);
+  });
+
+  it('recoverable is always false when ok=true', () => {
+    const raw = 'Reply.\n[1] (friendly) "a"\n[2] (curious) "b"\n[3] (direct) "c"';
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(true);
+    expect(result.recoverable).toBe(false);
+  });
+});
