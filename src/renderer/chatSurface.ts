@@ -176,6 +176,47 @@ export function makeFallbackHandler(pool: readonly FallbackEntry[]): FallbackHan
   };
 }
 
+// ---------- Per-contact session persistence ----------
+// Chat state survives launcher round-trips (Uplink) and tray
+// close+reopen (HELPYR) so the player isn't shoved back to the intro
+// turn every time they tab away. The session map is module-scoped:
+// outlives `renderChatSurface` calls, dies on full page reload. Saves
+// don't carry it yet — promote to GameState when transcript persistence
+// across saves becomes a real ask.
+//
+// Mid-flight: if the player navigates away after sending but before
+// the reply commits, the in-flight promise resolves into a torn-down
+// UI and is lost. On re-entry the player message shows but the NPC
+// reply is missing; replay detects this (last msg is player) and skips
+// the now-stale option restore. Rare in practice; not worth in-flight
+// promise plumbing today.
+type ChatSession = {
+  messages: ChatMessage[];
+  hasTrimmed: boolean;
+  playerTone: ApproachTone | null;
+  conversationCompleted: boolean;
+  /** Most recent committed AskResult, used to restore the option
+   *  buttons on re-entry. Null until the first reply commits. */
+  lastResult: AskResult | null;
+};
+
+const sessions = new Map<string, ChatSession>();
+
+function getOrCreateSession(contactKey: string): ChatSession {
+  let s = sessions.get(contactKey);
+  if (!s) {
+    s = {
+      messages: [],
+      hasTrimmed: false,
+      playerTone: null,
+      conversationCompleted: false,
+      lastResult: null,
+    };
+    sessions.set(contactKey, s);
+  }
+  return s;
+}
+
 export function renderChatSurface(
   container: HTMLElement,
   ctx: AppContext,
@@ -184,6 +225,8 @@ export function renderChatSurface(
   const { contact, contactKey, themeClass, topbarLeft = { kind: 'none' } } = config;
   const titleFormat = config.titleFormat ?? ((c) => c.name);
   const glyphFormat = config.glyphFormat ?? ((c) => c.avatarClass);
+
+  const session = getOrCreateSession(contactKey);
 
   ctx.setTitle(titleFormat(contact));
   ctx.setGlyph(glyphFormat(contact));
@@ -242,8 +285,11 @@ export function renderChatSurface(
 
   const pickStalling = makeStallingPicker(contact.stallingPool);
 
-  const messages: ChatMessage[] = [];
-  let hasTrimmed = false;
+  // Alias the session's messages array so messages.push(...) writes
+  // through to the persistent store. hasTrimmed/playerTone/
+  // conversationCompleted are reassigned in-place, so they read/write
+  // via `session.x` directly rather than through a local alias.
+  const messages = session.messages;
 
   // Live-tail behavior: log uses flex column-reverse so newest message
   // anchors to the bottom; older bubbles drift up and are removed
@@ -261,8 +307,8 @@ export function renderChatSurface(
         const r = oldest.getBoundingClientRect();
         if (r.bottom > logRect.top + 0.5) break;
         oldest.remove();
-        if (!hasTrimmed) {
-          hasTrimmed = true;
+        if (!session.hasTrimmed) {
+          session.hasTrimmed = true;
           earlierChip.hidden = false;
         }
       }
@@ -272,11 +318,9 @@ export function renderChatSurface(
   const logResizeObserver = new ResizeObserver(() => trimFromTop());
   logResizeObserver.observe(logEl);
 
-  let playerTone: ApproachTone | null = null;
   function recordTone(tone: ApproachTone) {
-    if (!playerTone && tone !== 'neutral') playerTone = tone;
+    if (!session.playerTone && tone !== 'neutral') session.playerTone = tone;
   }
-  let conversationCompleted = false;
 
   function setControlsEnabled(on: boolean) {
     controlsEl.classList.toggle('disabled', !on);
@@ -552,16 +596,17 @@ export function renderChatSurface(
   }
 
   function commitResult(result: AskResult) {
+    session.lastResult = result;
     if (result.suggestedReplies.length > 0) {
       showOptions(result.suggestedReplies);
     } else {
       setControlsEnabled(true);
     }
-    if (result.conversationEnded && !conversationCompleted) {
-      conversationCompleted = true;
+    if (result.conversationEnded && !session.conversationCompleted) {
+      session.conversationCompleted = true;
       GameState.dispatch({
         type: `${contactKey}/conversationCompleted`,
-        tone: playerTone,
+        tone: session.playerTone,
       });
     }
   }
@@ -626,14 +671,55 @@ export function renderChatSurface(
     }
   });
 
-  // Kick off the conversation. The intro turn doesn't fire stalling
-  // — there's no preceding player action, so no filler context.
-  const introPromise = contact.service.askModel({
-    systemPrompt: contact.buildSystemPrompt(),
-    history: [],
-    userMessage: '',
-  });
-  renderResponseTurnNoStalling(introPromise, commitResult);
+  // Re-entry vs fresh-entry. If the session already has messages, the
+  // player is returning to a conversation in progress (Uplink Back →
+  // re-pick contact, or HELPYR tray close+reopen) — instant-render the
+  // transcript and restore the last option set. Otherwise this is the
+  // first entry for this contact and we fire the intro turn.
+  if (session.messages.length > 0) {
+    replayExistingTranscript();
+  } else {
+    // The intro turn doesn't fire stalling — there's no preceding
+    // player action, so no filler context.
+    const introPromise = contact.service.askModel({
+      systemPrompt: contact.buildSystemPrompt(),
+      history: [],
+      userMessage: '',
+    });
+    renderResponseTurnNoStalling(introPromise, commitResult);
+  }
+
+  function replayExistingTranscript() {
+    // Instant render — bubbles appear whole, no typer, no segmentation.
+    // Matches the no-rewind principle: re-opening a transcript is
+    // returning to it, not re-experiencing it. Fallback glitch styling
+    // is intentionally not preserved on replay (it's a transient cue,
+    // not a permanent stamp).
+    for (const msg of session.messages) {
+      if (msg.kind === 'npc') {
+        const bubble = appendBubble(msg.speaker, 'npc', msg.avatarClass);
+        const body = msg.text.replace(speakerPrefixRe, '');
+        bubble.appendChild(document.createTextNode(body));
+      } else {
+        const bubble = appendBubble('YOU', 'player', 'avatar-player');
+        bubble.appendChild(document.createTextNode(msg.text));
+      }
+    }
+    if (session.hasTrimmed) {
+      earlierChip.hidden = false;
+    }
+    // Restore controls from the most recent committed turn. If the
+    // last message is a player message, an in-flight reply was lost
+    // when the player navigated away — don't restore the now-stale
+    // option set; just enable freeform so they can keep moving.
+    const lastMsg = session.messages[session.messages.length - 1];
+    const inFlight = lastMsg?.kind === 'player';
+    if (session.lastResult && !inFlight) {
+      commitResult(session.lastResult);
+    } else {
+      setControlsEnabled(true);
+    }
+  }
 }
 
 function escapeHtml(s: string): string {
