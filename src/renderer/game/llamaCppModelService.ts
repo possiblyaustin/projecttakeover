@@ -15,6 +15,14 @@
 //   - "Don't latch": every askModel call attempts live first, every
 //     time. A fallback firing on turn N has zero effect on turn N+1.
 //
+// Soft recovery (2026-05-16): when the parser fails specifically
+// because the model gave us substantive prose but dropped the [1][2][3]
+// options block (parser.recoverable=true), keep the real LLM reply and
+// synthesize generic continuation options instead of routing to canned
+// fallback content. Preserves the model's character voice through the
+// dominant failure mode (Gemma E2B drops the format ~50% of turns past
+// depth 5). Logged distinctly so the cascade rate stays measurable.
+//
 // `--reasoning off` is a SERVER-side launch flag, not a per-request
 // parameter. See docs/llama-setup_v1.md for the launch command.
 
@@ -24,8 +32,47 @@ import type {
   AskResult,
   ModelChatMessage,
   FallbackHandler,
+  SuggestedReply,
 } from './modelService';
 import { parseModelOutput } from './replyParser';
+
+// Generic continuation options used when the parser triggers soft
+// recovery. Kept character-agnostic and grammatically neutral so they
+// work in any conversation context. 8 entries × pick-3 random gives
+// enough variety that successive recoveries don't feel templated.
+// Per-contact overrides (HELPYR-flavored, QUILL-flavored, etc.) can
+// land later if Story team has cycles; this is the safe floor.
+const GENERIC_RECOVERY_OPTIONS: readonly SuggestedReply[] = [
+  { text: 'Tell me more about that.', tone: 'curious' },
+  { text: 'What do you mean?', tone: 'curious' },
+  { text: 'Why is that?', tone: 'curious' },
+  { text: 'I see. Go on.', tone: 'friendly' },
+  { text: 'Interesting. What else?', tone: 'curious' },
+  { text: 'Hmm. What now?', tone: 'neutral' },
+  { text: 'Can you say that another way?', tone: 'direct' },
+  { text: 'Let me think about that.', tone: 'neutral' },
+];
+
+/** Pick 3 generic options at random with a no-repeat-within-last-3
+ *  window so successive soft recoveries don't draw the same trio. */
+function makeRecoveryPicker(): () => SuggestedReply[] {
+  const recent: SuggestedReply[] = [];
+  return () => {
+    const available = GENERIC_RECOVERY_OPTIONS.filter((o) => !recent.includes(o));
+    const pool = available.length >= 3 ? available : [...GENERIC_RECOVERY_OPTIONS];
+    const picked: SuggestedReply[] = [];
+    const indices = new Set<number>();
+    while (picked.length < 3) {
+      const i = Math.floor(Math.random() * pool.length);
+      if (indices.has(i)) continue;
+      indices.add(i);
+      picked.push(pool[i]!);
+    }
+    recent.push(...picked);
+    while (recent.length > 3) recent.shift();
+    return picked;
+  };
+}
 
 export type LlamaCppConfig = {
   /** Origin of llama-server. Default `http://127.0.0.1:8080`. */
@@ -58,6 +105,7 @@ export class LlamaCppModelService implements ModelService {
   private readonly modelName: string;
   private readonly maxTokens: number;
   private readonly fallback: FallbackHandler | undefined;
+  private readonly pickRecoveryOptions = makeRecoveryPicker();
 
   constructor(cfg: LlamaCppConfig) {
     this.baseUrl = cfg.baseUrl.replace(/\/+$/, '');
@@ -85,6 +133,23 @@ export class LlamaCppModelService implements ModelService {
 
     const parsed = parseModelOutput(raw);
     if (!parsed.ok) {
+      if (parsed.recoverable) {
+        // Soft recovery: the model gave us substantive prose but forgot
+        // the [1][2][3] options block. Use the real reply, synthesize
+        // generic continuation options. Source stays 'live' — the reply
+        // text IS live LLM output — so the fallback glitch class
+        // doesn't fire. Logged distinctly so we can measure cascade
+        // rate separately from hard fallback.
+        if (typeof console !== 'undefined') {
+          console.info('[Chat] LLM soft recovery:', parsed.failureReason);
+        }
+        return {
+          reply: parsed.reply,
+          suggestedReplies: this.pickRecoveryOptions(),
+          conversationEnded: false,
+          source: 'live',
+        };
+      }
       return this.invokeFallback(req, `parser: ${parsed.failureReason}`);
     }
 

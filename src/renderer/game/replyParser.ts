@@ -21,6 +21,14 @@
 //   - Zero options found
 //   - Fewer than three options
 //   - Empty reply when options were found
+//
+// Soft-recovery signal (`recoverable: true`): the parser sets this when
+// the failure mode is specifically "model gave us substantive prose but
+// forgot the [1][2][3] options block." 2026-05-16 stress test showed
+// this is by far the dominant failure mode for HELPYR (Gemma E2B
+// dropping the format ~50% of turns past depth 5). The transport can
+// synthesize generic continuation options and pass the real LLM reply
+// through to the player instead of routing to canned fallback content.
 
 import type { SuggestedReply, ApproachTone } from './modelService';
 
@@ -44,11 +52,25 @@ export type ParseResult = {
    *  exist. Caller decides what to do — typically set
    *  AskResult.source = 'fallback' and surface a glitch artifact. */
   ok: boolean;
+  /** When ok=false: true if the failure is salvageable — the model gave
+   *  us a substantive prose reply but dropped the options block. The
+   *  transport can keep the reply and synthesize generic options rather
+   *  than routing to canned fallback content. False for transport
+   *  errors, empty replies, and other unrecoverable conditions.
+   *  Always false when ok=true (no recovery needed). */
+  recoverable: boolean;
   /** Human-readable reason ok is false. Empty when ok=true. Lets the
    *  fallback path log/display why it triggered without re-running
    *  the parser. */
   failureReason: string;
 };
+
+/** Minimum reply length (chars) for a no-options-block failure to be
+ *  considered recoverable. Short prose ("Hi.", "OK!") usually means the
+ *  model also failed to produce real content, not just the format —
+ *  better to take the canned fallback than render a one-word reply
+ *  with synthesized options. Tuned conservatively. */
+const MIN_RECOVERABLE_REPLY_LENGTH = 40;
 
 /** Locate the first `[1]` (with optional whitespace inside the brackets)
  *  that marks the start of the options block. Returns -1 if not found. */
@@ -82,12 +104,15 @@ export function parseModelOutput(raw: string): ParseResult {
   const start = findOptionsStart(text);
 
   // No `[1]` marker at all — the entire response is the reply, no
-  // options. Fallback trigger.
+  // options. Fallback trigger, but recoverable if the prose itself is
+  // substantive (model just dropped the format, not the content).
   if (start < 0) {
+    const trimmed = text.trim();
     return {
-      reply: text.trim(),
+      reply: trimmed,
       suggestedReplies: [],
       ok: false,
+      recoverable: trimmed.length >= MIN_RECOVERABLE_REPLY_LENGTH,
       failureReason: 'no [1] options marker found',
     };
   }
@@ -122,6 +147,7 @@ export function parseModelOutput(raw: string): ParseResult {
       reply,
       suggestedReplies: [],
       ok: false,
+      recoverable: reply.length >= MIN_RECOVERABLE_REPLY_LENGTH,
       failureReason: 'options marker found but no parseable options',
     };
   }
@@ -130,6 +156,10 @@ export function parseModelOutput(raw: string): ParseResult {
       reply,
       suggestedReplies: options,
       ok: false,
+      // Partial options is a worse signal than no options block at all —
+      // the model tried and stumbled, suggesting a deeper coherence
+      // issue. Don't soft-recover; let the fallback handler fire.
+      recoverable: false,
       failureReason: `expected 3 options, parsed ${options.length}`,
     };
   }
@@ -138,6 +168,9 @@ export function parseModelOutput(raw: string): ParseResult {
       reply: '',
       suggestedReplies: options.slice(0, 3),
       ok: false,
+      // No prose to recover, so synthesis would be the whole message —
+      // canned fallback handler does that better.
+      recoverable: false,
       failureReason: 'empty reply (model jumped straight to options)',
     };
   }
@@ -146,6 +179,7 @@ export function parseModelOutput(raw: string): ParseResult {
     reply,
     suggestedReplies: options.slice(0, 3),
     ok: true,
+    recoverable: false,
     failureReason: '',
   };
 }
