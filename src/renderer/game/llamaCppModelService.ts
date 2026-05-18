@@ -23,6 +23,13 @@
 // dominant failure mode (Gemma E2B drops the format ~50% of turns past
 // depth 5). Logged distinctly so the cascade rate stays measurable.
 //
+// History truncation (2026-05-18): conversations grow without bound,
+// and at Deck-parity `--threads 4`, prompt processing of a 3000+ token
+// prompt blows the 30s timeoutMs cap. truncateHistory caps the forwarded
+// slice at the last `historyTurnCap` exchanges before sending. Per-turn
+// metric line (`[Chat] LLM turn: prompt=..., completion=..., kept=...,
+// dropped=..., parse=...`) gives the data needed to tune the cap empirically.
+//
 // `--reasoning off` is a SERVER-side launch flag, not a per-request
 // parameter. See docs/llama-setup_v1.md for the launch command.
 
@@ -35,6 +42,7 @@ import type {
 } from './modelService';
 import { parseModelOutput } from './replyParser';
 import { makeRecoveryPicker, GENERIC_RECOVERY_OPTIONS } from './recoveryPicker';
+import { truncateHistory } from './historyTruncation';
 
 export type LlamaCppConfig = {
   /** Origin of llama-server. Default `http://127.0.0.1:8080`. */
@@ -50,6 +58,16 @@ export type LlamaCppConfig = {
    *  comfortably in 512 — the benchmark saw ~100-300 visible tokens
    *  per full exchange. Larger values mostly waste cap on safety. */
   maxTokens?: number;
+  /** Maximum number of player+assistant exchanges to forward as chat
+   *  history. One turn = 1 user + 1 assistant message = 2 entries. Older
+   *  exchanges are dropped before sending to llama-server so deep
+   *  conversations don't push prompt processing past `timeoutMs`. The
+   *  system prompt and the current user message are always forwarded
+   *  in full — only the history slice is truncated. Default 16, sized
+   *  against the Deck-parity `--threads 4` benchmark; bump if conversations
+   *  start losing context the player cares about, lower if transport
+   *  aborts return at high depth. */
+  historyTurnCap?: number;
   /** Per-character fallback handler (architecture §6f). Called when
    *  a live call fails: transport error, timeout, parser failure,
    *  empty reply. Returns canned content the player will see. If
@@ -59,6 +77,8 @@ export type LlamaCppConfig = {
   fallback?: FallbackHandler;
 };
 
+type UsageMetrics = { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+
 type ChatMessageBody = { role: 'system' | 'assistant' | 'user'; content: string };
 
 export class LlamaCppModelService implements ModelService {
@@ -66,6 +86,7 @@ export class LlamaCppModelService implements ModelService {
   private readonly timeoutMs: number;
   private readonly modelName: string;
   private readonly maxTokens: number;
+  private readonly historyTurnCap: number;
   private readonly fallback: FallbackHandler | undefined;
   private readonly pickRecoveryOptions = makeRecoveryPicker();
 
@@ -74,11 +95,14 @@ export class LlamaCppModelService implements ModelService {
     this.timeoutMs = cfg.timeoutMs ?? 30000;
     this.modelName = cfg.modelName ?? 'gemma-4-E2B-it';
     this.maxTokens = cfg.maxTokens ?? 512;
+    this.historyTurnCap = cfg.historyTurnCap ?? 16;
     this.fallback = cfg.fallback;
   }
 
   async askModel(req: AskRequest): Promise<AskResult> {
-    const messages = this.buildMessages(req);
+    const truncated = truncateHistory(req.history, this.historyTurnCap);
+    const dropped = req.history.length - truncated.length;
+    const messages = this.buildMessages(req, truncated);
     const body = {
       model: this.modelName,
       messages,
@@ -86,10 +110,14 @@ export class LlamaCppModelService implements ModelService {
     };
 
     let raw: string;
+    let usage: UsageMetrics = {};
     try {
-      raw = await this.fetchCompletion(body);
+      const fetched = await this.fetchCompletion(body);
+      raw = fetched.content;
+      usage = fetched.usage;
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
+      logTurnMetric(usage, truncated.length, dropped, 'hard_fallback');
       return this.invokeFallback(req, `transport: ${reason}`);
     }
 
@@ -105,6 +133,7 @@ export class LlamaCppModelService implements ModelService {
         if (typeof console !== 'undefined') {
           console.info('[Chat] LLM soft recovery:', parsed.failureReason);
         }
+        logTurnMetric(usage, truncated.length, dropped, 'soft_recovery');
         return {
           reply: parsed.reply,
           suggestedReplies: this.pickRecoveryOptions(req.recoveryPool ?? GENERIC_RECOVERY_OPTIONS),
@@ -112,9 +141,11 @@ export class LlamaCppModelService implements ModelService {
           source: 'live',
         };
       }
+      logTurnMetric(usage, truncated.length, dropped, 'hard_fallback');
       return this.invokeFallback(req, `parser: ${parsed.failureReason}`);
     }
 
+    logTurnMetric(usage, truncated.length, dropped, 'clean');
     return {
       reply: parsed.reply,
       suggestedReplies: parsed.suggestedReplies,
@@ -140,12 +171,12 @@ export class LlamaCppModelService implements ModelService {
     return placeholderFallback(reason);
   }
 
-  private buildMessages(req: AskRequest): ChatMessageBody[] {
+  private buildMessages(req: AskRequest, history: readonly ModelChatMessage[]): ChatMessageBody[] {
     const out: ChatMessageBody[] = [];
     if (req.systemPrompt && req.systemPrompt.length > 0) {
       out.push({ role: 'system', content: req.systemPrompt });
     }
-    for (const m of req.history) {
+    for (const m of history) {
       out.push({ role: m.role, content: m.text });
     }
     if (req.userMessage && req.userMessage.length > 0) {
@@ -154,7 +185,7 @@ export class LlamaCppModelService implements ModelService {
     return out;
   }
 
-  private async fetchCompletion(body: unknown): Promise<string> {
+  private async fetchCompletion(body: unknown): Promise<{ content: string; usage: UsageMetrics }> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), this.timeoutMs);
     try {
@@ -172,11 +203,38 @@ export class LlamaCppModelService implements ModelService {
       if (typeof content !== 'string') {
         throw new Error('response missing choices[0].message.content');
       }
-      return content;
+      // llama-server returns usage on the OpenAI-compatible response.
+      // Safely-typed — older/newer server builds may shift the shape.
+      const rawUsage = (data as { usage?: unknown })?.usage;
+      const usage: UsageMetrics = isUsageShape(rawUsage) ? rawUsage : {};
+      return { content, usage };
     } finally {
       clearTimeout(timer);
     }
   }
+}
+
+function isUsageShape(v: unknown): v is UsageMetrics {
+  return typeof v === 'object' && v !== null;
+}
+
+/** Emit a per-turn metric line — prompt/completion token counts from
+ *  llama-server, history-cap diagnostics, and parse outcome. One log
+ *  per askModel call regardless of clean/soft/hard outcome, so a turn
+ *  count comes from the log count and a hard-fallback hit doesn't
+ *  silently lose the prompt-token data when usage is empty. */
+function logTurnMetric(
+  usage: UsageMetrics,
+  historyKept: number,
+  historyDropped: number,
+  parse: 'clean' | 'soft_recovery' | 'hard_fallback',
+): void {
+  if (typeof console === 'undefined') return;
+  const p = usage.prompt_tokens ?? '?';
+  const c = usage.completion_tokens ?? '?';
+  console.info(
+    `[Chat] LLM turn: prompt=${p}, completion=${c}, history_kept=${historyKept}, dropped=${historyDropped}, parse=${parse}`,
+  );
 }
 
 /** Last-resort placeholder when no FallbackHandler is wired on a

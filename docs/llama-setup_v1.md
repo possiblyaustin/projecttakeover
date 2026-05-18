@@ -144,6 +144,8 @@ Double-click to start. The `pause` at the end keeps the window open if there's a
 
 **Antivirus quarantines `llama-server.exe`** — Windows Defender or third-party AV occasionally false-positives on llama.cpp binaries because they do unusual things with memory mapping. Whitelist the `C:\llm\llama.cpp\` folder.
 
+**Conversation appears to "forget" earlier turns past depth ~16** — by design as of v0.0.39. `LlamaCppModelService` caps the chat history forwarded to llama-server at `historyTurnCap` (default 16 exchanges) so prompt processing stays under the 30s `timeoutMs`. The system prompt, `[HELPYR_STATE]` block, and reputation context are re-sent in full every turn so character coherence isn't affected — only the literal exchange-by-exchange transcript is windowed. Tune via `LlamaCppConfig.historyTurnCap` if needed; the per-turn `[Chat] LLM turn: prompt=..., kept=..., dropped=...` console log shows the live numbers.
+
 ---
 
 ## What happens next
