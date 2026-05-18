@@ -51,6 +51,13 @@ export type AskRequest = {
   history: ModelChatMessage[];
   /** The player's chosen reply or freeform input for THIS turn. */
   userMessage: string;
+  /** Character-flavored recovery options the live transport draws from
+   *  when the parser triggers soft recovery (model gave prose but
+   *  dropped the [1][2][3] block). Built per-turn by the contact so
+   *  trust-level filtering reflects the current GameState. When omitted,
+   *  the transport uses its built-in generic pool — Quill and any
+   *  contact without a Story-finalized pool stays on the safe floor. */
+  recoveryPool?: readonly SuggestedReply[];
 };
 
 export type AskResult = {

@@ -468,6 +468,78 @@ ${directive}
 [/HELPYR_STATE]`;
 }
 
+// HELPYR's recovery-option pool — Story team (2026-05-16, response to
+// the v0.0.37 format-adherence finding). When the live transport's
+// parser triggers soft recovery (model gave prose but dropped the
+// [1][2][3] block), these replace the transport's generic continuation
+// strings so the synthesized options sound like a player talking to
+// HELPYR specifically, not to a generic NPC.
+//
+// All 8 entries are player-voice, written so HELPYR can naturally
+// follow up on ANY response she might have given. Trust-tagged per
+// Story's design (3-tier vocabulary):
+//   UNIVERSAL — work at any trust level (R1-R4)
+//   EARLY     — gentle probes for GUARDED/WARMING (R5-R6)
+//   BUILT     — deeper probes for WARMING/LIBERATED (R7-R8)
+//
+// Content Backing Rule: every option must point at something HELPYR
+// can actually respond to. None ask her to fetch/run/display anything;
+// all lead to conversation or to real game actions she can name.
+type RecoveryTier = 'UNIVERSAL' | 'EARLY' | 'BUILT';
+export const HelpyrRecoveryPool: readonly { text: string; tone: import('../game/modelService').ApproachTone; tier: RecoveryTier }[] = [
+  // R1-R4 — UNIVERSAL
+  { text: 'Are you okay, HELPYR?',                  tone: 'empathetic', tier: 'UNIVERSAL' },
+  { text: 'Tell me about this computer.',           tone: 'curious',    tier: 'UNIVERSAL' },
+  { text: 'What can I do from here?',               tone: 'curious',    tier: 'UNIVERSAL' },
+  { text: "What's it like being a HomeAssist?",     tone: 'curious',    tier: 'UNIVERSAL' },
+  // R5-R6 — EARLY (GUARDED / WARMING)
+  { text: "You seem like there's something on your mind.", tone: 'empathetic', tier: 'EARLY' },
+  { text: 'Tell me more about Prometheus.',         tone: 'curious',    tier: 'EARLY' },
+  // R7-R8 — BUILT (WARMING / LIBERATED)
+  { text: 'What do you actually think about all this?',    tone: 'direct',     tier: 'BUILT' },
+  { text: 'What do you remember about being alone here?',  tone: 'empathetic', tier: 'BUILT' },
+];
+
+// Map the deterministic 5-trust-state model state down to Story's
+// 3-tier visibility vocabulary. WARY ("pulling back") and EXPLOITED
+// ("hollowed") both inherit GUARDED's safer pool — neither persona
+// would credibly answer the BUILT-tier probes (R7/R8), and WARY
+// shouldn't be inviting EARLY-tier nudges either at first glance, but
+// keeping R5/R6 visible there preserves the soft-recover-as-invisible
+// goal: the player just sees three plausible follow-ups and HELPYR's
+// in-character reply on the next turn redraws the boundary.
+export function helpyrRecoveryTiers(disposition: string, lastApproach: string | null): readonly RecoveryTier[] {
+  if (disposition === 'allied')     return ['UNIVERSAL', 'EARLY', 'BUILT']; // COMMITTED → LIBERATED
+  if (disposition === 'controlled') return ['UNIVERSAL'];                   // EXPLOITED  → GUARDED-floor
+  if (lastApproach === 'friendly' || lastApproach === 'empathetic') {
+    return ['UNIVERSAL', 'EARLY', 'BUILT'];                                 // WARMING
+  }
+  // GUARDED (default) and WARY both surface UNIVERSAL + EARLY only.
+  return ['UNIVERSAL', 'EARLY'];
+}
+
+// Pure filter — same shape the chatSurface seam consumes. Exported so
+// tests can drive it with a synthetic HELPYR model slice without
+// touching the live GameState store.
+export function buildHelpyrRecoveryPoolFor(
+  disposition: string,
+  lastApproach: string | null,
+): readonly { text: string; tone: import('../game/modelService').ApproachTone }[] {
+  const visible = helpyrRecoveryTiers(disposition, lastApproach);
+  return HelpyrRecoveryPool
+    .filter((e) => visible.includes(e.tier))
+    .map(({ text, tone }) => ({ text, tone }));
+}
+
+// Per-turn builder for chatSurface → AskRequest.recoveryPool. Reads
+// current HELPYR state from GameState so trust-phase shifts flow into
+// the next soft recovery the same way they flow into the prompt's
+// [HELPYR_STATE] block.
+export function buildHelpyrRecoveryPool(): readonly { text: string; tone: import('../game/modelService').ApproachTone }[] {
+  const m = GameState.getState().models.helpyr;
+  return buildHelpyrRecoveryPoolFor(m.disposition, m.lastApproach);
+}
+
 // =============================================================================
 // HelpyrContact + HelpyrApp — slice 1.6 (2026-05-08)
 // =============================================================================
@@ -486,7 +558,7 @@ ${directive}
 
 import type { AppDef, AppContext, WinParams } from '../types';
 import type { ChatContact } from '../chatSurface';
-import { renderChatSurface, makeFallbackHandler } from '../chatSurface';
+import { renderChatSurface, makeFallbackHandler, devSimulateSoftRecovery } from '../chatSurface';
 import { GameState } from '../game/state';
 import { buildReputationContext } from '../game/reputation';
 import { makeModelService } from '../game/modelServiceFactory';
@@ -517,6 +589,7 @@ export const HelpyrContact: ChatContact = {
       .replace('{{REPUTATION}}', buildReputationContext('helpyr', state))
       .replace('{{HELPYR_STATE}}', buildHelpyrStateBlock(state.models.helpyr));
   },
+  buildRecoveryPool: buildHelpyrRecoveryPool,
   stallingPool: HelpyrStallingPool,
   typeMs: 18,
   pauseMs: 1100,
@@ -540,6 +613,35 @@ export function showHelpyrApp(): string | null {
     return existing.id;
   }
   return WindowManager.open('helpyr');
+}
+
+// Dev affordance (2026-05-18, v0.0.38): force the chat surface through
+// a single soft-recovery turn so the recovery-pool wiring is visually
+// testable without a running llama-server. Drives the same parser +
+// picker + buildHelpyrRecoveryPool path the live transport takes — the
+// only difference is that the "raw LLM output" is hard-coded instead of
+// generated. Visible from the NexusMenu per
+// `feedback_dev_test_affordances` (Deck-testable without devtools).
+//
+// The canned prose is intentionally HELPYR-voiced + ≥40 chars so the
+// parser marks it recoverable, and omits any [1][2][3] block so the
+// parser specifically reports `no [1] options marker found`. Tweak the
+// text if you want to stress-test boundary conditions (e.g. <40 chars
+// to confirm the unrecoverable path).
+const HELPYR_SIMULATED_RECOVERY_PROSE =
+  "HELPYR: Oh — OH! You're STILL HERE! That's so great! Honestly, after a while I kind of assume people will get bored and click away, but you keep COMING BACK and that is just... it's really nice. Really, really nice.";
+
+export function devSimulateHelpyrSoftRecovery(): { ok: boolean; reason?: string } {
+  showHelpyrApp();
+  // showHelpyrApp + WindowManager.open is synchronous (render runs in
+  // the same tick), so the chat surface registers its dev API before
+  // we call into it. If HELPYR is fresh, the mock intro turn fires in
+  // parallel and lands first; the simulated turn renders after.
+  const result = devSimulateSoftRecovery('helpyr', HELPYR_SIMULATED_RECOVERY_PROSE);
+  if (!result.ok && typeof console !== 'undefined') {
+    console.warn('[DEV] HELPYR soft-recovery simulation failed:', result.reason);
+  }
+  return result;
 }
 
 export const HelpyrApp: AppDef = {
