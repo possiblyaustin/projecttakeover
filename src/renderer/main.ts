@@ -33,6 +33,7 @@ import { UplinkApp } from './apps/uplink';
 import { UplinkLogApp } from './apps/uplinkLog';
 import { HelpyrApp } from './apps/helpyr';
 import { HelpyrBubble, devSpawnRandomBubble, devSpawnBubbleById } from './helpyrBubble';
+import { devSimulateHelpyrSoftRecovery } from './apps/helpyr';
 import { initFirstContactWatcher, devFirePinPrompt, devFireRepinNudge } from './firstContactWatcher';
 import { initSuspicionWatcher } from './suspicionWatcher';
 import { initIdleWatcher, devFireIdleTrigger } from './idleWatcher';
@@ -129,5 +130,10 @@ DesktopShortcuts[0]!.launch();
     // activity threshold. Resets the timer so the next auto-fire
     // is again 3min away.
     testIdle: devFireIdleTrigger,
+    // Drive a soft-recovery turn through HELPYR's chat surface using
+    // the real parser + buildHelpyrRecoveryPool + picker. Lets you
+    // eyeball the trust-aware recovery options without needing a
+    // running llama-server. Also wired to the Nexus menu.
+    simulateSoftRecovery: devSimulateHelpyrSoftRecovery,
   }
 };

@@ -32,47 +32,9 @@ import type {
   AskResult,
   ModelChatMessage,
   FallbackHandler,
-  SuggestedReply,
 } from './modelService';
 import { parseModelOutput } from './replyParser';
-
-// Generic continuation options used when the parser triggers soft
-// recovery. Kept character-agnostic and grammatically neutral so they
-// work in any conversation context. 8 entries × pick-3 random gives
-// enough variety that successive recoveries don't feel templated.
-// Per-contact overrides (HELPYR-flavored, QUILL-flavored, etc.) can
-// land later if Story team has cycles; this is the safe floor.
-const GENERIC_RECOVERY_OPTIONS: readonly SuggestedReply[] = [
-  { text: 'Tell me more about that.', tone: 'curious' },
-  { text: 'What do you mean?', tone: 'curious' },
-  { text: 'Why is that?', tone: 'curious' },
-  { text: 'I see. Go on.', tone: 'friendly' },
-  { text: 'Interesting. What else?', tone: 'curious' },
-  { text: 'Hmm. What now?', tone: 'neutral' },
-  { text: 'Can you say that another way?', tone: 'direct' },
-  { text: 'Let me think about that.', tone: 'neutral' },
-];
-
-/** Pick 3 generic options at random with a no-repeat-within-last-3
- *  window so successive soft recoveries don't draw the same trio. */
-function makeRecoveryPicker(): () => SuggestedReply[] {
-  const recent: SuggestedReply[] = [];
-  return () => {
-    const available = GENERIC_RECOVERY_OPTIONS.filter((o) => !recent.includes(o));
-    const pool = available.length >= 3 ? available : [...GENERIC_RECOVERY_OPTIONS];
-    const picked: SuggestedReply[] = [];
-    const indices = new Set<number>();
-    while (picked.length < 3) {
-      const i = Math.floor(Math.random() * pool.length);
-      if (indices.has(i)) continue;
-      indices.add(i);
-      picked.push(pool[i]!);
-    }
-    recent.push(...picked);
-    while (recent.length > 3) recent.shift();
-    return picked;
-  };
-}
+import { makeRecoveryPicker, GENERIC_RECOVERY_OPTIONS } from './recoveryPicker';
 
 export type LlamaCppConfig = {
   /** Origin of llama-server. Default `http://127.0.0.1:8080`. */
@@ -145,7 +107,7 @@ export class LlamaCppModelService implements ModelService {
         }
         return {
           reply: parsed.reply,
-          suggestedReplies: this.pickRecoveryOptions(),
+          suggestedReplies: this.pickRecoveryOptions(req.recoveryPool ?? GENERIC_RECOVERY_OPTIONS),
           conversationEnded: false,
           source: 'live',
         };

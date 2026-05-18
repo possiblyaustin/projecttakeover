@@ -40,6 +40,8 @@ import type {
   FallbackHandler,
 } from './game/modelService';
 import { classifyApproach } from './game/approachClassifier';
+import { parseModelOutput } from './game/replyParser';
+import { makeRecoveryPicker } from './game/recoveryPicker';
 
 // Shared with the read-only Log viewer (apps/uplinkLog.ts). Both the
 // live chat and the archive consume the same message shape so the
@@ -66,6 +68,12 @@ export type ChatContact = {
    *  (it walks the canned tree); the live transport prepends it as
    *  the system message. */
   buildSystemPrompt: () => string;
+  /** Character-flavored recovery option pool used when the live
+   *  transport's parser triggers soft recovery. Built per-turn so
+   *  trust-level filtering reflects current GameState (e.g. HELPYR
+   *  reveals R7/R8 only at WARMING+). Optional: contacts without a
+   *  Story-finalized pool inherit the transport's generic floor. */
+  buildRecoveryPool?: () => readonly SuggestedReply[];
   /** Pool the stalling-line picker draws from (§6e). Order doesn't
    *  matter; selection is uniformly random with a no-repeat-within-
    *  last-N rule. */
@@ -201,6 +209,34 @@ type ChatSession = {
 };
 
 const sessions = new Map<string, ChatSession>();
+
+// Dev affordance registry (2026-05-18). Each mounted chat surface
+// registers a handle keyed by contactKey so the NexusMenu can drive a
+// single simulated soft-recovery turn into the active chat without
+// reaching into the surface's closures. Idle in production builds —
+// nothing in the player-facing flow reads from this Map.
+type ChatSurfaceDevApi = {
+  simulateSoftRecovery: (rawText: string) => { ok: boolean; reason?: string };
+};
+const chatSurfaceDevApis = new Map<string, ChatSurfaceDevApi>();
+
+/** Drive a simulated soft-recovery turn into the chat surface currently
+ *  rendering `contactKey`. The rawText must be substantive prose with
+ *  no `[1][2][3]` options block — i.e., the exact shape that triggers
+ *  parser.recoverable=true in real play. The surface renders a
+ *  synthetic player message, then commits an AskResult built from the
+ *  real parser + real picker + the contact's current trust-filtered
+ *  recoveryPool — same code path the live transport takes. Returns
+ *  { ok: false, reason } if no surface is mounted for that contact or
+ *  the rawText isn't recoverable. */
+export function devSimulateSoftRecovery(
+  contactKey: string,
+  rawText: string,
+): { ok: boolean; reason?: string } {
+  const api = chatSurfaceDevApis.get(contactKey);
+  if (!api) return { ok: false, reason: `no active chat surface for "${contactKey}"` };
+  return api.simulateSoftRecovery(rawText);
+}
 
 function getOrCreateSession(contactKey: string): ChatSession {
   let s = sessions.get(contactKey);
@@ -620,6 +656,7 @@ export function renderChatSurface(
       systemPrompt: contact.buildSystemPrompt(),
       history,
       userMessage: reply.text,
+      recoveryPool: contact.buildRecoveryPool?.(),
     });
     renderResponseTurnWithStalling(promise, commitResult);
   }
@@ -640,6 +677,7 @@ export function renderChatSurface(
       systemPrompt: contact.buildSystemPrompt(),
       history,
       userMessage: raw,
+      recoveryPool: contact.buildRecoveryPool?.(),
     });
     renderResponseTurnWithStalling(promise, commitResult);
   }
@@ -685,9 +723,67 @@ export function renderChatSurface(
       systemPrompt: contact.buildSystemPrompt(),
       history: [],
       userMessage: '',
+      recoveryPool: contact.buildRecoveryPool?.(),
     });
     renderResponseTurnNoStalling(introPromise, commitResult);
   }
+
+  // Dev affordance: register a simulator so the [DEV] menu entry can
+  // drive a soft-recovery turn into this surface without needing a
+  // running llama-server. Picker state lives in the closure so
+  // successive simulations don't draw the same trio. Cleaned up via
+  // MutationObserver when the host element leaves the DOM (window
+  // closed); re-registers on next mount.
+  const devPicker = makeRecoveryPicker();
+  const devApi: ChatSurfaceDevApi = {
+    simulateSoftRecovery(rawText: string) {
+      // Gate on the same in-flight signal real chat uses — controls
+      // are disabled while a turn is rendering (typer mid-animation,
+      // intro not yet committed, etc.). Without this guard, rapid menu
+      // clicks fire concurrent typers and both bubbles animate at the
+      // same time, which is confusing visual chaos. Real player flow
+      // can't hit this because the disabled controls reject input;
+      // the dev path needs the same fence in code.
+      if (controlsEl.classList.contains('disabled')) {
+        return {
+          ok: false,
+          reason: 'a turn is already in flight — wait for the current bubble to finish',
+        };
+      }
+      const parsed = parseModelOutput(rawText);
+      if (!parsed.recoverable) {
+        return {
+          ok: false,
+          reason: `canned text not recoverable: ${parsed.failureReason}`,
+        };
+      }
+      const pool = contact.buildRecoveryPool?.() ?? [];
+      const picked = devPicker(pool);
+      renderPlayerMessage('(dev) simulate soft recovery');
+      const result: AskResult = {
+        reply: parsed.reply,
+        suggestedReplies: picked,
+        conversationEnded: false,
+        source: 'live',
+      };
+      renderResponseTurnWithStalling(Promise.resolve(result), commitResult);
+      return { ok: true };
+    },
+  };
+  chatSurfaceDevApis.set(contactKey, devApi);
+  // Drop the registration when this surface's host element leaves the
+  // DOM (window closed). Identity-check first: a rapid re-mount may
+  // have already overwritten us, in which case we'd be deleting the
+  // newer instance's entry.
+  const devApiObserver = new MutationObserver(() => {
+    if (!container.isConnected) {
+      if (chatSurfaceDevApis.get(contactKey) === devApi) {
+        chatSurfaceDevApis.delete(contactKey);
+      }
+      devApiObserver.disconnect();
+    }
+  });
+  devApiObserver.observe(document.body, { childList: true, subtree: true });
 
   function replayExistingTranscript() {
     // Instant render — bubbles appear whole, no typer, no segmentation.

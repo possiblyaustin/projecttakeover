@@ -11,7 +11,7 @@ import { FocusManager } from './focusManager';
 import { WindowManager } from './windows';
 import { GameState, type GameStateShape } from './game/state';
 import { devSpawnRandomBubble } from './helpyrBubble';
-import { showHelpyrApp } from './apps/helpyr';
+import { showHelpyrApp, devSimulateHelpyrSoftRecovery } from './apps/helpyr';
 import { UplinkContacts } from './apps/uplink';
 import { devFirePinPrompt, devFireRepinNudge } from './firstContactWatcher';
 import { devFireIdleTrigger } from './idleWatcher';
@@ -102,6 +102,11 @@ const NexusMenu: NexusEntry[] = [
     action: () => devFirePinPrompt('quill') },
   { type: 'item', label: '[DEV] Fire QUILL re-pin nudge',
     action: () => devFireRepinNudge('quill') },
+  // Drives a single soft-recovery turn into HELPYR's chat surface so
+  // the recovery-pool wiring is visually testable without a running
+  // llama-server. See devSimulateHelpyrSoftRecovery for details.
+  { type: 'item', label: '[DEV] Simulate HELPYR soft recovery',
+    action: () => devSimulateHelpyrSoftRecovery() },
   { type: 'sep' },
   { type: 'item', label: 'Shut Down...', action: () => alert('Shutdown not wired up yet.') }
 ];
