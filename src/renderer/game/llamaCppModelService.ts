@@ -63,10 +63,12 @@ export type LlamaCppConfig = {
    *  exchanges are dropped before sending to llama-server so deep
    *  conversations don't push prompt processing past `timeoutMs`. The
    *  system prompt and the current user message are always forwarded
-   *  in full — only the history slice is truncated. Default 16, sized
-   *  against the Deck-parity `--threads 4` benchmark; bump if conversations
-   *  start losing context the player cares about, lower if transport
-   *  aborts return at high depth. */
+   *  in full — only the history slice is truncated. Default 12 as of
+   *  v0.0.40 (was 16 in v0.0.39) — history rewriting injects a per-NPC
+   *  `[1][2][3]` options block (~50 tokens) on every entry, so the same
+   *  budget supports ~25% fewer turn-pairs. Bump if conversations start
+   *  losing context the player cares about, lower if transport aborts
+   *  return at high depth. */
   historyTurnCap?: number;
   /** Per-character fallback handler (architecture §6f). Called when
    *  a live call fails: transport error, timeout, parser failure,
@@ -95,7 +97,7 @@ export class LlamaCppModelService implements ModelService {
     this.timeoutMs = cfg.timeoutMs ?? 30000;
     this.modelName = cfg.modelName ?? 'gemma-4-E2B-it';
     this.maxTokens = cfg.maxTokens ?? 512;
-    this.historyTurnCap = cfg.historyTurnCap ?? 16;
+    this.historyTurnCap = cfg.historyTurnCap ?? 12;
     this.fallback = cfg.fallback;
   }
 

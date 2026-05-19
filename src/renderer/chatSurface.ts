@@ -46,8 +46,19 @@ import { makeRecoveryPicker } from './game/recoveryPicker';
 // Shared with the read-only Log viewer (apps/uplinkLog.ts). Both the
 // live chat and the archive consume the same message shape so the
 // contact's full transcript can be passed across without massaging.
+//
+// npc.options carries the [1][2][3] set that was shown to the player
+// after this NPC turn (whether LLM-produced on a clean parse or
+// synthesized from the recovery pool on soft recovery). toModelHistory
+// formats them back as `[N] (tone) "text"` lines after the prose so the
+// LLM sees a consistent prose+options pattern across the full history.
+// Without this rewrite, the model sees its own prior replies stripped
+// of the options block and drifts toward "responses don't end with
+// options" — Design team's recursive-degradation hypothesis (2026-05-16).
+// Optional so pre-PR-#47 transcripts deserialize without ambiguity.
 export type ChatMessage =
-  | { kind: 'npc'; speaker: string; avatarClass: string; text: string }
+  | { kind: 'npc'; speaker: string; avatarClass: string; text: string;
+      options?: readonly { text: string; tone: ApproachTone }[] }
   | { kind: 'player'; text: string };
 
 // Slim contact record handed to the Log viewer — just what it needs
@@ -125,12 +136,37 @@ export type ChatSurfaceConfig = {
   glyphFormat?: (contact: ChatContact) => string;
 };
 
+/** Format the option block the same way the persona prompt instructs
+ *  the model to emit it: `[N] (tone) "text"`, one per line. Used by
+ *  toModelHistory to round-trip the options into the next-turn history
+ *  so the model sees prose+options on every prior assistant message
+ *  (clean or soft-recovered) rather than prose alone. Pure; exported
+ *  only for tests. */
+export function formatOptionsBlock(options: readonly { text: string; tone: ApproachTone }[]): string {
+  return options
+    .map((o, i) => `[${i + 1}] (${o.tone}) "${o.text}"`)
+    .join('\n');
+}
+
 export function toModelHistory(msgs: ChatMessage[]): ModelChatMessage[] {
-  return msgs.map((m) =>
-    m.kind === 'npc'
-      ? { role: 'assistant' as const, text: m.text }
-      : { role: 'user' as const, text: m.text },
-  );
+  return msgs.map((m) => {
+    if (m.kind === 'npc') {
+      // History rewriting (PR #47): append the [1][2][3] options block
+      // back onto the assistant text so the model sees prose+options as
+      // its own prior format, even on turns where soft recovery had to
+      // synthesize the options (the raw LLM output dropped the block).
+      // Without this the model's context drifts toward "my responses
+      // don't end with options" — Design team's recursive-degradation
+      // hypothesis. Pre-PR-#47 npc entries with no .options field are
+      // forwarded prose-only — gracefully handles existing in-memory
+      // sessions and the rare case of a fallback entry without options.
+      const optionsBlock = m.options && m.options.length > 0
+        ? '\n\n' + formatOptionsBlock(m.options)
+        : '';
+      return { role: 'assistant' as const, text: m.text + optionsBlock };
+    }
+    return { role: 'user' as const, text: m.text };
+  });
 }
 
 // No-repeat-in-last-N stalling picker. Window size capped to pool-1
@@ -501,6 +537,7 @@ export function renderChatSurface(
         speaker: contact.name,
         avatarClass: contact.avatarClass,
         text: result.reply,
+        options: result.suggestedReplies,
       });
       renderTextSegmentsInto(bubble, result.reply, true, () => onAllDone(result));
     });
@@ -533,8 +570,9 @@ export function renderChatSurface(
     }
 
     function startMergeWithReal(result: AskResult) {
-      if (stallingTranscript && stallingLine) {
+      if (stallingTranscript && stallingLine && stallingTranscript.kind === 'npc') {
         stallingTranscript.text = stallingLine + '\n...\n' + result.reply;
+        stallingTranscript.options = result.suggestedReplies;
       }
       applyFallbackGlitch(bubble, result.source);
       const pauseEl = document.createElement('div');
@@ -555,6 +593,7 @@ export function renderChatSurface(
         speaker: contact.name,
         avatarClass: contact.avatarClass,
         text: result.reply,
+        options: result.suggestedReplies,
       });
       renderTextSegmentsInto(bubble, result.reply, true, () => onAllDone(result));
     }
