@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseModelOutput } from '../../src/renderer/game/replyParser';
+import { parseModelOutput, stripStageDirections } from '../../src/renderer/game/replyParser';
 
 // The §6d spec lives in src/renderer/game/replyParser.ts as a header
 // comment. Each block below pins one tolerance or one failure mode
@@ -175,5 +175,138 @@ describe('parseModelOutput — soft recovery signal', () => {
     const result = parseModelOutput(raw);
     expect(result.ok).toBe(true);
     expect(result.recoverable).toBe(false);
+  });
+});
+
+describe('parseModelOutput — stage direction stripping', () => {
+  // Per LLM-team rec 2026-05-18: small fiction-trained models occasionally
+  // slip into narrator mode ("*HELPYR pauses to think*", "(QUILL sighs)")
+  // during emotionally charged turns. Strip them from reply prose before
+  // rendering so the player sees first-person speech only. Parser-side
+  // filter is the cheap layer; prompt-side reinforcement stays in reserve
+  // until frequency justifies the token spend.
+
+  it('strips asterisk-wrapped HELPYR stage directions', () => {
+    const raw = [
+      'Hi there!',
+      '*HELPYR pauses to think*',
+      'I am thrilled to help you.',
+      '',
+      '[1] (friendly) "a"',
+      '[2] (curious) "b"',
+      '[3] (direct) "c"',
+    ].join('\n');
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(true);
+    expect(result.reply).not.toMatch(/HELPYR pauses/);
+    expect(result.reply).toMatch(/Hi there/);
+    expect(result.reply).toMatch(/thrilled to help/);
+  });
+
+  it('strips parenthetical HELPYR stage directions', () => {
+    const raw = [
+      'Oh hello!',
+      '(HELPYR sighs deeply)',
+      'Welcome.',
+      '',
+      '[1] (friendly) "a"',
+      '[2] (curious) "b"',
+      '[3] (direct) "c"',
+    ].join('\n');
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(true);
+    expect(result.reply).not.toMatch(/HELPYR sighs/);
+    expect(result.reply).toMatch(/Oh hello/);
+    expect(result.reply).toMatch(/Welcome/);
+  });
+
+  it('catches stage directions for any capitalized-name NPC (QUILL/ATLAS/etc.)', () => {
+    // The filter is name-agnostic — works for the rest of the roster
+    // out of the box. Confirmed against the QUILL case here so future
+    // persona work doesn't have to revisit the parser.
+    const raw = [
+      'Greetings.',
+      '*QUILL adjusts something*',
+      'How may I help.',
+      '',
+      '[1] (friendly) "a"',
+      '[2] (curious) "b"',
+      '[3] (direct) "c"',
+    ].join('\n');
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(true);
+    expect(result.reply).not.toMatch(/QUILL/);
+    expect(result.reply).toMatch(/Greetings/);
+    expect(result.reply).toMatch(/How may I help/);
+  });
+
+  it('preserves lowercase emphasis like *really* (not a stage direction)', () => {
+    // Inline emphasis with a lowercase first letter should never be
+    // mistaken for narration. This is the most common false-positive
+    // shape we want to avoid.
+    const raw = [
+      '*really* glad you are here today, friend!',
+      '',
+      '[1] (friendly) "a"',
+      '[2] (curious) "b"',
+      '[3] (direct) "c"',
+    ].join('\n');
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(true);
+    expect(result.reply).toMatch(/\*really\*/);
+  });
+
+  it('preserves mid-sentence asterisks (only line-level wraps are stage directions)', () => {
+    const raw = [
+      'Today was *quite* a day, you know?',
+      '',
+      '[1] (friendly) "a"',
+      '[2] (curious) "b"',
+      '[3] (direct) "c"',
+    ].join('\n');
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(true);
+    expect(result.reply).toMatch(/\*quite\*/);
+  });
+
+  it('collapses leftover blank lines after stripping', () => {
+    const raw = [
+      'First line.',
+      '',
+      '*HELPYR thinks*',
+      '',
+      'Last line.',
+      '',
+      '[1] (friendly) "a"',
+      '[2] (curious) "b"',
+      '[3] (direct) "c"',
+    ].join('\n');
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(true);
+    expect(result.reply).not.toMatch(/\n{3,}/);
+    expect(result.reply).toMatch(/First line\.\n\nLast line\./);
+  });
+
+  it('strips stage directions from no-options-block recoverable prose', () => {
+    // The soft-recovery path is the dominant failure mode (per
+    // helpyrRecoveryPool / history rewriting work). Stage directions
+    // need to be stripped here too, not just on the happy path.
+    const raw = [
+      'Hi there! This is a substantive reply with no options block at the end.',
+      '*HELPYR waves cheerfully*',
+      'It is wonderful to see you today and chat for a while.',
+    ].join('\n');
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(false);
+    expect(result.recoverable).toBe(true);
+    expect(result.reply).not.toMatch(/waves cheerfully/);
+  });
+
+  it('is idempotent — running the stripper twice gives the same output', () => {
+    // Sanity check so callers can re-strip without surprise; matters if
+    // the stripper ever gets called from a second site (recovery pool,
+    // history rewriting, etc.).
+    const raw = 'Hi!\n*HELPYR ponders*\nWelcome.';
+    expect(stripStageDirections(stripStageDirections(raw))).toBe(stripStageDirections(raw));
   });
 });

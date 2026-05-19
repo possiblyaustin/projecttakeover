@@ -72,6 +72,31 @@ export type ParseResult = {
  *  with synthesized options. Tuned conservatively. */
 const MIN_RECOVERABLE_REPLY_LENGTH = 40;
 
+/** Stage-direction lines the model occasionally emits in narrator mode —
+ *  e.g. "*HELPYR pauses to think*" or "(QUILL sighs deeply)" — that
+ *  break first-person voice. Both patterns match a whole line wrapped
+ *  in either asterisks or parens that starts with a Capitalized or
+ *  ALLCAPS name. Inline mid-sentence wraps and lowercase emphasis like
+ *  *really* are left alone (more likely to be emphasis than narration).
+ *
+ *  Per LLM-team rec 2026-05-18: parser-side filter first since it's
+ *  cheapest; prompt-side reinforcement only if frequency climbs. */
+const STAGE_DIRECTION_PATTERNS: RegExp[] = [
+  /^[ \t]*\*[ \t]*[A-Z][A-Za-z]*\b[^*\n]*\*[ \t]*$/gm,
+  /^[ \t]*\([ \t]*[A-Z][A-Za-z]*\b[^)\n]*\)[ \t]*$/gm,
+];
+
+/** Strip stage-direction lines from NPC reply prose. Idempotent. Leaves
+ *  paragraph breaks intact but collapses the triple-newline gap left
+ *  behind when an entire line is removed. */
+export function stripStageDirections(prose: string): string {
+  let out = prose;
+  for (const re of STAGE_DIRECTION_PATTERNS) {
+    out = out.replace(re, '');
+  }
+  return out.replace(/\n{3,}/g, '\n\n').trim();
+}
+
 /** Locate the first `[1]` (with optional whitespace inside the brackets)
  *  that marks the start of the options block. Returns -1 if not found. */
 function findOptionsStart(raw: string): number {
@@ -107,7 +132,7 @@ export function parseModelOutput(raw: string): ParseResult {
   // options. Fallback trigger, but recoverable if the prose itself is
   // substantive (model just dropped the format, not the content).
   if (start < 0) {
-    const trimmed = text.trim();
+    const trimmed = stripStageDirections(text.trim());
     return {
       reply: trimmed,
       suggestedReplies: [],
@@ -117,7 +142,7 @@ export function parseModelOutput(raw: string): ParseResult {
     };
   }
 
-  const reply = text.slice(0, start).trim();
+  const reply = stripStageDirections(text.slice(0, start).trim());
   const optBlock = text.slice(start);
 
   // Split on newlines first; if the model emitted all three options on
