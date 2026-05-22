@@ -1020,6 +1020,77 @@
     30%           { transform: translateY(-0.1875rem); opacity: 1; }
   }
 
+  /* Intro-turn connecting beat (chatSurface §renderResponseTurnNoStalling).
+   * The first call to a contact has no preceding player action to mask
+   * its latency, so instead of a bare thinking indicator this stands on
+   * its own line with sustained motion — signal bars (echoing the Uplink
+   * launcher logo waves) plus an indeterminate progress sweep — so the
+   * wait reads as "working" rather than dead air. */
+  .uplink-connecting {
+    align-self: flex-start;
+    max-width: 80%;
+    margin: 0.25rem 0;
+    padding: 0.4375rem 0.625rem;
+    background: #ebe6d6;
+    border: 1px solid #c4bea6;
+    border-radius: 0.375rem;
+    box-shadow: inset 1px 1px 0 #fffaf0, inset -1px -1px 0 #d8d2c0;
+    animation: uplink-thinking-pop 200ms ease-out;
+  }
+  .uplink-connecting-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4375rem;
+  }
+  .uplink-connecting-label {
+    font-size: 0.75rem;
+    font-style: italic;
+    color: #6a6450;
+    letter-spacing: 0.03125rem;
+  }
+  .uplink-connecting-waves {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 0.125rem;
+    height: 0.75rem;
+    flex: 0 0 auto;
+  }
+  .uplink-connecting-waves i {
+    width: 0.1875rem;
+    height: 100%;
+    background: #4ca84c;
+    border-radius: 0.0625rem;
+    transform-origin: bottom;
+    animation: uplink-connecting-wave 1s ease-in-out infinite;
+  }
+  .uplink-connecting-waves i:nth-child(2) { animation-delay: 0.15s; }
+  .uplink-connecting-waves i:nth-child(3) { animation-delay: 0.3s; }
+  .uplink-connecting-waves i:nth-child(4) { animation-delay: 0.45s; }
+  @keyframes uplink-connecting-wave {
+    0%, 100% { transform: scaleY(0.3); opacity: 0.45; }
+    50%      { transform: scaleY(1);   opacity: 1; }
+  }
+  .uplink-connecting-bar {
+    margin-top: 0.375rem;
+    height: 0.375rem;
+    background: #d8d2c0;
+    border-radius: 0.1875rem;
+    box-shadow: inset 1px 1px 0 #c4bea6;
+    overflow: hidden;
+  }
+  .uplink-connecting-bar span {
+    display: block;
+    width: 40%;
+    height: 100%;
+    border-radius: 0.1875rem;
+    background: linear-gradient(to right, transparent, #4ca84c, transparent);
+    animation: uplink-connecting-sweep 1.3s ease-in-out infinite;
+  }
+  @keyframes uplink-connecting-sweep {
+    0%   { transform: translateX(-120%); }
+    100% { transform: translateX(320%); }
+  }
+
   /* §6f glitch artifact — applied to .uplink-msg when the model service
    * returned source: 'fallback'. Brief avatar flicker reads as a
    * transmission hiccup; subtle warning-tinted bubble border sustains
@@ -1690,6 +1761,17 @@
   }
   .uplink-root.theme-helpyr .uplink-thinking i {
     background: #2255a8;
+  }
+  .uplink-root.theme-helpyr .uplink-connecting {
+    background: #d2dfee;
+    border-color: #aac5e6;
+    box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #b8cee5;
+  }
+  .uplink-root.theme-helpyr .uplink-connecting-waves i {
+    background: #2255a8;
+  }
+  .uplink-root.theme-helpyr .uplink-connecting-bar span {
+    background: linear-gradient(to right, transparent, #2255a8, transparent);
   }
   .uplink-root.theme-helpyr .uplink-controls {
     background: linear-gradient(to bottom, #dee8f8 0%, #c4d4ec 100%);
