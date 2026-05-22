@@ -42,6 +42,8 @@ import type {
 import { classifyApproach } from './game/approachClassifier';
 import { parseModelOutput } from './game/replyParser';
 import { makeRecoveryPicker } from './game/recoveryPicker';
+import { resolveExchange } from './game/mechanics/resolver';
+import { getModelStats } from './game/mechanics/modelStats';
 
 // Shared with the read-only Log viewer (apps/uplinkLog.ts). Both the
 // live chat and the archive consume the same message shape so the
@@ -399,6 +401,27 @@ export function renderChatSurface(
 
   function recordTone(tone: ApproachTone) {
     if (!session.playerTone && tone !== 'neutral') session.playerTone = tone;
+    applyExchangeMechanics(tone);
+  }
+
+  // Gameplay loop (slice 2): every player exchange is read by the
+  // deterministic resolver → meter + suspicion deltas, persisted to
+  // GameState so progress is continuous across chat hop in/out, relaunch,
+  // and concurrent chats. Only conquest targets have stats; HELPYR and
+  // other non-targets have no stats entry and are skipped (no accrual).
+  function applyExchangeMechanics(tone: ApproachTone) {
+    const stats = getModelStats(contactKey);
+    if (!stats) return;
+    const deltas = resolveExchange(tone, stats);
+    GameState.dispatch({
+      type: 'model/applyExchange',
+      contactId: contactKey,
+      rapport: deltas.rapport,
+      intrusion: deltas.intrusion,
+      suspicion: deltas.suspicion,
+      backfire: deltas.backfire,
+      tone,
+    });
   }
 
   function setControlsEnabled(on: boolean) {
