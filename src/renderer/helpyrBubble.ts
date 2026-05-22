@@ -41,7 +41,7 @@
 import { GameState } from './game/state';
 import { showHelpyrApp } from './apps/helpyr';
 import {
-  HelpyrBubbleCta,
+  pickHelpyrBubbleCta,
   HelpyrPopupLibrary,
   type PopupEntry,
   type PopupType,
@@ -302,7 +302,7 @@ function renderActions(spec: BubbleSpec): void {
     cta.className = 'helpyr-bubble-action helpyr-bubble-action-primary';
     cta.tabIndex = 0;
     cta.dataset.focusable = 'true';
-    cta.textContent = HelpyrBubbleCta[spec.entry.trust];
+    cta.textContent = pickHelpyrBubbleCta(spec.entry.trust);
     cta.addEventListener('click', (e) => {
       e.stopPropagation();
       openApp();

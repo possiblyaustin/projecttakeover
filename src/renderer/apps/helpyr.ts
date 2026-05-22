@@ -691,7 +691,7 @@ function mountQuietToggle(host: HTMLElement): void {
 
   function paint(quiet: boolean) {
     btn.classList.toggle('is-quiet', quiet);
-    btn.textContent = quiet ? '🔕 Quiet' : '🔔 Listening';
+    btn.textContent = quiet ? '🔇 Shh' : '💬 Chatty';
     btn.setAttribute('aria-label',
       quiet ? 'HELPYR is quiet — click to let her speak again'
             : 'HELPYR is listening — click to quiet her');

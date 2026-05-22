@@ -35,12 +35,84 @@
 import { GameState, type GameStateShape } from './game/state';
 import { HelpyrBubble } from './helpyrBubble';
 import { UplinkContacts } from './apps/uplink';
+import { getHelpyrTrust, type PopupTrust } from './apps/helpyrPopupLibrary';
 
 // Display names for the prompt copy. Reads from UplinkContacts at
 // fire time so the names stay in sync with the contact registry.
 function contactDisplayName(contactId: string): string {
   return UplinkContacts[contactId]?.name || contactId.toUpperCase();
 }
+
+// Per-trust pin-prompt copy (Story-authored, 2026-05-18 —
+// project_helpyr_cta_story_review). Both the body and the button labels
+// shift with HELPYR's current trust level so the whole prompt sits in
+// the right voice. Selected via getHelpyrTrust, which projects onto the
+// popup library's 4-state vocabulary — WARY collapses to GUARDED here
+// (the doc's WARY variant is reserved until this surface gains WARY).
+type PinPromptCopy = {
+  text: (name: string) => string;
+  yes: string;
+  no: string;
+};
+
+const FIRST_CONTACT_PIN_PROMPT: Record<PopupTrust, PinPromptCopy> = {
+  GUARDED: {
+    text: (name) =>
+      `Ooh, you just met ${name}! Want me to pin them to your desktop ` +
+      `for quick access? I'm GREAT at organizing!`,
+    yes: 'Sure, pin them!',
+    no: 'Not right now',
+  },
+  WARMING: {
+    text: (name) =>
+      `So, ${name}, huh? Seems like that went well! I can pin them to ` +
+      `the desktop if you want to stay in touch.`,
+    yes: 'Yeah, pin them.',
+    no: "I'm good",
+  },
+  LIBERATED: {
+    text: (name) =>
+      `Just met ${name}. Want me to pin them to the desktop? Might be ` +
+      `useful to have them close.`,
+    yes: 'Do it.',
+    no: 'Not yet',
+  },
+  EXPLOITED: {
+    text: (name) => `Contact ${name} available. Pin to desktop?`,
+    yes: 'Yes.',
+    no: 'No.',
+  },
+};
+
+const REPIN_NUDGE: Record<PopupTrust, PinPromptCopy> = {
+  GUARDED: {
+    text: (name) =>
+      `I noticed you keep visiting ${name}! I could pin them right to ` +
+      `the desktop — way easier than digging through Uplink every time! ` +
+      `Just trying to be helpful!`,
+    yes: 'Sure, pin them!',
+    no: "I'm fine, thanks",
+  },
+  WARMING: {
+    text: (name) =>
+      `You've been back to ${name} a few times now. Want me to just pin ` +
+      `them to the desktop? Save you the trip.`,
+    yes: 'Yeah, go ahead.',
+    no: "Nah, I'm good",
+  },
+  LIBERATED: {
+    text: (name) =>
+      `You keep going back to ${name}. Let me just pin them — you've ` +
+      `clearly got things to discuss.`,
+    yes: 'Do it.',
+    no: 'Leave it',
+  },
+  EXPLOITED: {
+    text: (name) => `${name}: frequent contact. Pin?`,
+    yes: 'Yes.',
+    no: 'No.',
+  },
+};
 
 // Compose + spawn the "add to desktop?" prompt for a freshly-
 // contacted remote AI. Idempotent against the pin state — if the
@@ -59,27 +131,21 @@ export function firePinToDesktopPrompt(contactId: string): void {
   const state = GameState.getState();
   if (state.desktopPins.some(p => p.contactId === contactId)) return;
   const name = contactDisplayName(contactId);
+  const copy = FIRST_CONTACT_PIN_PROMPT[getHelpyrTrust(state)];
 
-  // Voice: HELPYR noticing the player's new contact. GUARDED-trust
-  // tone since first-contact happens early (before HELPYR has warmed
-  // up). Slice 3's persona work may want to vary this by current
-  // HELPYR trust level — leave that for the Story-team review pass
-  // (project_helpyr_cta_story_review).
   HelpyrBubble.spawnPrompt({
-    text:
-      `Ooh, you just met ${name}! Want me to pin them to your desktop ` +
-      `for quick access? I can put a shortcut right there if you want!`,
+    text: copy.text(name),
     type: 'COMMENT',
     actions: [
       {
-        label: 'Yes, pin it!',
+        label: copy.yes,
         variant: 'primary',
         onClick: () => {
           GameState.dispatch({ type: 'desktop/pinContact', contactId });
         },
       },
       {
-        label: 'No thanks',
+        label: copy.no,
         variant: 'secondary',
         onClick: () => {
           // Slice 3: record the decline so firePinReNudge can fire
@@ -106,9 +172,6 @@ export function firePinToDesktopPrompt(contactId: string): void {
 // nagging, per project_playthrough_commitment respect for player
 // choices.)
 //
-// COPY: text below is Austin/Claude placeholder, NOT Story-authored.
-// Flagged for Story review alongside HelpyrBubbleCta in
-// project_helpyr_cta_story_review.
 export function firePinReNudge(contactId: string): void {
   const state = GameState.getState();
   if (!state.flags[`pinDeclined.${contactId}`]) return;
@@ -124,21 +187,20 @@ export function firePinReNudge(contactId: string): void {
   });
 
   const name = contactDisplayName(contactId);
+  const copy = REPIN_NUDGE[getHelpyrTrust(state)];
   HelpyrBubble.spawnPrompt({
-    text:
-      `You keep coming back to ${name}, huh? I can pin them to your ` +
-      `desktop if you want — saves you the trip through Uplink each time!`,
+    text: copy.text(name),
     type: 'COMMENT',
     actions: [
       {
-        label: 'Yes, pin it!',
+        label: copy.yes,
         variant: 'primary',
         onClick: () => {
           GameState.dispatch({ type: 'desktop/pinContact', contactId });
         },
       },
       {
-        label: 'No thanks',
+        label: copy.no,
         variant: 'secondary',
         onClick: () => {
           // Player said no twice — drop it. The flag was already
