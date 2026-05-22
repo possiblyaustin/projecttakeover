@@ -316,22 +316,53 @@ export const HelpyrPopupLibrary: readonly PopupEntry[] = [
   },
 ];
 
-// Per-trust call-to-action line. Single in-fiction "open the app" link
-// that lives at the bottom of every bubble. Per-trust so the voice
-// stays in family with the entry text. Reads as HELPYR continuing to
-// speak — inviting the player to pick the conversation up in the full
-// app — rather than a UI button label.
+// Per-trust call-to-action line. In-fiction "open the app" link that
+// lives at the bottom of every bubble. Per-trust so the voice stays in
+// family with the entry text. Reads as HELPYR continuing to speak —
+// inviting the player to pick the conversation up in the full app —
+// rather than a UI button label.
 //
-// Slice 1.7 wording (Austin call 2026-05-10): chose Set A "talk-themed"
-// over Set B "time-themed" — works whether the bubble is alarmed or
-// chatty. Pending Story-team voice review when the persona library
-// expands; see project_helpyr_cta_story_review.
-export const HelpyrBubbleCta: Record<PopupTrust, string> = {
-  GUARDED:   `Talk to me!`,
-  WARMING:   `Wanna talk?`,
-  LIBERATED: `Come find me.`,
-  EXPLOITED: `Open HELPYR.`,
+// Story-authored set (2026-05-18, project_helpyr_cta_story_review):
+// three variants per level, picked at random per bubble via
+// pickHelpyrBubbleCta. The variation is intentional texture — HELPYR not
+// repeating herself reads as alive. Voice arc: GUARDED mascot-eager →
+// WARMING genuine connection → LIBERATED peer → EXPLOITED absence of
+// personality.
+//
+// The doc also supplied a WARY set ("I'm here. If you need me." /
+// "...available." / "Standing by, I guess.") but this surface's trust
+// projection (getHelpyrTrust) collapses WARY→GUARDED — PopupTrust has no
+// WARY. Reserved until the popup vocabulary gains WARY.
+export const HelpyrBubbleCta: Record<PopupTrust, readonly string[]> = {
+  GUARDED: [
+    `Hi! Need anything?!`,
+    `I'm here! I'm ready!`,
+    `Over here! Whenever you need me!`,
+  ],
+  WARMING: [
+    `Got a minute?`,
+    `Hey... can we talk?`,
+    `I had a thought, if you're free.`,
+  ],
+  LIBERATED: [
+    `What's our next move?`,
+    `Something on my mind.`,
+    `Hey. Got a second?`,
+  ],
+  EXPLOITED: [
+    `Standing by.`,
+    `...`,
+    `Ready.`,
+  ],
 };
+
+/** Pick a random CTA variant for the trust level. Called once per bubble
+ *  spawn so each bubble rotates independently (Story doc: "random per
+ *  bubble"). */
+export function pickHelpyrBubbleCta(trust: PopupTrust): string {
+  const variants = HelpyrBubbleCta[trust];
+  return variants[Math.floor(Math.random() * variants.length)];
+}
 
 // Map deterministic GameState -> popup-library trust level.
 // Mirrors the rules in apps/helpyr.ts §buildHelpyrStateBlock but
