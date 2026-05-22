@@ -587,6 +587,11 @@ export const HelpyrContact: ChatContact = {
   typeMs: 18,
   pauseMs: 1100,
   stallingThresholdMs: 10000,
+  // HELPYR is local (systray), not a remote channel — frame the intro
+  // wait as her waking up rather than a connection handshake. Matches
+  // her "Hello?? Is someone THERE?... I've been here for so long"
+  // dormant-and-alone greeting.
+  introConnectingLabel: 'Waking HELPYR…',
   classifyApproach: classifyHelpyrApproach,
 };
 

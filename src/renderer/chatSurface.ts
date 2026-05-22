@@ -93,6 +93,13 @@ export type ChatContact = {
   pauseMs: number;
   /** Threshold for falling back to a canned stalling line. */
   stallingThresholdMs?: number;
+  /** In-fiction label for the intro turn's connecting beat. The first
+   *  call to a contact has no preceding player action to absorb the
+   *  latency, so a bare indicator reads as dead air; this labels the
+   *  animated connection beat instead. Defaults to a generic
+   *  "establishing channel" line (fits remote Uplink contacts); local
+   *  contacts like HELPYR override with a boot-flavored line. */
+  introConnectingLabel?: string;
   /** Per-character keyword classifier for freeform input (architecture
    *  §6c, layer 2). Returns the §6c tone vocabulary; must return
    *  'neutral' on no match — never guess. */
@@ -482,6 +489,29 @@ export function renderChatSurface(
     return el;
   }
 
+  const DEFAULT_CONNECTING_LABEL = 'Establishing secure channel…';
+
+  // Intro-turn connecting beat. The first call to a contact has no
+  // preceding player action to mask the latency (every other turn rides
+  // a player send), so a bare thinking indicator there is just dead air
+  // — especially on Deck where the first call runs ~10s+. This shows an
+  // in-fiction connection beat with sustained motion (signal bars + an
+  // indeterminate progress sweep) so the wait reads as "working" rather
+  // than "broken". Removed when the reply lands; the character bubble
+  // then takes over.
+  function makeConnectingBeat(label: string): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'uplink-connecting';
+    el.innerHTML =
+      '<div class="uplink-connecting-row">' +
+      '<span class="uplink-connecting-waves" aria-hidden="true"><i></i><i></i><i></i><i></i></span>' +
+      '<span class="uplink-connecting-label"></span>' +
+      '</div>' +
+      '<div class="uplink-connecting-bar" aria-hidden="true"><span></span></div>';
+    el.querySelector('.uplink-connecting-label')!.textContent = label;
+    return el;
+  }
+
   const speakerPrefixRe = new RegExp(
     '^' + contact.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':\\s*',
     'i',
@@ -524,13 +554,16 @@ export function renderChatSurface(
     onAllDone: (result: AskResult) => void,
   ) {
     setControlsEnabled(false);
-    const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
-    const indicatorEl = makeThinkingIndicator('span');
-    bubble.appendChild(indicatorEl);
+    // Connecting beat stands on its own line (it's the transport, not
+    // the character speaking) until the channel is "open", then the
+    // character bubble appears with the reply.
+    const connecting = makeConnectingBeat(contact.introConnectingLabel ?? DEFAULT_CONNECTING_LABEL);
+    logEl.insertBefore(connecting, logEl.firstChild);
     trimFromTop();
 
     promise.then((result) => {
-      indicatorEl.remove();
+      connecting.remove();
+      const bubble = appendBubble(contact.name, 'npc', contact.avatarClass);
       applyFallbackGlitch(bubble, result.source);
       messages.push({
         kind: 'npc',
