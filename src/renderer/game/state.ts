@@ -14,6 +14,13 @@
 //   desktop/unpinContact         { contactId: string }   (no UI today; for save-tinkering)
 //   flags/set                    { key: string, value: unknown }
 //   settings/setHelpyrQuiet      { value: boolean }
+//   model/applyExchange          { contactId, rapport?, intrusion?,
+//                                  suspicion?, tone?, backfire? }
+//                                -- gameplay-loop slice 1: applies one
+//                                   exchange's deterministic deltas to a
+//                                   model's meters + global suspicion,
+//                                   advancing disposition. The resolver
+//                                   (slice 2) computes the deltas.
 //
 // The full §6c tone vocabulary is friendly|curious|direct|empathetic|
 // aggressive|deceptive|neutral|null. The reducer maps tone → approach
@@ -21,17 +28,29 @@
 // and stores the raw tone in lastApproach so the signal is preserved
 // for tones the reducer doesn't yet act on (empathetic, deceptive).
 
-// Bumped v1 → v2 → v3:
+// Bumped v1 → v2 → v3 → v4:
 //   v2 (slice 2, 2026-05-10) — added desktopPins
 //   v3 (slice 3, 2026-05-10) — added settings (helpyrQuiet); flags/set
 //                              action lets first-open / pin-declined /
 //                              other one-shot triggers persist via the
 //                              existing flags bag without growing fields.
+//   v4 (gameplay-loop slice 1, 2026-05-22) — added per-model rapport/
+//                              intrusion meters + the model/applyExchange
+//                              action that drives them, disposition
+//                              transitions, and the suspicion-100 loss
+//                              latch (flags.gameOver).
 // Pre-release no-migration policy means old saves get dropped on
 // version mismatch (see loadFromStorage).
 const STORAGE_KEY = 'pt.gamestate.v1';
-const VERSION = 3;
+const VERSION = 4;
 const SAVE_DEBOUNCE_MS = 250;
+
+// Meter value at which a model flips to its terminal disposition
+// (rapport → allied, intrusion → controlled). Meters are 0-100, so a
+// model flips when a path's meter fills. The resolver (slice 2) sizes
+// per-exchange deltas so QUILL flips in ~6 strong-tone exchanges —
+// tuning the feel happens there, not here.
+const FLIP_THRESHOLD = 100;
 
 export type GameStateShape = ReturnType<typeof defaultGameState>;
 export type GameAction = { type: string; [k: string]: any };
@@ -49,21 +68,31 @@ export function defaultGameState() {
     },
     models: {
       helpyr: {
-        // disposition: 'uncontacted'|'contacted'|'persuading'|'allied'|'controlled'|'hostile'
+        // disposition: uncontacted → contacted → persuading|infiltrating
+        //              → allied|controlled, or hostile on backfire.
         disposition: 'uncontacted' as string,
         conversationsCompleted: 0,
-        lastApproach: null as string | null
+        lastApproach: null as string | null,
+        // Gameplay-loop progress meters (slice 1, 2026-05-22). rapport
+        // drives the liberation path (→ allied), intrusion the nefarious
+        // path (→ controlled). 0-100; a model flips at FLIP_THRESHOLD.
+        // Carried on every model for a uniform shape; conquest targets
+        // (QUILL etc.) actually accrue them — HELPYR, your awakened
+        // assistant, isn't a flip target.
+        rapport: 0,
+        intrusion: 0
       },
-      // QUILL — Act 1 Beat 3 contact. UI-scaffolded only; persona
-      // prompt + final dialogue still owned by Story. Slice 2 wired
-      // the conversationCompleted reducer so first-contact transitions
-      // flow through and drive the pin-to-desktop prompt; the
-      // disposition mechanics (allied/controlled) stay shape-only until
-      // Story signs off and persuasion mechanics land.
+      // QUILL — Act 1 Beat 3 contact, the gameplay-loop vertical-slice
+      // target (docs/gameplay-loop-slice_v1.md). conversationCompleted
+      // still drives first-contact + the pin prompt; the real loop
+      // (rapport/intrusion accrual via model/applyExchange → allied/
+      // controlled) lands across slices 1-3.
       quill: {
         disposition: 'uncontacted' as string,
         conversationsCompleted: 0,
-        lastApproach: null as string | null
+        lastApproach: null as string | null,
+        rapport: 0,
+        intrusion: 0
       }
     },
     // Pinned contacts — desktop icons added at runtime via the
@@ -92,6 +121,33 @@ export function defaultGameState() {
 function clamp(n: number, lo: number, hi: number): number {
   if (typeof n !== 'number' || !Number.isFinite(n)) return lo;
   return Math.max(lo, Math.min(hi, n));
+}
+
+// Coerce an action delta to a safe number — missing/garbage deltas
+// become 0 so `meter + num(delta)` preserves the meter rather than
+// poisoning it with NaN (which clamp would then floor to 0).
+function num(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+}
+
+type ModelState = GameStateShape['models']['helpyr'];
+
+// Terminal dispositions latch — a flipped or hostile model doesn't
+// drift back into an in-progress state from later meter changes.
+const TERMINAL_DISPOSITIONS = new Set(['allied', 'controlled', 'hostile']);
+
+// Derive a model's disposition from its meters. A path's meter reaching
+// FLIP_THRESHOLD is the win (intrusion → controlled, rapport → allied);
+// below that, whichever path the player is leaning into sets the
+// in-progress label. 'hostile' (backfire) isn't derivable from meters —
+// the resolver signals it explicitly via the action.
+function nextDisposition(prev: string, rapport: number, intrusion: number): string {
+  if (TERMINAL_DISPOSITIONS.has(prev)) return prev;
+  if (intrusion >= FLIP_THRESHOLD) return 'controlled';
+  if (rapport >= FLIP_THRESHOLD) return 'allied';
+  if (intrusion > 0 && intrusion >= rapport) return 'infiltrating';
+  if (rapport > 0) return 'persuading';
+  return prev === 'uncontacted' ? 'contacted' : prev;
 }
 
 // Exported so tests can call the reducer as a pure function without
@@ -143,6 +199,44 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
       const value = !!action.value;
       if (state.settings.helpyrQuiet === value) return state;
       return { ...state, settings: { ...state.settings, helpyrQuiet: value } };
+    }
+    case 'model/applyExchange': {
+      // Gameplay-loop slice 1: apply one exchange's deterministic deltas.
+      // The resolver (slice 2) computes rapport/intrusion/suspicion from
+      // (tone, model stats, current meters); this reducer just applies +
+      // clamps them, advances disposition, and latches the loss state.
+      const id = String(action.contactId || '');
+      const models = state.models as Record<string, ModelState>;
+      const cur = models[id];
+      if (!cur) return state;
+      const rapport = clamp(cur.rapport + num(action.rapport), 0, 100);
+      const intrusion = clamp(cur.intrusion + num(action.intrusion), 0, 100);
+      const suspicion = clamp(state.player.suspicion + num(action.suspicion), 0, 100);
+      // Backfire (resolver-signalled, e.g. a detected failed hack) forces
+      // 'hostile'; otherwise disposition follows from the meters.
+      const disposition = action.backfire
+        ? 'hostile'
+        : nextDisposition(cur.disposition, rapport, intrusion);
+      // Loss latches: once suspicion hits 100 the run is over, even after
+      // a future ally layer can pull suspicion back down.
+      const flags = (suspicion >= 100 && !state.flags.gameOver)
+        ? { ...state.flags, gameOver: true }
+        : state.flags;
+      return {
+        ...state,
+        player: { ...state.player, suspicion },
+        models: {
+          ...state.models,
+          [id]: {
+            ...cur,
+            rapport,
+            intrusion,
+            disposition,
+            lastApproach: action.tone || cur.lastApproach,
+          },
+        },
+        flags,
+      };
     }
     default:
       return state;
