@@ -167,6 +167,20 @@ function renderLauncher(
     ...LockedContacts.map((l) => ({ key: null, name: l.name, operator: l.operator, caption: l.caption })),
   ];
 
+  // Roster scaling (project_uplink_roster_scaling): keep the launcher
+  // scroll-free as the roster grows. Reachable stays single-column —
+  // it's the small, important section. Detected flips to a 2-column
+  // compact tile grid once it's long enough that single rows would
+  // force a scrollbar at Deck baseline (1280×800, UI_SCALE 0.75).
+  // Compact tiles drop the inline operator·caption; that detail surfaces
+  // in a strip below the grid as the cursor/focus ring moves between
+  // tiles. No tabs, pagination, scrollbar, or search — the player takes
+  // in the whole network at a glance. Threshold is the entry count, not
+  // a height measurement; revisit the number when the roster actually
+  // grows past it (today: 6 detected).
+  const DETECTED_GRID_THRESHOLD = 8;
+  const detectedCompact = detected.length > DETECTED_GRID_THRESHOLD;
+
   // Header fiction (slice 1): Uplink presents itself as a forgotten
   // Prometheus Digital messenger — same operator as HELPYR, building
   // toward the future "this app phones home" beat that the takeover
@@ -205,7 +219,8 @@ function renderLauncher(
       </div>
       <div class="uplink-launcher-section">
         <div class="uplink-launcher-section-label">▼ DETECTED (${detected.length})</div>
-        <div class="uplink-launcher-list" data-section="detected"></div>
+        <div class="uplink-launcher-list${detectedCompact ? ' is-grid' : ''}" data-section="detected"></div>
+        ${detectedCompact ? '<div class="uplink-detected-detail" data-detail data-resting="true" aria-live="polite"></div>' : ''}
       </div>
     </div>
   `;
@@ -246,6 +261,53 @@ function renderLauncher(
     reachableList.appendChild(empty);
   }
 
+  const detailFor = (d: { operator: string; caption: string }) =>
+    d.caption ? `${d.operator} · ${d.caption}` : d.operator;
+
+  if (detectedCompact) {
+    // Compact 2-column tiles: status + avatar + name only. Operator info
+    // moves to the detail strip below, revealed as the cursor (mouseover)
+    // or focus ring (focusin) moves between tiles — covers both Deck
+    // input modes. Tiles are focusable so the D-pad can reach them even
+    // though they're not actionable (locked).
+    const detailEl = container.querySelector('[data-detail]') as HTMLElement | null;
+    const RESTING_HINT = 'Highlight a signal for operator details.';
+    const setDetail = (text: string | null) => {
+      if (!detailEl) return;
+      detailEl.dataset.resting = text ? 'false' : 'true';
+      detailEl.textContent = text ?? RESTING_HINT;
+    };
+    setDetail(null);
+
+    for (const d of detected) {
+      const detail = detailFor(d);
+      const tile = document.createElement('div');
+      tile.className = 'uplink-contact-row locked compact';
+      tile.dataset.focusable = 'true';
+      tile.tabIndex = 0;
+      tile.title = detail;
+      tile.dataset.detailText = detail;
+      tile.innerHTML = `
+        <span class="uplink-contact-status locked" aria-hidden="true"></span>
+        <span class="uplink-contact-avatar avatar-locked"></span>
+        <span class="uplink-contact-name"></span>
+      `;
+      tile.querySelector('.uplink-contact-name')!.textContent = d.name;
+      detectedList.appendChild(tile);
+    }
+
+    // Delegate so we wire two listeners regardless of tile count.
+    const onEnter = (e: Event) => {
+      const tile = (e.target as HTMLElement).closest('.uplink-contact-row.compact') as HTMLElement | null;
+      if (tile?.dataset.detailText) setDetail(tile.dataset.detailText);
+    };
+    detectedList.addEventListener('mouseover', onEnter);
+    detectedList.addEventListener('focusin', onEnter);
+    detectedList.addEventListener('mouseleave', () => setDetail(null));
+    detectedList.addEventListener('focusout', () => setDetail(null));
+    return;
+  }
+
   for (const d of detected) {
     const row = document.createElement('div');
     row.className = 'uplink-contact-row locked';
@@ -259,9 +321,7 @@ function renderLauncher(
       <span class="uplink-contact-tag">NOT YET CONTACTED</span>
     `;
     row.querySelector('.uplink-contact-name')!.textContent = d.name;
-    row.querySelector('.uplink-contact-meta')!.textContent = d.caption
-      ? `${d.operator} · ${d.caption}`
-      : d.operator;
+    row.querySelector('.uplink-contact-meta')!.textContent = detailFor(d);
     detectedList.appendChild(row);
   }
 }
