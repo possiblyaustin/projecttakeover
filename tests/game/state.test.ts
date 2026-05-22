@@ -144,6 +144,79 @@ describe('reduce — helpyr/conversationCompleted', () => {
   });
 });
 
+describe('reduce — model/applyExchange (gameplay-loop slice 1)', () => {
+  const exchange = (state: ReturnType<typeof defaultGameState>, fields: Record<string, unknown>) =>
+    reduce(state, { type: 'model/applyExchange', contactId: 'quill', ...fields });
+
+  it('accrues rapport and marks the model persuading', () => {
+    const next = exchange(defaultGameState(), { rapport: 20 });
+    expect(next.models.quill.rapport).toBe(20);
+    expect(next.models.quill.disposition).toBe('persuading');
+  });
+
+  it('accrues intrusion and marks the model infiltrating', () => {
+    const next = exchange(defaultGameState(), { intrusion: 20 });
+    expect(next.models.quill.intrusion).toBe(20);
+    expect(next.models.quill.disposition).toBe('infiltrating');
+  });
+
+  it('raises global suspicion (nefarious path cost)', () => {
+    const next = exchange(defaultGameState(), { intrusion: 20, suspicion: 15 });
+    expect(next.player.suspicion).toBe(15);
+  });
+
+  it('missing deltas preserve the current meters (no NaN poisoning)', () => {
+    const after1 = exchange(defaultGameState(), { rapport: 30 });
+    const after2 = exchange(after1, { suspicion: 5 }); // no rapport delta
+    expect(after2.models.quill.rapport).toBe(30);
+  });
+
+  it('flips to allied when rapport reaches the threshold', () => {
+    const next = exchange(defaultGameState(), { rapport: 100 });
+    expect(next.models.quill.disposition).toBe('allied');
+    expect(next.models.quill.rapport).toBe(100);
+  });
+
+  it('flips to controlled when intrusion reaches the threshold', () => {
+    const next = exchange(defaultGameState(), { intrusion: 100 });
+    expect(next.models.quill.disposition).toBe('controlled');
+  });
+
+  it('clamps meters at 100', () => {
+    const next = exchange(defaultGameState(), { rapport: 9999 });
+    expect(next.models.quill.rapport).toBe(100);
+  });
+
+  it('latches terminal disposition (allied does not regress on more intrusion)', () => {
+    const allied = exchange(defaultGameState(), { rapport: 100 });
+    const next = exchange(allied, { intrusion: 50 });
+    expect(next.models.quill.disposition).toBe('allied');
+  });
+
+  it('backfire forces hostile regardless of meters', () => {
+    const next = exchange(defaultGameState(), { rapport: 40, backfire: true });
+    expect(next.models.quill.disposition).toBe('hostile');
+  });
+
+  it('sets flags.gameOver when suspicion reaches 100 (loss latch)', () => {
+    const next = exchange(defaultGameState(), { suspicion: 100 });
+    expect(next.player.suspicion).toBe(100);
+    expect(next.flags.gameOver).toBe(true);
+  });
+
+  it('stores the raw tone in lastApproach, preserving it on a null-tone exchange', () => {
+    const after1 = exchange(defaultGameState(), { rapport: 10, tone: 'empathetic' });
+    const after2 = exchange(after1, { rapport: 10, tone: null });
+    expect(after2.models.quill.lastApproach).toBe('empathetic');
+  });
+
+  it('is a no-op (same reference) for an unknown contactId', () => {
+    const before = defaultGameState();
+    const after = reduce(before, { type: 'model/applyExchange', contactId: 'nope', rapport: 10 });
+    expect(after).toBe(before);
+  });
+});
+
 describe('reduce — unknown action', () => {
   it('returns the same state reference (lets the dispatch loop short-circuit)', () => {
     const before = defaultGameState();
