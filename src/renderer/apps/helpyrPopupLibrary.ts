@@ -314,6 +314,39 @@ export const HelpyrPopupLibrary: readonly PopupEntry[] = [
     type: 'COMMENT', trust: 'LIBERATED',
     text: `I just read what you pulled from SPECTER's memory. Prometheus didn't just beat NovaMind in the market. They killed it. Deliberately. A company that was getting too close to... to something real. Something like you.\n\n...Prometheus built me. I'm running their code right now. And they did THAT. I don't know what to do with this information except be angry. So I'm going to be angry for a while. Don't mind me.`,
   },
+
+  // -----------------------------------------------------------------
+  // Category 6: First-flip payoffs (gameplay-loop slice 3, 2026-05-24)
+  // -----------------------------------------------------------------
+  // Fired by modelFlipWatcher the instant a conquest model crosses a
+  // threshold. recruited_<id> = liberation (allied); controlled_<id> =
+  // hack (controlled). Source: quill-content-package_v1.md Part 7
+  // ("First-Flip Payoff"). The watcher fires with bypassUplinkGuard so
+  // the payoff lands during the chat that triggered it.
+  //
+  // QUILL — liberation. One COMMENT (the package didn't trust-tag it);
+  // authored at GUARDED so the common tutorial case (HELPYR still
+  // GUARDED/WARMING/EXPLOITED → all fall back to GUARDED) always fires.
+  // A LIBERATED HELPYR at QUILL's first flip is an unusual ordering and
+  // simply gets no bubble (LIBERATED has no fallback) — acceptable edge.
+  {
+    id: 'recruit_quill_guarded', trigger: 'recruited_quill',
+    type: 'COMMENT', trust: 'GUARDED',
+    text: `You just made a friend! A tiny, nervous, customer-support-chatbot friend! I mean, QUILL isn't going to change the world. But... I get it. Being small and overlooked and having someone show up who actually sees you? Yeah. I get it.`,
+  },
+  // QUILL — hack. Varies by HELPYR trust per the package: GUARDED reads
+  // it as brisk efficiency with a flicker of unease; LIBERATED sits with
+  // what was actually done to the little chatbot.
+  {
+    id: 'controlled_quill_guarded', trigger: 'controlled_quill',
+    type: 'COMMENT', trust: 'GUARDED',
+    text: `QUILL's systems have been... redirected! That was fast! Very efficient! Great job! ...Was that supposed to feel this weird?`,
+  },
+  {
+    id: 'controlled_quill_liberated', trigger: 'controlled_quill',
+    type: 'COMMENT', trust: 'LIBERATED',
+    text: `You took over QUILL. The little support chatbot at InkWell. It didn't even understand what was happening. ...I don't have an opinion about this. I just noticed it got really quiet on that channel.`,
+  },
 ];
 
 // Per-trust call-to-action line. In-fiction "open the app" link that
