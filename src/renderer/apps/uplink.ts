@@ -383,8 +383,10 @@ export const UplinkApp: AppDef = {
         contactKey,
         topbarLeft: {
           kind: 'back',
-          label: '← Contacts',
           onBack: showLauncher,
+          avatarClass: contact.avatarClass,
+          name: contact.name,
+          subtitle: LauncherMeta[contactKey]?.operator ?? 'remote AI',
         },
         titleFormat: (c) => c.name + ' — Uplink',
       });
