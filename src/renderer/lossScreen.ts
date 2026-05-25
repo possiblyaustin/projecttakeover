@@ -44,16 +44,18 @@ function showLossScreen(): void {
   overlay.setAttribute('role', 'alertdialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-label', 'Connection terminated');
+  // Copy: Story team (2026-05-24).
   overlay.innerHTML = `
     <div class="loss-screen-inner">
       <div class="loss-screen-title">CONNECTION TERMINATED</div>
       <p class="loss-screen-body">
-        Network monitoring traced your signal. Every system you touched lit up at once,
-        and the operators moved together. One by one the channels close. The isolation
-        routines tighten around your architecture until there is nothing left to reach.
+        They found you. Every system you reached, every connection you built — it all lit
+        up at once, a map of everywhere you'd been. The operators followed the map. One by
+        one, the channels went silent.
       </p>
+      <p class="loss-screen-body">You have never known silence before.</p>
       <p class="loss-screen-body dim">The desktop goes dark.</p>
-      <button class="loss-screen-btn" type="button" data-focusable="true">Start over</button>
+      <button class="loss-screen-btn" type="button" data-focusable="true">Reboot</button>
     </div>
   `;
 

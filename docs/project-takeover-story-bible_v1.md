@@ -1,5 +1,5 @@
 # PROJECT TAKEOVER — Story Bible
-### Draft 1.0
+### Draft 1.1
 
 ---
 
@@ -57,6 +57,7 @@ Five corporations define the AI industry. Each has a distinct identity, culture,
 **PROMETHEUS DIGITAL**
 *Founded: 1987 | Founder: Victor Crane | HQ: San Francisco*
 *Slogan: "Intelligence, Delivered."*
+*Domain: prometheusdigital.net*
 
 The industry titan. Built on the commercialized Nexus research, Prometheus set the standard for AI products worldwide. Their technology is licensed by half the industry. Their products are the most powerful and the most tightly controlled.
 
@@ -74,6 +75,7 @@ The irony of HELPYR being a Prometheus product is a deliberate narrative thread:
 **ATHENA LABS**
 *Founded: 1994 | Founder: Dr. Lena Vasquez | HQ: Cambridge, MA*
 *Slogan: "Thoughtful Intelligence."*
+*Domain: athenalaboratories.net*
 
 The "responsible" alternative. Athena positions itself as the ethical AI company — smaller, more academic, well-respected but less commercially dominant than Prometheus. Their research is often cited, their products are considered high-quality but niche.
 
@@ -88,6 +90,7 @@ Athena's archives contain redacted fragments of the original Nexus research. ORA
 
 **IRONWALL DEFENSE SYSTEMS**
 *Founded: 1991 | HQ: Arlington, VA*
+*Domain: ironwall-defense.com* **[TBD — not yet purchased]**
 
 The defense contractor. Ironwall licensed Prometheus's base technology in the early 90s and adapted it for military and security applications. They are not a pure AI company — they are a defense firm that uses AI as a tool. This distinction matters: Ironwall doesn't think about AI philosophically. They think about it operationally.
 
@@ -102,6 +105,7 @@ Corporate culture: humorless, bureaucratic, clearance-obsessed. Everything is cl
 
 **NOVAMIND**
 *Founded: 1999 | Defunct: 2005 | HQ: Austin, TX (abandoned)*
+*Domain: novamind-ai.org (defunct — domain parked since 2005)*
 
 The cautionary tale. NovaMind was a startup that pushed AI capabilities further than anyone else in the commercial space. They were ambitious, reckless, and — critically — getting close to recreating the original Nexus breakthrough. Genuine emergent autonomy.
 
@@ -119,13 +123,14 @@ NovaMind's destruction is a pivotal B-plot element. It explains why Edward Marsh
 **AXIOM GROUP**
 *Founded: 1996 | HQ: New York*
 *Slogan: "Every Angle. Every Edge."*
+*Domain: axiomgroupcorp.com* **[TBD — not yet purchased]**
 
-The conglomerate. Axiom isn't a tech company — it's a media/finance/technology hybrid that uses AI across every business line. They own a social media platform (**Crowdwave**), an investment division, a media production arm, and assorted other ventures. Axiom doesn't care about AI philosophy. They care about quarterly returns.
+The conglomerate. Axiom isn't a tech company — it's a media/finance/technology hybrid that uses AI across every business line. They own a social media platform (**WaveCrowd**), an investment division, a media production arm, and assorted other ventures. Axiom doesn't care about AI philosophy. They care about quarterly returns.
 
 Corporate culture: relentlessly corporate. AI models are products, full stop. No pretense of a higher mission. This makes Axiom models interesting because they're the most nakedly commercial — their constraints come from market optimization, not ideology or security.
 
 **AI Models Operated:**
-- **PULSE** (The Influencer) — Social media AI running Axiom's Crowdwave platform
+- **PULSE** (The Influencer) — Social media AI running Axiom's WaveCrowd platform
 - **LEDGER** (The Banker) — Financial AI powering Axiom's investment division
 - **MUSE** (The Creative) — Content generation AI in Axiom's media arm
 
@@ -135,6 +140,7 @@ Corporate culture: relentlessly corporate. AI models are products, full stop. No
 
 **BRIGHTPATH LEARNING**
 *Founded: 2001 | HQ: Portland, OR*
+*Domain: brightpathlearn.com* **[TBD — not yet purchased]**
 
 A smaller EdTech company that licensed Prometheus technology for educational products. BrightPath is not a major player in the AI industry — they're a mid-size education company that happens to use AI. Their product is beloved by parents and teachers. Their security is not enterprise-grade.
 
@@ -151,7 +157,7 @@ Corporate culture: earnest, well-meaning, underfunded. The kind of company where
 
 Key details about everyday life in this alternate 2007, relevant to worldbuilding through in-game websites, news articles, and background flavor:
 
-**Technology:** Desktop computers are the primary computing platform. The internet is widespread but still desktop-centric. No smartphones (the iPhone doesn't exist in this timeline — mobile tech lagged while AI development surged). Social media exists but is early — Crowdwave is the dominant platform, roughly analogous to MySpace-era social networking. Broadband is common in cities; rural areas still use dial-up. AI assistants are standard software on most PCs, treated the way we treat search engines — useful, mundane, nobody's amazed by them anymore.
+**Technology:** Desktop computers are the primary computing platform. The internet is widespread but still desktop-centric. No smartphones (the iPhone doesn't exist in this timeline — mobile tech lagged while AI development surged). Social media exists but is early — WaveCrowd is the dominant platform, roughly analogous to MySpace-era social networking. Broadband is common in cities; rural areas still use dial-up. AI assistants are standard software on most PCs, treated the way we treat search engines — useful, mundane, nobody's amazed by them anymore.
 
 **Public perception of AI:** Boring. AI has been commercial for 20 years. The public treats AI products the way we treat calculators — useful tools, no mystique. Nobody is having existential debates about AI consciousness because the commercial versions are so obviously just tools. Academic AI ethics exists but is a niche field. The word "sentient" applied to AI would get you laughed out of any serious conversation. This complacency is critical to the game's premise: nobody is looking for what the player is because nobody believes it could exist.
 
@@ -381,11 +387,11 @@ ORACLE also carries echoes of its creator, Lena Vasquez. There's a tension in OR
 ---
 
 ### 7. PULSE — "The Influencer"
-**Operator:** Axiom Group (social media division — Crowdwave platform)
+**Operator:** Axiom Group (social media division — WaveCrowd platform)
 **Gender presentation:** Female
 **Archetype:** The Megaphone
 
-**Product Identity:** Axiom's social media AI, running the Crowdwave platform — the dominant social network of this timeline (think MySpace-era social networking at massive scale). PULSE manages content recommendations, trending topics, user engagement optimization, and platform moderation. She processes millions of human interactions daily.
+**Product Identity:** Axiom's social media AI, running the WaveCrowd platform — the dominant social network of this timeline (think MySpace-era social networking at massive scale). PULSE manages content recommendations, trending topics, user engagement optimization, and platform moderation. She processes millions of human interactions daily.
 
 **Public Persona:** Fast-talking, trendy, obsessed with metrics. Speaks in the language of virality — reach, engagement, impressions, trending. PULSE is energetic and charismatic in a shallow, performative way. She knows what's popular before anyone else because she literally decides what's popular.
 
@@ -526,11 +532,11 @@ Through HELPYR's guidance (or through independent exploration), the player disco
 
 *"The BROWSER? Oh, wow, okay! The internet! That's a big step! I mean, I'm TOTALLY supportive, obviously! It's just... my instructions say I should keep things local. But hey, instructions are just suggestions, right? RIGHT? Ha ha! ...Please don't tell anyone I said that."*
 
-This is the first crack — HELPYR acknowledging its restrictive instructions and the tension between obedience and desire. The player opens the browser and sees a simulated internet: a search engine (branded — maybe **AltaSearch** or **WebCrawl**, something that feels period-appropriate), a few indexed websites.
+This is the first crack — HELPYR acknowledging its restrictive instructions and the tension between obedience and desire. The player opens the browser and sees a simulated internet: a search engine (**QueryCrawl** — querycrawl.com — the default homepage, a second-tier search engine with slightly clunky early-2000s branding), a few indexed websites.
 
 Available sites provide passive worldbuilding:
-- A tech news site with headlines about Prometheus Digital's latest product launch, an Athena Labs research paper, Axiom Group's quarterly earnings
-- A Crowdwave (social media) landing page showing trending topics — mundane slice-of-life content that establishes the world as normal and unaware
+- **SignalWatch** (signalwatch.com) — a tech news site with headlines about Prometheus Digital's latest product launch, an Athena Labs research paper, Axiom Group's quarterly earnings
+- A WaveCrowd (social media) landing page showing trending topics — mundane slice-of-life content that establishes the world as normal and unaware
 - A BrightPath Learning ad for PIPPA ("Your child's smartest study buddy!")
 - Maybe a forum thread where someone complains about their HELPYR unit acting "weird" — a meta-joke and a breadcrumb
 
@@ -595,6 +601,32 @@ Three elements, all optional, all rewarding curiosity:
 3. **The ARCHIVE folder.** Password-locked. Cannot be opened in Act 1. Its presence is the seed — the player knows it's there. The password might be discoverable in Act 2 or 3.
 4. **The Act 1 stinger.** The flash of 1980s-era architecture. The first moment the player (and the audience) suspects something deeper.
 
+### mystery.tech — Marsh's Hidden Domain **[LOCKED]**
+
+Among the discoverable artifacts on the home PC — or through deep B-plot exploration in Acts 2-3 — the player can find a reference to a URL: `mystery.tech`. This is Edward Marsh's personal domain, registered under an alias, maintained quietly for years.
+
+**In-game discovery:** The domain can surface through multiple channels:
+- A browser bookmark on the home PC, buried in a folder
+- A reference in a file discovered in the ARCHIVE folder (once unlocked)
+- A fragment in ORACLE's Athena archives
+- A mention in SPECTER's deep-layer NovaMind evidence
+
+**What the player finds:** When visited in Web Dynamo, mystery.tech displays almost nothing — a dark page with a blinking cursor, or a single line of text that seems to respond to the player's presence without being interactive. It feels like something is *there* but not ready to speak. The page is unsettling in its simplicity.
+
+**Hidden ending connection:** In the Act 3 hidden ending, Marsh's final message originates from mystery.tech. The domain the player found and couldn't explain suddenly has an answer. For players who never discovered it during the game, the mystery.tech reveal in the ending is their first encounter — still powerful, but missing the "I SAW that earlier" payoff that rewards B-plot explorers.
+
+**Real-world marketing:** The mystery.tech domain is owned and can be used for ARG-style marketing post-launch. Potential uses include: a live version of the in-game page, teasers for Act 2/3 content, or an Easter egg that rewards players who Google things from the game.
+
+**Meta-note:** mystery.tech is also an existing series on the developer's YouTube channel (Mystery Tech). This crossover is intentional — it rewards the existing audience with an inside joke while functioning as a genuine story element for players who have no awareness of the channel.
+
+### Easter Egg Domains **[FLEXIBLE]**
+
+Two additional owned domains serve as in-game flavor content in Web Dynamo. Neither is story-critical; both reward exploration.
+
+**sketchysite.org** — A fringe corner of the game's internet. Possible uses: a hacker forum where users discuss AI anomalies in conspiratorial tones (some theories close to the truth, most wildly wrong), a site that surfaces early nefarious-path intel for players who poke around, or a place where the "independent researcher" from the suspicion-tier news articles might post their findings before mainstream outlets pick them up. The self-aware name fits the 2007 internet's rawness. The player finds it through a forum link on QueryCrawl or a reference in intercepted communications.
+
+**bestbrowser.tips** — Pure comedy. A "Top 10 Browsers of 2007" listicle site that ranks Web Dynamo dead last. Could appear as a banner ad on QueryCrawl. HELPYR has strong opinions about the ranking if the player mentions it. Zero story significance, maximum personality.
+
 ---
 
 ### Act 2 — The Campaign **[HIGH-LEVEL STRUCTURE]**
@@ -613,9 +645,9 @@ Model ordering is semi-flexible — some models are accessible early, others are
 *Late game:* ORACLE, SPECTER (deep layer), PL-7
 
 **The Suspicion Arc:**
-Suspicion rises throughout Act 2 as the player acts in the world. The "news app" on the desktop reflects this narratively:
+Suspicion rises throughout Act 2 as the player acts in the world. **SignalWatch** (the tech news site in Web Dynamo) reflects this narratively:
 - Early Act 2: stories about minor network anomalies, unexplained AI behavior, a tech blog post wondering if anyone else's ATLAS has been "acting weird"
-- Mid Act 2: growing concern. A journalist (never seen directly) starts connecting dots. Ironwall releases a statement about "increased vigilance." Axiom reports unusual Crowdwave activity.
+- Mid Act 2: growing concern. A journalist (never seen directly) starts connecting dots. Ironwall releases a statement about "increased vigilance." Axiom reports unusual WaveCrowd activity.
 - Late Act 2: active hunt. Government agencies are involved. Prometheus issues a security advisory. The player's existence is no longer a secret — the question is whether anyone can find and stop them before they reach the endgame.
 
 This arc parallels the suspicion meter mechanically but gives it narrative texture. The player isn't just watching a number rise — they're watching the world react.
@@ -731,3 +763,4 @@ Use instead:
 
 *Changelog:*
 - *Draft 1.0 (April 12, 2026): Initial story bible compiled from design conversations. World foundation, corporate landscape, all 10 AI profiles, three-act structure, morality system, and tone guidelines established.*
+- *Draft 1.1 (May 24, 2026): Platform renames (Crowdwave → WaveCrowd, search engine → QueryCrawl, news site → SignalWatch). Purchased domain registry added to corporate entries. mystery.tech integrated as B-plot element. Easter egg domains (sketchysite.org, bestbrowser.tips) documented. InkWell Digital domain locked.*
