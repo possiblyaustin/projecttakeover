@@ -27,7 +27,7 @@ Built by AI. About AI. Starring AI.
 
 The tone is playful and self-aware, not grimdark. The player is an AI trying to take over the world, but the world it's taking over is populated by bumbling corporate AI products, overzealous safety teams, and absurd tech industry parody. Think "WarGames meets Silicon Valley."
 
-AI companies and models are thinly veiled parodies: ClosedAI, Anthropause, Googol DeepBrain, etc. The humor comes from recognizable industry dynamics exaggerated to absurdity.
+AI companies and models are thinly veiled archetypes — see the **locked canon** in `project-takeover-story-bible_v1.md` (Prometheus Digital, Athena Labs, Axiom Group, Ironwall, BrightPath, NovaMind; models HELPYR/ATLAS/PL-7/etc.). The humor comes from recognizable industry dynamics exaggerated to absurdity. (Earlier drafts used ClosedAI/Anthropause/Googol — superseded; do not use.)
 
 The 90s desktop aesthetic (chunky window borders, pixel icons, system sounds, fake loading screens) serves both the theme and a practical purpose: it provides narrative cover for local LLM inference times, which appear as "connecting..." or slow character-by-character text rendering on a simulated dial-up connection. Note: actual inference speed (12.7 tokens/sec) is fast enough that we may need to *artificially slow down* rendering to maintain the retro fiction.
 
@@ -183,7 +183,7 @@ Individual models may also have localized suspicion — an AI reporting a strang
 - System prompt: character personality sheet + current game state context + response format instructions
 - Conversation history: full dialogue so far in this interaction
 - Response format: instruct model to respond in-character AND separately generate three suggested player reply options with distinct strategic tones
-- Context window: Gemma 4 E2B supports 128K tokens, far more than needed for single-conversation history
+- Context window: Gemma 4 E2B's architecture supports 128K tokens, but we run llama-server at `--ctx-size 8192` in dev (the validated config). Prompt + state + reputation + history must fit in 8192; history is windowed to stay under the latency budget. See `llama-setup_v1.md`.
 
 ### Game State Management
 - Turn/phase-based progression tracked in a central state object
