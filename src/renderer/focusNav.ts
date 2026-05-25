@@ -9,7 +9,7 @@
 // Cursor.ts owns the mode-swap dispatch (it sees keydown/mousemove
 // first); this module owns the focus state and the geometry.
 
-import { SNAP_SELECTOR } from './cursor';
+import { SNAP_SELECTOR, snapScopeRoot } from './cursor';
 
 export type Direction = 'up' | 'down' | 'left' | 'right';
 type Mode = 'cursor' | 'focus';
@@ -100,7 +100,9 @@ function activate(): void {
 
 function allTargets(): HTMLElement[] {
   const out: HTMLElement[] = [];
-  for (const el of document.querySelectorAll(SNAP_SELECTOR)) {
+  // snapScopeRoot() narrows to the loss-screen overlay when it's up, so
+  // the D-pad can't walk to desktop elements hidden behind the blackout.
+  for (const el of snapScopeRoot().querySelectorAll(SNAP_SELECTOR)) {
     if (!isViable(el)) continue;
     out.push(el as HTMLElement);
   }
