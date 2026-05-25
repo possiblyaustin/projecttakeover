@@ -156,11 +156,21 @@ function nextDisposition(prev: string, rapport: number, intrusion: number): stri
 // directly.
 export function reduce(state: GameStateShape, action: GameAction): GameStateShape {
   switch (action.type) {
-    case 'debug/setSuspicion':
+    case 'debug/setSuspicion': {
+      // Latch the loss state here too (not only in model/applyExchange)
+      // so any path that drives suspicion to 100 — including the dev
+      // suspicion bump — surfaces the game-over screen. Real play
+      // latches via applyExchange; this keeps the two consistent.
+      const suspicion = clamp(action.value, 0, 100);
+      const flags = (suspicion >= 100 && !state.flags.gameOver)
+        ? { ...state.flags, gameOver: true }
+        : state.flags;
       return {
         ...state,
-        player: { ...state.player, suspicion: clamp(action.value, 0, 100) }
+        player: { ...state.player, suspicion },
+        flags,
       };
+    }
     case 'debug/reset':
       return defaultGameState();
     case 'helpyr/conversationCompleted':

@@ -37,6 +37,8 @@ import { devSimulateHelpyrSoftRecovery } from './apps/helpyr';
 import { initFirstContactWatcher, devFirePinPrompt, devFireRepinNudge } from './firstContactWatcher';
 import { initSuspicionWatcher } from './suspicionWatcher';
 import { initIdleWatcher, devFireIdleTrigger } from './idleWatcher';
+import { initModelFlipWatcher } from './modelFlipWatcher';
+import { initLossScreen } from './lossScreen';
 import { fireLibraryTrigger } from './helpyrTriggers';
 
 // ---- Boot order ----
@@ -71,7 +73,14 @@ initFirstContactWatcher();
 initSuspicionWatcher();
 initIdleWatcher();
 
-// 7. Launch README on startup so the player has a welcome surface.
+// 7. Gameplay-loop watchers (slice 3). Flip watcher fires HELPYR's
+//    first-flip payoff when a conquest model crosses to allied/controlled.
+//    Loss screen darkens the desktop when suspicion latches gameOver at
+//    100 — init early so a loaded game-over save surfaces immediately.
+initModelFlipWatcher();
+initLossScreen();
+
+// 8. Launch README on startup so the player has a welcome surface.
 DesktopShortcuts[0]!.launch();
 
 // ---- Devtools surface ----

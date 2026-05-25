@@ -13,8 +13,12 @@ import {
   quillToneFor,
   QuillStallingPool,
   QuillFallbackPool,
+  QuillPersonaPrompt,
+  buildQuillStateBlock,
+  buildQuillRecoveryPool,
 } from './quill';
 import { HelpyrContact } from './helpyr';
+import { buildReputationContext } from '../game/reputation';
 import {
   renderChatSurface,
   makeFallbackHandler,
@@ -97,12 +101,12 @@ export const UplinkContacts: Record<string, ChatContact> = {
   // stapler button (which opens the dedicated `helpyr` app).
   helpyr: HelpyrContact,
 
-  // QUILL — Act 1 Beat 3 tutorial NPC. UI scaffold only: placeholder
-  // dialogue tree and fallback pool from apps/quill.ts; no persona
-  // prompt yet (awaiting Story team sign-off after HELPYR validates
-  // against real Gemma — see docs/story-deliverables-sprint1_v1.md
-  // §"Priority 4"). buildSystemPrompt returns empty string for now;
-  // mock backend ignores it, live backend isn't wired for QUILL yet.
+  // QUILL — Act 1 Beat 3 tutorial NPC, gameplay-loop slice target.
+  // Story delivered the full content package (2026-05-24), so the live
+  // (llama-server) path now runs on QuillPersonaPrompt with the same
+  // dynamic assembly as HELPYR: {{REPUTATION}} (cross-model chatter) and
+  // {{QUILL_STATE}} (meter-band coherence block) resolved per call. The
+  // mock backend still uses the lightweight dialogue tree below.
   // Open during dev with: PT.WindowManager.open('uplink', { contact: 'quill' })
   quill: {
     name: 'QUILL',
@@ -117,7 +121,13 @@ export const UplinkContacts: Record<string, ChatContact> = {
       },
       fallback: makeFallbackHandler(QuillFallbackPool),
     }),
-    buildSystemPrompt: () => '',
+    buildSystemPrompt: () => {
+      const state = GameState.getState();
+      return QuillPersonaPrompt
+        .replace('{{REPUTATION}}', buildReputationContext('quill', state))
+        .replace('{{QUILL_STATE}}', buildQuillStateBlock(state.models.quill));
+    },
+    buildRecoveryPool: buildQuillRecoveryPool,
     stallingPool: QuillStallingPool,
     typeMs: 18,
     pauseMs: 1100,

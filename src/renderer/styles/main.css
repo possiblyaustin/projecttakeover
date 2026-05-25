@@ -2307,3 +2307,63 @@
   .helpyr-bubble[data-type="ALERT"] .helpyr-bubble-tail::after {
     border-top-color: #fbe8c8;
   }
+
+  /* --- Loss screen --- gameplay-loop slice 3 (2026-05-24).
+   * Full-viewport blackout shown when suspicion latches flags.gameOver
+   * at 100. Appended to <body> by lossScreen.ts and faded in. Sits above
+   * everything (the Nexus start menu is z-index 9999) so the run reads as
+   * unambiguously over. Player-AI voice: terminal/system-message
+   * register, no biological framing. */
+  .loss-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #05070b;
+    opacity: 0;
+    transition: opacity 1.2s ease;
+  }
+  .loss-screen.visible {
+    opacity: 1;
+  }
+  .loss-screen-inner {
+    max-width: 34rem;
+    padding: 2rem;
+    text-align: center;
+    color: #aab4c4;
+    font-family: var(--sys-font);
+  }
+  .loss-screen-title {
+    font-size: 1.5rem;
+    letter-spacing: 0.3rem;
+    color: #ff5a5a;
+    margin-bottom: 1.25rem;
+  }
+  .loss-screen-body {
+    margin: 0 0 0.875rem;
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  .loss-screen-body.dim {
+    color: #5a6478;
+  }
+  .loss-screen-btn {
+    margin-top: 1.25rem;
+    padding: 0.5rem 1.5rem;
+    background: #11151d;
+    color: #cdd5e2;
+    border: 1px solid #3a4456;
+    border-radius: 0.1875rem;
+    font: inherit;
+    cursor: pointer;
+  }
+  .loss-screen-btn:hover,
+  .loss-screen-btn:active,
+  .loss-screen-btn.cursor-hover,
+  .loss-screen-btn.focus-ring {
+    outline: 0;
+    background: #1b212c;
+    border-color: #6a7488;
+  }

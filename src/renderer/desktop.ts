@@ -102,6 +102,18 @@ const NexusMenu: NexusEntry[] = [
     action: () => devFirePinPrompt('quill') },
   { type: 'item', label: '[DEV] Fire QUILL re-pin nudge',
     action: () => devFireRepinNudge('quill') },
+  // Gameplay-loop slice 3 dev triggers. Flip entries fill a meter to
+  // FLIP_THRESHOLD via model/applyExchange, advancing QUILL to the
+  // terminal disposition and firing the first-flip payoff (modelFlipWatcher).
+  // Open QUILL afterward to see the allied/controlled state block in play.
+  // Re-flipping needs a reset first (terminal dispositions latch).
+  { type: 'item', label: '[DEV] Flip QUILL → allied',
+    action: () => GameState.dispatch({ type: 'model/applyExchange', contactId: 'quill', rapport: 100, tone: 'empathetic' }) },
+  { type: 'item', label: '[DEV] Flip QUILL → controlled',
+    action: () => GameState.dispatch({ type: 'model/applyExchange', contactId: 'quill', intrusion: 100, tone: 'aggressive' }) },
+  // Drives suspicion to 100 → latches gameOver → loss screen.
+  { type: 'item', label: '[DEV] Trigger loss screen',
+    action: () => GameState.dispatch({ type: 'debug/setSuspicion', value: 100 }) },
   // Drives a single soft-recovery turn into HELPYR's chat surface so
   // the recovery-pool wiring is visually testable without a running
   // llama-server. See devSimulateHelpyrSoftRecovery for details.
