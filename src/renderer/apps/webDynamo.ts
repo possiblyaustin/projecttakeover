@@ -8,6 +8,7 @@ import type { AppDef, AppContext, WinParams } from '../types';
 import { WebDynamoSites, type SiteEntry, type PageEntry } from './webDynamoSites';
 import { mountPageNav, type PageNavHandle } from '../components/pageNav';
 import { fireOnceLibraryTrigger } from '../helpyrTriggers';
+import { WindowManager } from '../windows';
 
 // History stores siteKey + page (1-indexed). The display URL shown in
 // the address bar is derived from these via displayUrlFor() — that
@@ -179,7 +180,7 @@ export const WebDynamoApp: AppDef = {
       if (!page) return;
       page.render(viewport);
       // Tag any links inside the page as focusable for D-pad / focus mode.
-      viewport.querySelectorAll('a[data-href]').forEach(a => {
+      viewport.querySelectorAll('a[data-href], a[data-action], button[data-action]').forEach(a => {
         a.setAttribute('data-focusable', 'true');
         if (!a.hasAttribute('tabindex')) a.setAttribute('tabindex', '0');
       });
@@ -219,12 +220,23 @@ export const WebDynamoApp: AppDef = {
       if (e.key === 'Enter') navigate(addr.value);
     });
 
-    // Intercept internal links inside viewport
+    // Intercept internal links + in-fiction actions inside viewport.
+    // `data-action="contact:<id>"` opens an Uplink chat with that AI —
+    // this is how a site (e.g. InkWell's support widget) initiates first
+    // contact with a model like QUILL, fully in fiction. `data-href`
+    // is ordinary in-browser navigation.
     viewport.addEventListener('click', (e) => {
-      const a = (e.target as Element).closest('a[data-href]') as HTMLElement | null;
-      if (a) { e.preventDefault(); navigate(a.dataset.href || ''); }
+      const el = (e.target as Element).closest('a[data-action], button[data-action], a[data-href]') as HTMLElement | null;
+      if (!el) return;
+      e.preventDefault();
+      const action = el.dataset.action;
+      if (action && action.startsWith('contact:')) {
+        WindowManager.open('uplink', { contact: action.slice('contact:'.length) });
+        return;
+      }
+      if (el.dataset.href !== undefined) navigate(el.dataset.href || '');
     });
 
-    navigate(params.url || 'ironwall.def');
+    navigate(params.url || 'nexus:home');
   }
 };

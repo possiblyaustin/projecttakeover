@@ -81,16 +81,57 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
       }
     ]
   },
+  'inkwell-digital.com': {
+    title: 'InkWell Digital',
+    pages: [
+      {
+        label: 'Home',
+        render(c: HTMLElement) {
+          c.classList.add('site-inkwell');
+          c.innerHTML = `
+            <h1>InkWell Notes</h1>
+            <div class="tagline">Your thoughts, beautifully organized.</div>
+            <div class="hr-bar"></div>
+            <p><strong>InkWell Notes</strong> is the note-taking app for people who
+            think in ink. Sync across web, desktop, and mobile — markdown, attachments,
+            and effortless search, built by a small team that actually answers its email.</p>
+            <ul>
+              <li>Cross-device sync that just works</li>
+              <li>Markdown &amp; rich attachments</li>
+              <li>Loved by <strong>12,000+</strong> note-takers</li>
+            </ul>
+            <div class="inkwell-support">
+              <span class="inkwell-support-status" aria-hidden="true"></span>
+              <div class="inkwell-support-text">
+                <strong>Need a hand?</strong><br>
+                Our support assistant <strong>QUILL</strong> is online now.
+              </div>
+              <button class="inkwell-support-btn" data-action="contact:quill">Chat with QUILL &rsaquo;</button>
+            </div>
+            <div class="hr-bar"></div>
+            <p style="font-size:11px;color:#777;">&copy; 2007 InkWell Digital — a small company with big ideas.</p>
+          `;
+        }
+      }
+    ]
+  },
   'nexus:home': {
     title: 'Nexus Home',
     pages: [
       {
-        render(c) {
+        render(c: HTMLElement) {
+          c.classList.add('site-home');
           c.innerHTML = `
-            <h2 style="font-family:Georgia,serif;">Welcome to the Network</h2>
-            <p>Type an address above, or visit:
-              <a href="#" data-href="ironwall.def">Ironwall Defense</a>
-            </p>
+            <h1>NEXUS NAVIGATOR</h1>
+            <div class="tagline">Your starting point for the network</div>
+            <div class="hr-bar"></div>
+            <p>Type an address above, or jump to a known site:</p>
+            <ul class="home-links">
+              <li><a href="#" data-href="inkwell-digital.com">InkWell Digital</a> — note-taking app &amp; online support</li>
+              <li><a href="#" data-href="ironwall.def">Ironwall Defense Systems</a> — security &amp; defense AI</li>
+            </ul>
+            <div class="hr-bar"></div>
+            <p style="font-size:11px;color:#777;">Web Dynamo 4.0 &middot; indexing this connection&hellip;</p>
           `;
         }
       }

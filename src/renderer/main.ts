@@ -39,7 +39,7 @@ import { initSuspicionWatcher } from './suspicionWatcher';
 import { initIdleWatcher, devFireIdleTrigger } from './idleWatcher';
 import { initModelFlipWatcher } from './modelFlipWatcher';
 import { initLossScreen } from './lossScreen';
-import { fireLibraryTrigger } from './helpyrTriggers';
+import { fireLibraryTrigger, fireOnceLibraryTrigger } from './helpyrTriggers';
 
 // ---- Boot order ----
 // 1. Register every app the system knows about.
@@ -82,6 +82,14 @@ initLossScreen();
 
 // 8. Launch README on startup so the player has a welcome surface.
 DesktopShortcuts[0]!.launch();
+
+// 9. First-boot onboarding nudge — HELPYR points a brand-new player at the
+//    browser, the start of the Act 1 spine (browser → InkWell → first
+//    contact with QUILL). Flag-gated (fires once per save) and delayed so
+//    the desktop + README settle before the bubble appears.
+setTimeout(() => {
+  fireOnceLibraryTrigger('firstBoot.onboarding', 'onboarding_boot');
+}, 1800);
 
 // ---- Devtools surface ----
 // Loose-typed: this is deliberately open for poking around. A proper

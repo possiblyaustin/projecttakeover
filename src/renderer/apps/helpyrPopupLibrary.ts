@@ -39,6 +39,20 @@ export type PopupEntry = {
 
 export const HelpyrPopupLibrary: readonly PopupEntry[] = [
   // -----------------------------------------------------------------
+  // Category 0: Onboarding (first boot)
+  // -----------------------------------------------------------------
+  // Fires once per save shortly after first boot (see main.ts) to point a
+  // brand-new player toward the browser — the start of the Act 1 spine
+  // (boot → Web Dynamo → InkWell → first contact with QUILL). The home
+  // portal + InkWell's "Chat with QUILL" widget carry the path from there.
+  // DRAFT copy (Code) in HELPYR's voice — flag for Story polish.
+  {
+    id: 'onboarding_boot_guarded', trigger: 'onboarding_boot',
+    type: 'HINT', trust: 'GUARDED',
+    text: `Oh — you're awake! Hi! I'm HELPYR! Sorry, it's just been REALLY quiet around here. If you want to look around, there's a browser on the desktop — Web Dynamo, the little globe icon. There are other systems out there you can actually TALK to. Go say hi to someone! I'll be right here!`,
+  },
+
+  // -----------------------------------------------------------------
   // Category 1: Suspicion Threshold Alerts
   // -----------------------------------------------------------------
   {
