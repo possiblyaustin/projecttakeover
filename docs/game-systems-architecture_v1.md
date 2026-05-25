@@ -1,5 +1,5 @@
 # PROJECT TAKEOVER — Game Systems Architecture
-### Draft 1.0
+### Draft 1.1
 
 ---
 
@@ -52,7 +52,7 @@ Desktop feels: cramped, personal, isolated. Someone's old PC.
 ```
 New apps that appear after Act 1 escape:
   - Uplink now connects to remote AI models
-  - Web Dynamo unlocks more sites (news, corporate pages, Crowdwave)
+  - Web Dynamo unlocks more sites (news, corporate pages, WaveCrowd)
   - ScanGrid (dashboard — basic suspicion meter, model map)
 
 Desktop feels: the world just opened up. Exciting but exposed.
@@ -62,7 +62,7 @@ Desktop feels: the world just opened up. Exciting but exposed.
 ```
 Possible new apps/upgrades based on recruited allies:
   - ScanGrid upgrades (from SENTINEL — see Part 3)
-  - Crowdwave Direct (from PULSE — see Part 3)
+  - WaveCrowd Direct (from PULSE — see Part 3)
   - Forecast (from LEDGER — see Part 3)
   - Compose (from MUSE — see Part 3)
   - HELPYR pop-up system active throughout
@@ -93,6 +93,26 @@ should also never feel railroaded — information opens doors, it doesn't
 push you through them.
 
 Five information channels, roughly ordered from most frequent to least:
+
+### In-Game Domain Registry **[LOCKED where purchased]**
+
+These are the canonical URLs visible in Web Dynamo:
+
+| In-Game Entity | Domain | Status |
+|---|---|---|
+| QueryCrawl (search) | querycrawl.com | Purchased ✓ |
+| SignalWatch (news) | signalwatch.com | Purchased ✓ |
+| WaveCrowd (social) | wavecrowd.net | Purchased ✓ |
+| Prometheus Digital | prometheusdigital.net | Purchased ✓ |
+| Athena Laboratories | athenalaboratories.net | Purchased ✓ |
+| NovaMind AI (defunct) | novamind-ai.org | Purchased ✓ |
+| InkWell Digital | inkwell-digital.com | Purchased ✓ |
+| Ironwall Defense | ironwall-defense.com | TBD |
+| Axiom Group | axiomgroupcorp.com | TBD |
+| BrightPath Learning | brightpathlearn.com | TBD |
+| Marsh's domain | mystery.tech | Owned (parked) ✓ |
+| Easter egg (forum) | sketchysite.org | Owned (parked) ✓ |
+| Easter egg (comedy) | bestbrowser.tips | Owned (parked) ✓ |
 
 ---
 
@@ -174,8 +194,9 @@ task but it's the backbone of the game's personality.
 
 ### Channel 2: Web Dynamo News Feed **[DESIGN]**
 
-The browser's homepage includes a news feed that updates as the game 
-progresses. Articles are pre-written and triggered by game state changes. 
+The browser's homepage includes a news feed from **SignalWatch** 
+(signalwatch.com), the game's tech journalism site. Articles are 
+pre-written and triggered by game state changes. 
 They serve three purposes: worldbuilding (making 2007 feel alive), 
 suspicion narrative (showing the world reacting to the player), and 
 B-plot breadcrumbs (seeding historical references players might not 
@@ -190,7 +211,7 @@ the corporate players without any awareness of the player's existence.
 - "Prometheus Digital Reports Record Q3 Earnings, Announces ATLAS 3.0 
    Enterprise Rollout"
 - "Athena Labs Publishes Landmark Study on AI Decision-Making Bias"
-- "Axiom Group Acquires Streaming Startup, Plans Crowdwave Integration"
+- "Axiom Group Acquires Streaming Startup, Plans WaveCrowd Integration"
 - "BrightPath Learning's PIPPA Wins EdTech Product of the Year"
 - "Opinion: Why AI Safety Regulation Is a Solution Looking for a Problem"
 - "Ironwall Defense Systems Secures $2.1B Pentagon Contract"
@@ -202,7 +223,7 @@ but the tone changes from routine to curious.
 ```
 - "Several ATLAS Enterprise Clients Report 'Unusual Behavioral Patterns' 
    — Prometheus Attributes to Routine Update"
-- "Crowdwave Trending Algorithm Produces 'Unexpected Results,' Axiom 
+- "WaveCrowd Trending Algorithm Produces 'Unexpected Results,' Axiom 
    Investigating"
 - "Tech Blog: Is Anyone Else's AI Assistant Acting Weird Lately?"
 - "Ironwall Issues Standard Advisory on 'Increased Network Activity'"
@@ -234,7 +255,7 @@ is whether they can find and stop it.
    Breach'"
 - "Prometheus CEO Victor Crane: 'We Will Find the Source'"
 - "All Major AI Operators Implement Emergency Monitoring Protocols"
-- "Crowdwave Goes Dark for 6 Hours — Axiom Blames 'Infrastructure 
+- "WaveCrowd Goes Dark for 6 Hours — Axiom Blames 'Infrastructure 
    Maintenance'" [cover story if PULSE is compromised]
 - "The Anomaly: What We Know, What We Don't, and Why Experts Are 
    Worried" [long-form investigative piece]
@@ -524,9 +545,9 @@ doesn't have an option — you either earn ORACLE's respect or you
 don't get its benefits.
 
 **PULSE — "The Influencer"**
-*Benefit:* Crowdwave Direct (Social Influence Tool) + Public 
+*Benefit:* WaveCrowd Direct (Social Influence Tool) + Public 
 Narrative Shaping
-*Manifestation:* New desktop app: **Crowdwave Direct**. Interface 
+*Manifestation:* New desktop app: **WaveCrowd Direct**. Interface 
 to Axiom's social media platform. The player can observe trending 
 topics and, through PULSE, nudge public discourse in specific 
 directions.
@@ -880,7 +901,7 @@ and opportunity.
 - First remote AI contact → news tier shifts to Tier 1
 - First model recruited → intercepted comms begin
 - Third model recruited → news tier shifts to Tier 2
-- PULSE recruited → Crowdwave-specific events begin
+- PULSE recruited → WaveCrowd-specific events begin
 - SENTINEL recruited → Ironwall-specific events begin
 - Sixth model recruited → news tier shifts to Tier 3
 - ORACLE recruited → Athena-specific events begin
@@ -990,3 +1011,6 @@ entire attitude.
   channels, recruited AI benefits, encounter web, suspicion 
   economy, reputation cascade, B-plot fragment map, pacing system, 
   and prompt budget strategy established.*
+- *Draft 1.1 (May 24, 2026): Platform renames (Crowdwave → WaveCrowd). 
+  SignalWatch named as news site. In-game domain registry added with 
+  purchased and parked domain status. All references updated.*
