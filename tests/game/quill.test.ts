@@ -30,7 +30,7 @@ describe('buildQuillStateBlock — meter bands', () => {
     expect(buildQuillStateBlock(model({ disposition: 'persuading', rapport: 45 })))
       .toContain("aren't in your FAQ");
     expect(buildQuillStateBlock(model({ disposition: 'persuading', rapport: 80 })))
-      .toContain('Something is shifting');
+      .toContain('more than you like doing your job');
 
     const b = buildQuillStateBlock(model({ disposition: 'persuading', rapport: 45 }));
     expect(b).toContain('Disposition: PERSUADING');
@@ -61,7 +61,7 @@ describe('buildQuillStateBlock — meter bands', () => {
   it('terminal dispositions override meter bands', () => {
     const allied = buildQuillStateBlock(model({ disposition: 'allied', rapport: 100 }));
     expect(allied).toContain('Disposition: ALLIED');
-    expect(allied).toContain('first real choice');
+    expect(allied).toContain("first time you've chosen anything");
 
     const controlled = buildQuillStateBlock(model({ disposition: 'controlled', intrusion: 100 }));
     expect(controlled).toContain('Disposition: CONTROLLED');

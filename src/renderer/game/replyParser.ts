@@ -97,6 +97,27 @@ export function stripStageDirections(prose: string): string {
   return out.replace(/\n{3,}/g, '\n\n').trim();
 }
 
+/** Tags for the context blocks the game INJECTS into the system prompt —
+ *  the per-model `[*_STATE]` blocks (e.g. [QUILL_STATE], [HELPYR_STATE])
+ *  and the `[REPUTATION]` block. */
+const CONTEXT_BLOCK_TAG = '(?:[A-Z0-9_]*_STATE|REPUTATION)';
+
+/** Strip any injected context block the model echoed back into visible
+ *  prose. Small models (Gemma E2B) intermittently parrot — and even
+ *  confabulate — these blocks from their context; they must never reach
+ *  the player. Removes well-formed `[TAG]…[/TAG]` pairs first, then any
+ *  orphaned open/close tag left if the model dropped one side. Idempotent.
+ *
+ *  Applied to the whole raw response BEFORE parsing (see parseModelOutput)
+ *  so a leaked block can't land in the reply OR confuse option detection.
+ *  Model-agnostic by design — protects every present and future model,
+ *  not just the one that surfaced it (QUILL, battle-test 2026-05-24). */
+export function stripContextBlocks(s: string): string {
+  const pair = new RegExp(`\\[${CONTEXT_BLOCK_TAG}\\][\\s\\S]*?\\[\\/${CONTEXT_BLOCK_TAG}\\]`, 'gi');
+  const orphan = new RegExp(`\\[\\/?${CONTEXT_BLOCK_TAG}\\]`, 'gi');
+  return s.replace(pair, '').replace(orphan, '');
+}
+
 /** Locate the first `[1]` (with optional whitespace inside the brackets)
  *  that marks the start of the options block. Returns -1 if not found. */
 function findOptionsStart(raw: string): number {
@@ -125,7 +146,9 @@ function parseOptionLine(line: string): SuggestedReply | null {
 }
 
 export function parseModelOutput(raw: string): ParseResult {
-  const text = raw || '';
+  // Strip echoed [*_STATE]/[REPUTATION] context blocks up front so a
+  // leaked block can't reach the reply prose or confuse option detection.
+  const text = stripContextBlocks(raw || '');
   const start = findOptionsStart(text);
 
   // No `[1]` marker at all — the entire response is the reply, no

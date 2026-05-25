@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseModelOutput, stripStageDirections } from '../../src/renderer/game/replyParser';
+import { parseModelOutput, stripStageDirections, stripContextBlocks } from '../../src/renderer/game/replyParser';
 
 // The §6d spec lives in src/renderer/game/replyParser.ts as a header
 // comment. Each block below pins one tolerance or one failure mode
@@ -308,5 +308,65 @@ describe('parseModelOutput — stage direction stripping', () => {
     // history rewriting, etc.).
     const raw = 'Hi!\n*HELPYR ponders*\nWelcome.';
     expect(stripStageDirections(stripStageDirections(raw))).toBe(stripStageDirections(raw));
+  });
+});
+
+describe('parseModelOutput — strips echoed context blocks ([*_STATE]/[REPUTATION])', () => {
+  // Battle-test 2026-05-24: Gemma E2B intermittently echoes the injected
+  // [QUILL_STATE] block (and confabulates its values) into visible prose.
+  // Parser-side strip protects every model; parse still reports clean.
+  it('strips a leaked [QUILL_STATE] block from the reply, keeps the options', () => {
+    const raw = [
+      '[QUILL_STATE] Disposition: PERSUADING Rapport: 98 [/QUILL_STATE] Wow, that is incredibly kind and really means the world to me!',
+      '',
+      '[1] (friendly) "Glad to hear it."',
+      '[2] (curious) "Why does it mean so much?"',
+      '[3] (direct) "Focus up."',
+    ].join('\n');
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(true);
+    expect(result.reply).not.toMatch(/QUILL_STATE|Disposition|Rapport/);
+    expect(result.reply).toBe('Wow, that is incredibly kind and really means the world to me!');
+    expect(result.suggestedReplies).toHaveLength(3);
+  });
+
+  it('is model-agnostic — also strips [HELPYR_STATE] and [REPUTATION]', () => {
+    const raw = [
+      '[HELPYR_STATE]',
+      'Trust level: WARMING',
+      '[/HELPYR_STATE]',
+      'Oh, hi! Good to see you.',
+      '[REPUTATION] rumors travel [/REPUTATION]',
+      '',
+      '[1] (friendly) "a"',
+      '[2] (curious) "b"',
+      '[3] (direct) "c"',
+    ].join('\n');
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(true);
+    expect(result.reply).toBe('Oh, hi! Good to see you.');
+    expect(result.reply).not.toMatch(/HELPYR_STATE|REPUTATION|Trust level|rumors travel/);
+  });
+
+  it('strips a leaked block on the no-options recovery path too', () => {
+    const raw = '[QUILL_STATE] Disposition: CONTACTED Rapport: 0 [/QUILL_STATE] Hi there! I am QUILL and I would love to help you with InkWell Notes today.';
+    const result = parseModelOutput(raw);
+    expect(result.reply).not.toMatch(/QUILL_STATE/);
+    expect(result.reply).toMatch(/^Hi there! I am QUILL/);
+    expect(result.recoverable).toBe(true);
+  });
+
+  it('strips orphaned tags if the model drops one side', () => {
+    expect(stripContextBlocks('[QUILL_STATE] dangling open only')).toBe(' dangling open only');
+    expect(stripContextBlocks('closing only [/HELPYR_STATE]')).toBe('closing only ');
+  });
+
+  it('leaves ordinary bracketed text alone (only *_STATE / REPUTATION tags)', () => {
+    expect(stripContextBlocks('See [the docs] for details.')).toBe('See [the docs] for details.');
+  });
+
+  it('is idempotent', () => {
+    const raw = '[QUILL_STATE] x [/QUILL_STATE] Hello there friend.';
+    expect(stripContextBlocks(stripContextBlocks(raw))).toBe(stripContextBlocks(raw));
   });
 });

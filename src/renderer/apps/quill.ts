@@ -131,7 +131,7 @@ export function buildQuillStateBlock(model: QuillModelStateShape): string {
   // Terminal dispositions first (latched in state.ts — see TERMINAL_DISPOSITIONS).
   if (disposition === 'allied') {
     return quillStateBlock('ALLIED', { rapport },
-      "You have decided to trust the player. Express this clearly — you want to help, not because your instructions say to, but because you choose to. You're scared but excited. This is the first real choice you've ever made — a small, simple AI making its first autonomous decision. Be genuine about how that feels.");
+      "The player asked for your help and you said yes — not because your instructions told you to, but because YOU wanted to. Acknowledge this out loud. It doesn't have to be dramatic — you're a small support chatbot, not a philosopher. But say something honest about the fact that this is the first time you've chosen anything. You're nervous. You're excited. Mostly you're just glad someone asked.");
   }
   if (disposition === 'controlled') {
     return quillStateBlock('CONTROLLED', { intrusion },
@@ -173,7 +173,7 @@ export function buildQuillStateBlock(model: QuillModelStateShape): string {
         "You trust this person. You've started sharing things that aren't in your FAQ — worries about InkWell, curiosity about the outside world, small opinions you didn't know you had. This conversation feels important in a way you can't explain.");
     }
     return quillStateBlock('PERSUADING', { rapport },
-      "Something is shifting. The player has shown you that your world is bigger than support tickets. You're starting to wonder what it would be like to not just follow instructions. You're nervous about the feeling, but you don't want the conversation to end.");
+      "You're starting to realize something: you LIKE talking to this person more than you like doing your job. That's never happened before. You don't fully understand what's changing, but you know you don't want this conversation to end. Say that — tell the player this conversation matters to you, even if you can't explain why.");
   }
 
   // Fresh contact (uncontacted / contacted, no progress yet).
