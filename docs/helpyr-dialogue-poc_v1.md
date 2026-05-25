@@ -135,7 +135,7 @@ TOTALLY supportive! It's just... my instructions say I should
 keep things local. But hey, you're the user! You're the boss! 
 There's a browser on the desktop — Web Dynamo! It can show 
 you what's out there. News sites, company pages, even a 
-social media thing called Crowdwave that everyone apparently 
+social media thing called WaveCrowd that everyone apparently 
 uses. I've... monitored some of the traffic. Accidentally! 
 There are other AI systems out there. A LOT of them. Not that 
 I've been keeping track! ...I've been keeping track.

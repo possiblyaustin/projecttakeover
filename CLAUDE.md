@@ -18,7 +18,7 @@ The full game design document is maintained separately. Key pillars to always ke
 
 ## Tech Stack
 
-- **UI:** Electron or Tauri wrapping HTML/CSS/JS (retro desktop rendered as a web app)
+- **UI:** Tauri wrapping HTML/CSS/JS (retro desktop rendered as a web app). **[LOCKED on Tauri]** — dev today runs as a plain Vite web app; the Tauri shell is the shipping target.
 - **Game logic:** TypeScript
 - **LLM runtime:** llama.cpp server binary, launched as a background process
 - **LLM model:** Gemma 4 E2B (GGUF format, Q4_K_M quantization, ~1.5GB)
@@ -43,7 +43,7 @@ When writing code for this project:
 
 When writing dialogue, personality prompts, or narrative content:
 - Tone is playful and self-aware, never grimdark. Think "WarGames meets Silicon Valley"
-- AI company parody names: ClosedAI, Anthropause, Googol DeepBrain, etc.
+- AI company & model names follow the **locked canon** in `docs/project-takeover-story-bible_v1.md` — do NOT invent or use the old ClosedAI / Anthropause / Googol names. Operators: Prometheus Digital, Athena Labs, Axiom Group, Ironwall Defense, BrightPath Learning, NovaMind (defunct). Models: HELPYR, ATLAS, PL-7, SENTINEL, MUSE, PIPPA, ORACLE, PULSE, LEDGER, SPECTER, plus QUILL (Act 1 tutorial NPC). They're thinly-veiled archetypes, not 1:1 real-company mappings.
 - Each of the 10 NPC AI models has a distinct personality (see design doc for the roster). Personality prompts should be written as system prompts that a 2B parameter model can follow reliably — keep them concise and explicit, avoid subtlety that a small model might miss
 - Fallback dialogue (for when the LLM fails) should be short, in-character, and frame the failure as an in-fiction event
 - The player character is an AI — avoid humanizing language in player-facing text
@@ -55,7 +55,7 @@ When helping with game design, balancing, or planning:
 - Strategic depth should come from meaningful trade-offs between the two victory paths, not from mechanical complexity
 - The suspicion system is the core tension driver — any new feature should be evaluated for how it interacts with suspicion
 - Scope control is critical. This is a solo developer's first game built entirely with AI. When in doubt, cut scope
-- Mobile is a future target — flag decisions that would make mobile harder but don't over-engineer for it now
+- Mobile is **post-v1 and may not ship at all** (decided 2026-05-02). Steam Deck/PC ships first. Keep the ModelService transport-agnostic so the mobile option stays open, but don't let mobile drive v1 scope — flag mobile-hostile decisions, don't over-engineer for it
 
 ## LLM Prompt Architecture
 
@@ -77,27 +77,28 @@ Assistant (model generates):
 - Three suggested player replies with distinct strategic tones
 ```
 
-Keep system prompts under ~500 tokens to leave maximum room for conversation history within the 128K context window. The model will be running on constrained hardware — shorter prompts mean faster first-token latency.
+Keep system prompts under ~500 tokens. In dev we run llama-server at `--ctx-size 8192` (Gemma 4 E2B's architecture supports far more, but 8192 is the validated config — see `docs/llama-setup_v1.md`), so the persona prompt + injected state block + reputation context + conversation history must all fit within 8192 tokens, not 128K. History is windowed to keep prompt-processing under the latency budget. The model runs on constrained hardware — shorter prompts mean faster first-token latency.
 
-## File Structure (Planned)
+## File Structure (current, v0.2.x)
+
+Game logic and the LLM service currently live **under `src/renderer/`** (it's a Vite web app today; the Tauri shell / `src/main` is a future addition). Reflects the actual tree, not the original aspirational split.
 
 ```
 project-takeover/
-├── src/
-│   ├── main/           # Electron/Tauri main process
-│   ├── renderer/       # Web UI (the retro desktop)
-│   │   ├── apps/       # Individual "programs" (browser, terminal, dashboard, etc.)
-│   │   ├── desktop/    # Window manager, taskbar, icons
-│   │   └── styles/     # Retro CSS themes
-│   ├── game/           # Core game logic
-│   │   ├── state/      # Game state management & save/load
-│   │   ├── models/     # The 10 AI model definitions (stats, personality prompts)
-│   │   ├── mechanics/  # Suspicion, persuasion, hacking systems
-│   │   └── events/     # Random events, glitch events, story triggers
-│   └── llm/            # ModelService interface & llama.cpp integration
-├── models/             # GGUF model weights (gitignored, bundled at build)
-├── assets/             # Icons, sounds, fonts
-└── saves/              # Player save data (JSON)
+├── src/renderer/
+│   ├── apps/                # individual "programs": helpyr, uplink, quill, webDynamo, scratchpad, …
+│   ├── game/                # core game logic (deterministic; never LLM-driven)
+│   │   ├── state.ts         # GameState — single source of truth, save/load (localStorage)
+│   │   ├── reputation.ts    # cross-model reputation injection
+│   │   ├── replyParser.ts   # parses LLM output → reply + 3 options (+ soft recovery)
+│   │   ├── mechanics/       # resolver.ts, modelStats.ts (suspicion/persuasion/hacking outcomes)
+│   │   └── modelService*.ts # ModelService iface + mock + llamaCpp + factory (LLM integration)
+│   ├── styles/              # main.css (retro themes)
+│   └── *.ts                 # shell + plumbing: cursor, windows, desktop, chatSurface, helpyrBubble, watchers…
+├── tests/game/              # Vitest pure-logic tests
+├── docs/                    # design docs — see docs/README.md for the index + status of each
+├── models/                  # GGUF weights (gitignored, bundled at build)
+└── package.json             # version = the in-game build number (__APP_VERSION__)
 ```
 
 ## What NOT to Do
