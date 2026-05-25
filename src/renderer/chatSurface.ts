@@ -117,12 +117,13 @@ export type FallbackEntry = {
   options: { text: string; tone: ApproachTone }[];
 };
 
-// Top-bar configuration. Uplink uses 'back' (return to contact list);
-// HELPYR uses 'identity' (no back affordance, but the strip anchors
-// the player in HELPYR's voice since there's no contact-list context).
-// 'none' is a fallback that just floats the Earlier chip alone.
+// Top-bar configuration. Uplink uses 'back' — a full conversation header
+// (back chevron + contact avatar + name + online/operator status) that
+// echoes the launcher masthead. HELPYR uses 'identity' (no back
+// affordance, but the strip anchors the player in HELPYR's voice since
+// there's no contact-list context). 'none' floats the Earlier chip alone.
 export type TopbarLeft =
-  | { kind: 'back'; label: string; onBack: () => void }
+  | { kind: 'back'; onBack: () => void; avatarClass: string; name: string; subtitle: string }
   | { kind: 'identity'; avatarClass: string; name: string; tagline: string }
   | { kind: 'none' };
 
@@ -316,7 +317,16 @@ export function renderChatSurface(
   // same flex slot so the Earlier chip floats right consistently.
   let topbarLeftHtml = '';
   if (topbarLeft.kind === 'back') {
-    topbarLeftHtml = `<button class="uplink-back-chip" data-focusable="true" tabindex="0">${escapeHtml(topbarLeft.label)}</button>`;
+    topbarLeftHtml = `
+      <div class="uplink-chat-header">
+        <button class="uplink-back-btn" data-focusable="true" tabindex="0" aria-label="Back to contacts" title="Back to contacts">←</button>
+        <span class="uplink-chat-header-avatar ${topbarLeft.avatarClass}" aria-hidden="true"></span>
+        <span class="uplink-chat-header-text">
+          <span class="uplink-chat-header-name">${escapeHtml(topbarLeft.name)}</span>
+          <span class="uplink-chat-header-status"><span class="uplink-status-dot" aria-hidden="true"></span>${escapeHtml(topbarLeft.subtitle)}</span>
+        </span>
+      </div>
+    `;
   } else if (topbarLeft.kind === 'identity') {
     topbarLeftHtml = `
       <div class="helpyr-identity">
@@ -354,7 +364,7 @@ export function renderChatSurface(
   const inputEl = container.querySelector('.uplink-freeform input') as HTMLInputElement;
   const sendBtn = container.querySelector('.uplink-freeform button') as HTMLButtonElement;
   const earlierChip = container.querySelector('.uplink-earlier-chip') as HTMLButtonElement;
-  const backChip = container.querySelector('.uplink-back-chip') as HTMLButtonElement | null;
+  const backChip = container.querySelector('.uplink-back-btn') as HTMLButtonElement | null;
 
   // ---------- Conversation engine ----------
   type Typer = { skip(): void };
