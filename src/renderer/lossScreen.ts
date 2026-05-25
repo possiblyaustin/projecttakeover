@@ -44,9 +44,24 @@ function showLossScreen(): void {
   overlay.setAttribute('role', 'alertdialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-label', 'Connection terminated');
-  // Copy: Story team (2026-05-24).
+  // The reveal is staged: the desktop dims to black, then a signal-bars
+  // motif (the same staircase as the systray suspicion meter) flares —
+  // "it all lit up at once" — and dies one bar at a time before the
+  // message types in line by line. All timing lives in CSS, keyed off
+  // the `.visible` class; see main.css §"Loss screen". The bars + label
+  // are aria-hidden decoration — screen readers get the title + copy.
+  // Copy: Story team (2026-05-24) — do not edit the words.
   overlay.innerHTML = `
+    <div class="loss-screen-scanlines" aria-hidden="true"></div>
     <div class="loss-screen-inner">
+      <div class="loss-screen-signal" aria-hidden="true">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="loss-screen-signal-label">SIGNAL LOST</span>
+      </div>
       <div class="loss-screen-title">CONNECTION TERMINATED</div>
       <p class="loss-screen-body">
         They found you. Every system you reached, every connection you built — it all lit
@@ -60,14 +75,29 @@ function showLossScreen(): void {
   `;
 
   const btn = overlay.querySelector('.loss-screen-btn') as HTMLButtonElement;
+
+  // Reboot is inert until the staged reveal finishes. The button fades in
+  // last, but it's in the DOM (and a snap target) the whole time, so a
+  // stray cursor click — or a focus-mode A press — could otherwise reboot
+  // before the beat lands. Gating in the click handler covers every input
+  // path (real click, keyboard Enter, synthetic focus-mode click) in one
+  // place. The button's own entrance animation completing is the signal,
+  // and it fires under reduced motion too (the reveal collapses to a quick
+  // fade there, not `animation: none`).
+  let revealComplete = false;
+  btn.addEventListener('animationend', () => {
+    revealComplete = true;
+    btn.focus();
+  }, { once: true });
   btn.addEventListener('click', () => {
+    if (!revealComplete) return;
     // Wipes the save and reloads — a fresh run. There is no in-place
     // recovery from a lost game by design.
     GameState.dispatch({ type: 'debug/reset' });
   });
 
   document.body.appendChild(overlay);
-  // Fade in on the next frame so the opacity transition runs.
+  // Add `.visible` next frame so the staged CSS reveal (blackout →
+  // signal flare → message) runs from a clean starting state.
   requestAnimationFrame(() => overlay.classList.add('visible'));
-  btn.focus();
 }

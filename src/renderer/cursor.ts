@@ -58,8 +58,20 @@ export const SNAP_SELECTOR = [
   '.helpyr-bubble-action',
   '.helpyr-bubble-dismiss',
   '.helpyr-quiet-toggle',
+  '.loss-screen-btn',
   'a[data-href]'
 ].join(', ');
+
+// When the loss screen's full-viewport blackout is mounted, snap nav
+// (both the cursor magnet and the D-pad focus walk) must not reach the
+// desktop elements still rendered behind it — only the overlay is
+// interactive. Scope all snap-target queries to the overlay whenever
+// one is present so the sole reachable target is its Reboot button.
+// Matches `.loss-screen` (not `.loss-screen.visible`) so the scope is
+// active the instant the overlay mounts, before the fade-in frame.
+export function snapScopeRoot(): ParentNode {
+  return document.querySelector('.loss-screen') ?? document;
+}
 
 let x = window.innerWidth / 2;
 let y = window.innerHeight / 2;
@@ -240,7 +252,7 @@ function startRaf() {
 // of (px, py). Returns { el, dist, cx, cy } or null.
 type SnapTarget = { el: Element; dist: number; cx: number; cy: number };
 function findSnapTarget(px: number, py: number, radius: number): SnapTarget | null {
-  const targets = document.querySelectorAll(SNAP_SELECTOR);
+  const targets = snapScopeRoot().querySelectorAll(SNAP_SELECTOR);
   let best: SnapTarget | null = null;
   let bestDist = Infinity;
   for (const el of targets) {
