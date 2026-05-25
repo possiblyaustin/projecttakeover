@@ -85,7 +85,7 @@ const LockedContacts: readonly LockedContact[] = [
   { name: 'ATLAS',    operator: 'Prometheus Digital', caption: 'enterprise platform AI' },
   { name: 'SENTINEL', operator: 'Ironwall Security',  caption: 'security operations AI' },
   { name: 'MUSE',     operator: '(operator unclear)', caption: 'creative-tools model' },
-  { name: 'PULSE',    operator: 'Verity Networks',    caption: 'social-platform AI' },
+  { name: 'PULSE',    operator: 'Axiom Group',        caption: 'social-platform AI' },
   { name: 'SPECTER',  operator: '(operator unknown)', caption: 'irregular signal' },
 ];
 
