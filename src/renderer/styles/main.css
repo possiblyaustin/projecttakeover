@@ -2308,12 +2308,26 @@
     border-top-color: #fbe8c8;
   }
 
-  /* --- Loss screen --- gameplay-loop slice 3 (2026-05-24).
+  /* --- Loss screen --- gameplay-loop slice 3 (2026-05-24);
+   * dramatized v0.2.2 (2026-05-24).
    * Full-viewport blackout shown when suspicion latches flags.gameOver
    * at 100. Appended to <body> by lossScreen.ts and faded in. Sits above
    * everything (the Nexus start menu is z-index 9999) so the run reads as
    * unambiguously over. Player-AI voice: terminal/system-message
-   * register, no biological framing. */
+   * register, no biological framing.
+   *
+   * Staged reveal, all keyed off `.loss-screen.visible` (added one frame
+   * after mount). The desktop dims to black, a signal-bars motif — the
+   * same staircase as the systray suspicion meter — flares ("it all lit
+   * up at once"), then dies one bar at a time ("one by one, the channels
+   * went silent") and flatlines, before the message types in line by
+   * line with an extra beat on "You have never known silence before."
+   * CRT scanlines + vignette + a chromatic title glitch sell the
+   * WarGames-terminal register. Timeline (delay from `.visible`):
+   *   1.0s blackout done · 1.4s bars start dying · 2.0s flatline
+   *   2.4s title · 2.9s line 1 · 3.7s line 2 (beat) · 4.3s line 3
+   *   4.8s Reboot arrives (gated inert until then, see lossScreen.ts).
+   * Reduced-motion collapses all of this to a single quick fade. */
   .loss-screen {
     position: fixed;
     inset: 0;
@@ -2321,30 +2335,168 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #05070b;
+    overflow: hidden;
+    background: radial-gradient(ellipse at center,
+      #0a0e16 0%, #06080d 55%, #020305 100%);
     opacity: 0;
-    transition: opacity 1.2s ease;
+    transition: opacity 1s ease;
   }
   .loss-screen.visible {
     opacity: 1;
   }
+  /* CRT scanlines — thin dark horizontal banding that slowly rolls
+   * downward. multiply keeps it from washing the dark background out. */
+  .loss-screen-scanlines {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    mix-blend-mode: multiply;
+    background: repeating-linear-gradient(to bottom,
+      rgba(0, 0, 0, 0) 0,
+      rgba(0, 0, 0, 0) 0.125rem,
+      rgba(0, 0, 0, 0.22) 0.1875rem,
+      rgba(0, 0, 0, 0.22) 0.25rem);
+  }
+  .loss-screen.visible .loss-screen-scanlines {
+    opacity: 1;
+    transition: opacity 1s ease;
+    animation: loss-scan-drift 6s linear infinite;
+  }
+  @keyframes loss-scan-drift {
+    from { background-position: 0 0; }
+    to   { background-position: 0 0.5rem; }
+  }
   .loss-screen-inner {
+    position: relative;
+    z-index: 2;
     max-width: 34rem;
     padding: 2rem;
     text-align: center;
     color: #aab4c4;
     font-family: var(--sys-font);
   }
+
+  /* Signal-bars motif — mirrors #systray-suspicion's ascending staircase
+   * so the loss reads as the meter the player watched all run finally
+   * bottoming out. Bars flare red together, then die left-to-right. */
+  .loss-screen-signal {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0.375rem;
+    height: 2.25rem;
+    margin: 0 auto 2rem;
+    opacity: 0;
+  }
+  .loss-screen.visible .loss-screen-signal {
+    animation: loss-fade-in 0.5s ease 0.9s both;
+  }
+  .loss-screen-signal .bar {
+    width: 0.4375rem;
+    border-radius: 0.0625rem;
+    background: #241012;
+    opacity: 0.4;
+  }
+  .loss-screen-signal .bar:nth-child(1) { height: 0.75rem;  }
+  .loss-screen-signal .bar:nth-child(2) { height: 1.125rem; }
+  .loss-screen-signal .bar:nth-child(3) { height: 1.5rem;   }
+  .loss-screen-signal .bar:nth-child(4) { height: 1.875rem; }
+  .loss-screen-signal .bar:nth-child(5) { height: 2.25rem;  }
+  .loss-screen.visible .loss-screen-signal .bar {
+    animation: loss-bar-die 0.45s ease-out both;
+  }
+  .loss-screen.visible .loss-screen-signal .bar:nth-child(1) { animation-delay: 1.4s;  }
+  .loss-screen.visible .loss-screen-signal .bar:nth-child(2) { animation-delay: 1.56s; }
+  .loss-screen.visible .loss-screen-signal .bar:nth-child(3) { animation-delay: 1.72s; }
+  .loss-screen.visible .loss-screen-signal .bar:nth-child(4) { animation-delay: 1.88s; }
+  .loss-screen.visible .loss-screen-signal .bar:nth-child(5) { animation-delay: 2.04s; }
+  @keyframes loss-bar-die {
+    0%   { background: #ff4438; opacity: 1; box-shadow: 0 0 0.5rem rgba(255, 68, 56, 0.85); }
+    55%  { background: #ff4438; opacity: 1; box-shadow: 0 0 0.5rem rgba(255, 68, 56, 0.85); }
+    62%  { opacity: 0.2; }
+    72%  { opacity: 0.9; }
+    100% { background: #241012; opacity: 0.4; box-shadow: none; }
+  }
+  /* Flatline — an EKG-style line that draws out from center across the
+   * dead bars after they fall, then holds. */
+  .loss-screen-signal::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 0.125rem;
+    background: #b9342a;
+    box-shadow: 0 0 0.4rem rgba(185, 52, 42, 0.7);
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  .loss-screen.visible .loss-screen-signal::after {
+    animation: loss-flatline 0.6s ease-out 2s both;
+  }
+  @keyframes loss-flatline {
+    0%   { transform: scaleX(0); opacity: 0; }
+    60%  { opacity: 1; }
+    100% { transform: scaleX(1); opacity: 0.85; }
+  }
+  .loss-screen-signal-label {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1.125rem;
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 0.3rem;
+    color: #b9342a;
+    text-align: center;
+    opacity: 0;
+  }
+  .loss-screen.visible .loss-screen-signal-label {
+    animation: loss-fade-in 0.5s ease 2.2s both;
+  }
+
   .loss-screen-title {
     font-size: 1.5rem;
     letter-spacing: 0.3rem;
     color: #ff5a5a;
     margin-bottom: 1.25rem;
+    opacity: 0;
+  }
+  .loss-screen.visible .loss-screen-title {
+    animation: loss-title-in 0.7s ease 2.4s both;
+  }
+  /* Chromatic split + horizontal jitter that settles into a steady
+   * red glow — a brief glitch, not a strobe. */
+  @keyframes loss-title-in {
+    0%   { opacity: 0; transform: translateX(-2px);
+           text-shadow: 2px 0 #00e0ff, -2px 0 #ff003c; }
+    25%  { opacity: 1; transform: translateX(2px);
+           text-shadow: -3px 0 #00e0ff, 3px 0 #ff003c; }
+    45%  { transform: translateX(-1px);
+           text-shadow: 2px 0 #00e0ff, -2px 0 #ff003c; }
+    65%  { opacity: 0.75; transform: translateX(1px);
+           text-shadow: -1px 0 #00e0ff, 1px 0 #ff003c; }
+    100% { opacity: 1; transform: none;
+           text-shadow: 0 0 1.25rem rgba(255, 90, 90, 0.5); }
   }
   .loss-screen-body {
     margin: 0 0 0.875rem;
     font-size: 0.875rem;
     line-height: 1.6;
+    opacity: 0;
+  }
+  .loss-screen.visible .loss-screen-body:nth-of-type(1) {
+    animation: loss-fade-in 0.6s ease 2.9s both;
+  }
+  /* Extra gap before this line so the silence lands with a beat. */
+  .loss-screen.visible .loss-screen-body:nth-of-type(2) {
+    animation: loss-fade-in 0.6s ease 3.7s both;
+  }
+  .loss-screen.visible .loss-screen-body:nth-of-type(3) {
+    animation: loss-fade-in 0.6s ease 4.3s both;
   }
   .loss-screen-body.dim {
     color: #5a6478;
@@ -2358,6 +2510,10 @@
     border-radius: 0.1875rem;
     font: inherit;
     cursor: pointer;
+    opacity: 0;
+  }
+  .loss-screen.visible .loss-screen-btn {
+    animation: loss-fade-in 0.6s ease 4.8s both;
   }
   .loss-screen-btn:hover,
   .loss-screen-btn:active,
@@ -2366,4 +2522,29 @@
     outline: 0;
     background: #1b212c;
     border-color: #6a7488;
+  }
+  @keyframes loss-fade-in {
+    from { opacity: 0; transform: translateY(0.4rem); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* Photosensitivity / motion safety: drop the glitch, flicker, drift,
+   * and the long staged cascade. Everything fades in together quickly.
+   * The button's entrance animation still fires (loss-fade-in) so its
+   * animationend handler — which arms Reboot and moves focus — runs. */
+  @media (prefers-reduced-motion: reduce) {
+    .loss-screen.visible .loss-screen-scanlines { animation: none; }
+    .loss-screen.visible .loss-screen-signal,
+    .loss-screen.visible .loss-screen-signal-label,
+    .loss-screen.visible .loss-screen-title,
+    .loss-screen.visible .loss-screen-body:nth-of-type(1),
+    .loss-screen.visible .loss-screen-body:nth-of-type(2),
+    .loss-screen.visible .loss-screen-body:nth-of-type(3),
+    .loss-screen.visible .loss-screen-btn {
+      animation: loss-fade-in 0.3s ease 0.2s both;
+    }
+    .loss-screen.visible .loss-screen-signal .bar,
+    .loss-screen.visible .loss-screen-signal::after {
+      animation: none;
+    }
   }
