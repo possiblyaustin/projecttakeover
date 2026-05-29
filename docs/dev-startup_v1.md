@@ -9,7 +9,7 @@
 1. **Start `llama-server`** — double-click `C:\llm\start-llama.bat`
 2. **Pull latest** — in project root: `git pull origin main`
 3. **Start Vite** — in project root: `npm run dev`
-4. **Open Chrome** at `http://localhost:5173/?backend=llamacpp`
+4. **Open Chrome** at `http://localhost:5173/` (live LLM is the default; add `?mock` for the offline backend)
 
 If the in-game README shows the expected version, you're live. If not, jump to [Troubleshooting](#troubleshooting) below.
 
@@ -67,10 +67,12 @@ You'll see Vite print its banner:
 Navigate to:
 
 ```
-http://localhost:5173/?backend=llamacpp
+http://localhost:5173/
 ```
 
-The `?backend=llamacpp` flag hits the live LLM. Drop the flag (just `http://localhost:5173/`) to use the mock backend — no server needed for that, and dev iteration is instant.
+The live LLM is the **default** — no flag needed. The game calls a same-origin `/llama` path, and the Vite dev server proxies it to your local `llama-server` on `127.0.0.1:8080`. Add **`?mock`** (`http://localhost:5173/?mock`) to use the offline mock backend instead — no server needed, instant iteration.
+
+On the **Steam Deck**, just open `http://<dev-pc-ip>:5173/` — inference is routed through the dev server's proxy to its local llama-server, so there are no flags or IP addresses to type, and `llama-server` itself stays bound to localhost (never exposed to the LAN). Keep launching it with `--host 127.0.0.1` as the setup doc says. (Override the origin explicitly with `?llamaUrl=...` only if llama lives on a different machine.)
 
 Hard reload with `Ctrl+Shift+R` if you've just pulled and the README still shows the old version.
 

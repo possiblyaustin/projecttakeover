@@ -753,7 +753,11 @@ export function renderChatSurface(
   }
 
   function onPickReply(reply: SuggestedReply) {
-    recordTone(classifyApproach({ kind: 'option', reply }));
+    // Pass the contact's per-character classifier so options without a
+    // usable tone label (QUILL's bare connect/probe/push format) get their
+    // tone derived from the text rather than collapsing to 'neutral' (which
+    // would make button picks produce no mechanical progress).
+    recordTone(classifyApproach({ kind: 'option', reply, perCharacter: contact.classifyApproach }));
     const history = toModelHistory(messages);
     renderPlayerMessage(reply.text);
     clearOptions();

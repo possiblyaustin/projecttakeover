@@ -15,6 +15,20 @@ export default defineConfig({
     host: true,
     port: 5173,
     strictPort: false,
+    // Dev-only: forward the game's same-origin `/llama/*` calls to the
+    // local llama-server on 127.0.0.1:8080. A LAN client (Steam Deck at
+    // http://<dev-PC-IP>:5173) reaches inference THROUGH this already-
+    // LAN-bound dev server, so llama-server itself stays bound to
+    // localhost only — docs/llama-setup_v1.md keeps it on 127.0.0.1 on
+    // purpose (no LAN exposure of the dev model). The shipped Tauri build
+    // talks to llama directly and never uses this proxy.
+    proxy: {
+      '/llama': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/llama/, ''),
+      },
+    },
   },
   build: {
     outDir: '../../dist',
