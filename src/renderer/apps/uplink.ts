@@ -181,7 +181,7 @@ function renderLauncher(
   // scroll-free as the roster grows. Reachable stays single-column —
   // it's the small, important section. Detected flips to a 2-column
   // compact tile grid once it's long enough that single rows would
-  // force a scrollbar at Deck baseline (1280×800, UI_SCALE 0.75).
+  // force a scrollbar at Deck baseline (1280×800, UI_SCALE 1.5).
   // Compact tiles drop the inline operator·caption; that detail surfaces
   // in a strip below the grid as the cursor/focus ring moves between
   // tiles. No tabs, pagination, scrollbar, or search — the player takes

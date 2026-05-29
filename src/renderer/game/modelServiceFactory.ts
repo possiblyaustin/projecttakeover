@@ -2,10 +2,14 @@
 // (architecture §6a: "Configuration is passed in at construction time,
 // not baked into the interface").
 //
-// Reads the `?backend=...` URL flag and returns the matching service.
-// Default is 'mock' so dev iteration stays fast and doesn't require a
-// running llama-server. `?backend=llamacpp` flips to the live LLM
-// transport for verification work.
+// Returns the matching service for the current URL flags.
+// Default is now 'llamacpp' (the live LLM) — the dominant dev/playtest
+// case. `?mock` (or `?backend=mock`) forces the offline mock backend so
+// cold opens, CI, and UI-smoke tooling stay robust without a running
+// llama-server. The live transport's origin defaults to a same-origin
+// `/llama` path that the Vite dev server proxies to the local llama-server
+// (see defaultLlamaBaseUrl + vite.config.js) so a LAN client like the
+// Steam Deck needs no flags at all and llama stays off the network.
 //
 // Each contact in the Uplink registry calls makeModelService(...) once
 // at construction. The ModelService instance is shared across that
@@ -35,23 +39,26 @@ const DEFAULT_LLAMA: LlamaCppConfig = {
 
 export type ActiveBackend = 'mock' | 'llamacpp';
 
-/** Reads `?backend=` from the current URL. Exported separately so
- *  debug surfaces (or future status indicators) can show which
- *  transport is live without re-running the factory. */
+/** Resolves the active backend from the current URL. Live (`llamacpp`)
+ *  is the default; `?mock` or `?backend=mock` forces the offline backend.
+ *  Off-DOM (node/test/SSR) there's no server and no DOM, so we stay on
+ *  'mock'. Exported separately so debug surfaces (or future status
+ *  indicators) can show which transport is live without re-running the
+ *  factory. */
 export function activeBackend(): ActiveBackend {
   if (typeof window === 'undefined') return 'mock';
-  const v = new URLSearchParams(window.location.search).get('backend');
-  return v === 'llamacpp' ? 'llamacpp' : 'mock';
+  const sp = new URLSearchParams(window.location.search);
+  if (sp.has('mock') || sp.get('backend') === 'mock') return 'mock';
+  return 'llamacpp';
 }
 
-/** Reads `?llamaUrl=` from the current URL — a runtime override for the
- *  llama-server origin. Lets a LAN client (e.g. the Steam Deck's browser)
- *  point at a dev-PC's inference server without a code change or rebuild:
- *  `?backend=llamacpp&llamaUrl=http://<dev-pc-ip>:8080`. Without it the
- *  Deck would resolve the default 127.0.0.1:8080 to itself — no server
- *  there, so every turn falls back to canned lines. Returns undefined
- *  when absent so DEFAULT_LLAMA / per-contact config wins; a malformed
- *  value is ignored (warned, not silently redirecting inference). */
+/** Reads `?llamaUrl=` from the current URL — an explicit runtime override
+ *  for the llama-server origin, winning over every other source. Rarely
+ *  needed now that the origin defaults to the page's own host (see
+ *  defaultLlamaBaseUrl) — reserve it for pointing a client at a DIFFERENT
+ *  machine than the one serving the page. Returns undefined when absent so
+ *  the host default / per-contact config wins; a malformed value is
+ *  ignored (warned, not silently redirecting inference). */
 export function llamaUrlOverride(): string | undefined {
   if (typeof window === 'undefined') return undefined;
   const v = new URLSearchParams(window.location.search).get('llamaUrl');
@@ -65,14 +72,28 @@ export function llamaUrlOverride(): string | undefined {
   }
 }
 
+/** Default llama-server origin. In a browser, hit a SAME-ORIGIN `/llama`
+ *  path that the Vite dev server proxies to the local llama-server (see
+ *  `server.proxy` in vite.config.js). So a LAN client (the Deck's browser
+ *  at `http://<dev-pc-ip>:5173`) reaches inference through the already-
+ *  LAN-bound dev server — no flags, follows DHCP for free, and llama-server
+ *  itself stays bound to localhost (never exposed to the network). Falls
+ *  back to the direct localhost origin off-DOM (node/tests). */
+function defaultLlamaBaseUrl(): string {
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return `${window.location.origin}/llama`;
+  }
+  return DEFAULT_LLAMA.baseUrl;
+}
+
 export function makeModelService(spec: ModelServiceSpec): ModelService {
   if (activeBackend() === 'llamacpp') {
     const urlOverride = llamaUrlOverride();
     return new LlamaCppModelService({
       ...DEFAULT_LLAMA,
+      // Origin precedence: ?llamaUrl > per-contact spec > page-host default.
+      baseUrl: defaultLlamaBaseUrl(),
       ...(spec.llamaCpp || {}),
-      // URL flag wins over per-contact config — it's an explicit
-      // operator/test instruction to redirect ALL inference.
       ...(urlOverride ? { baseUrl: urlOverride } : {}),
       fallback: spec.fallback,
     });

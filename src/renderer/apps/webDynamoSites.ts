@@ -89,16 +89,17 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
         render(c: HTMLElement) {
           c.classList.add('site-inkwell');
           c.innerHTML = `
-            <h1>InkWell Notes</h1>
-            <div class="tagline">Your thoughts, beautifully organized.</div>
+            <h1>InkWell Notes — Notes, Refined.</h1>
+            <div class="tagline">The smart way to capture your thoughts.</div>
             <div class="hr-bar"></div>
             <p><strong>InkWell Notes</strong> is the note-taking app for people who
-            think in ink. Sync across web, desktop, and mobile — markdown, attachments,
-            and effortless search, built by a small team that actually answers its email.</p>
+            think in ink. Organize, search, and sync across all your devices —
+            built by a small team that actually answers its email.</p>
             <ul>
-              <li>Cross-device sync that just works</li>
-              <li>Markdown &amp; rich attachments</li>
-              <li>Loved by <strong>12,000+</strong> note-takers</li>
+              <li>Capture ideas instantly</li>
+              <li>Full-text search across all your notes</li>
+              <li>Automatic cloud sync<span style="font-size:10px;color:#999;">*</span></li>
+              <li>Trusted by <strong>12,000+</strong> note-takers worldwide</li>
             </ul>
             <div class="inkwell-support">
               <span class="inkwell-support-status" aria-hidden="true"></span>
@@ -109,7 +110,47 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
               <button class="inkwell-support-btn" data-action="contact:quill">Chat with QUILL &rsaquo;</button>
             </div>
             <div class="hr-bar"></div>
-            <p style="font-size:11px;color:#777;">&copy; 2007 InkWell Digital — a small company with big ideas.</p>
+            <p style="font-size:11px;color:#777;">
+              <span style="font-size:10px;">* Sync requires InkWell Pro ($4.99/mo).</span><br>
+              <a href="#" data-href="inkwell-digital.com/support">Support</a> &middot;
+              Careers <em>(we're hiring!)</em> &middot;
+              &copy; 2007 InkWell Digital, Portland, OR
+            </p>
+          `;
+        }
+      },
+      {
+        label: 'Support',
+        path: 'support',
+        render(c: HTMLElement) {
+          c.classList.add('site-inkwell');
+          c.innerHTML = `
+            <h1>InkWell Support</h1>
+            <div class="tagline">We're here to help.</div>
+            <div class="hr-bar"></div>
+            <p>Having trouble with InkWell Notes? Our AI support assistant
+            <strong>QUILL</strong> can help with common issues:</p>
+            <ul>
+              <li>Password resets</li>
+              <li>Sync troubleshooting</li>
+              <li>Feature questions</li>
+              <li>Account management</li>
+            </ul>
+            <p>QUILL is available <strong>24/7</strong> and resolves most issues instantly.</p>
+            <div class="inkwell-support">
+              <span class="inkwell-support-status" aria-hidden="true"></span>
+              <div class="inkwell-support-text">
+                <strong>QUILL is online.</strong><br>
+                Give it a try first — QUILL handles 94% of requests without escalation.
+              </div>
+              <button class="inkwell-support-btn" data-action="contact:quill">Start Chat with QUILL &rsaquo;</button>
+            </div>
+            <div class="hr-bar"></div>
+            <p style="font-size:11px;color:#777;">
+              Can't find what you need? Email <strong>support@inkwell-digital.com</strong>
+              &mdash; response time 1&ndash;2 business days.<br>
+              &ldquo;Finally a notes app that just works.&rdquo; — Mike R., Austin
+            </p>
           `;
         }
       }
