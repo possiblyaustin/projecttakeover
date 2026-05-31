@@ -1,8 +1,9 @@
 # Conversation Telemetry Widget + Tonal-Variety Mechanic — Spec v1
 
-**Status: [DRAFT]** — designed, not built. Target: build next session after Story
-input on naming + balance.
-**Author:** Code thread, 2026-05-30 (v0.2.9).
+**Status: [LIVING]** — Parts A (widget core) + B (variety mechanic) BUILT and
+live-validated; naming + the 7-label set are final and in code. Remaining open
+items are tracked in the Build status block below.
+**Author:** Code thread, 2026-05-30 (spec at v0.2.9; realized v0.2.10–v0.2.11).
 **Origin:** Austin, watching a live QUILL liberation playthrough — "we may need to
 be MORE clear with the UI... fast-track a widget on the desktop to give live
 telemetry on the state of your rapport so it's easy to see if your conversation
@@ -20,9 +21,25 @@ the two should ship close together. The widget is the visibility layer; it does
 NOT fix spam on its own.
 
 Related: [gameplay-loop-slice_v1.md](gameplay-loop-slice_v1.md) (meters/resolver/
-flip this builds on), [over-promising-fix_v1.md](over-promising-fix_v1.md). Live
-flip-range findings that motivated this are in the Code thread's memory
-(`project_flip_range_findings`).
+flip this builds on), [over-promising-fix_v1.md](over-promising-fix_v1.md),
+[quill-live-playtest-findings_v1.md](quill-live-playtest-findings_v1.md) (the
+dynamic-range findings that motivated this).
+
+---
+
+## Build status (updated 2026-05-30)
+
+| Piece | Status |
+|---|---|
+| Variety mechanic (Part B numbers) | ✅ **Shipped v0.2.10**, live-validated: `+17 → +11 → reset`, curious `+1` suspicion. |
+| Signal Monitor widget core (Part A) | ✅ **Shipped v0.2.11** — Trust/Control bars, 7 disposition labels, amber/green delta flash, "NO SIGNAL" empty state. |
+| Naming (Trust / Control / Signal Monitor / labels) | ✅ Final, in code. |
+
+**Open (needs Story / follow-up):**
+- **empathetic↔friendly gap** — both tones are free (0 suspicion); alternating them dodges decay AND suspicion (a two-button mash). Recommend a shared "warmth" decay group, or friendly `+1` suspicion.
+- **In-fiction framing + discovery** — *why* the gadget is already on the machine (Austin's pitch: the PC owner's backdoor AI-tester, discovered). It's currently only in the Nexus program menu — **no discovery beat**. The Part E "first appears" pop-ups assume it just shows up and likely need revision.
+- **Part E HELPYR pop-ups** — the 4 lines are written but **not yet wired** (waiting on the discovery decision).
+- **Active-target resolution** — the widget currently shows the most-progressed *engaged* target, not the focused chat. Fine for one target; switch to "active conversation (focused chat → last-interacted)" when a second target lands.
 
 ---
 
