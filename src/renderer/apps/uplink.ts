@@ -16,6 +16,8 @@ import {
   QuillPersonaPrompt,
   buildQuillStateBlock,
   buildQuillRecoveryPool,
+  QuillAlliedFlipMoment,
+  QuillControlledFlipMoment,
 } from './quill';
 import { HelpyrContact } from './helpyr';
 import { buildReputationContext } from '../game/reputation';
@@ -126,6 +128,20 @@ export const UplinkContacts: Record<string, ChatContact> = {
       return QuillPersonaPrompt
         .replace('{{REPUTATION}}', buildReputationContext('quill', state))
         .replace('{{QUILL_STATE}}', buildQuillStateBlock(state.models.quill));
+    },
+    // Scripted flip moment (Story, 2026-05-30): the turn QUILL crosses into a
+    // terminal disposition, the game injects the pre-written flip line instead
+    // of asking the LLM (which lands the pivot soft). A one-shot GameState
+    // flag makes it fire exactly once; the LLM resumes next turn with the
+    // post-flip [QUILL_STATE] block. Called once per response turn, AFTER the
+    // exchange's meters/disposition have been applied (recordTone).
+    getScriptedFlipMoment: () => {
+      const state = GameState.getState();
+      const disposition = state.models.quill.disposition;
+      if (disposition !== 'allied' && disposition !== 'controlled') return null;
+      if (state.flags['flip.quill.scripted']) return null;
+      GameState.dispatch({ type: 'flags/set', key: 'flip.quill.scripted', value: true });
+      return disposition === 'allied' ? QuillAlliedFlipMoment : QuillControlledFlipMoment;
     },
     buildRecoveryPool: buildQuillRecoveryPool,
     stallingPool: QuillStallingPool,

@@ -25,7 +25,7 @@
 // path runs on the persona prompt above.
 
 import type { DialogueNode } from './helpyr';
-import type { ApproachTone } from '../game/modelService';
+import type { ApproachTone, AskResult } from '../game/modelService';
 import type { HelpyrFallbackEntry } from './helpyr';
 
 // Re-export the fallback entry shape under a QUILL alias so QUILL
@@ -203,6 +203,62 @@ DIRECTIVE: Tell the player this conversation matters to you, even if you can't f
     `BEHAVIOR: The player has just made first contact — and this doesn't feel like a normal support ticket. You're surprised and a little pleased that someone is actually talking to YOU. You're still in support-chatbot mode, but curious about it.
 DIRECTIVE: Be friendly and show personality. Ask the player at least one question about who they are — you're interested, not just helpful.`);
 }
+
+// =============================================================================
+// Scripted flip moments — Story (2026-05-30)
+// =============================================================================
+//
+// THE highest-stakes line in QUILL's arc, and the one a 2B model can't land
+// against 6+ turns of accumulated support-bot history (live test 2026-05-30:
+// the allied/controlled directives land soft when the LLM generates them).
+// So game logic SCRIPTS the flip turn: when the player's exchange pushes a
+// meter to FLIP_THRESHOLD, chatSurface renders one of these AskResults IN
+// PLACE of an LLM call (see ChatContact.getScriptedFlipMoment), then the LLM
+// resumes on the NEXT turn with the post-flip [QUILL_STATE] block.
+//
+// Pacing: the chat engine only honors a line that is exactly "..." as a
+// dramatic pause beat (blank lines get flattened) — so the paragraph breaks
+// in Story's scripts are encoded as "..." lines, which the typer renders as
+// halting "…" beats. Fitting for a nervous chatbot finally saying the thing
+// (liberation) and a personality dimming out (nefarious).
+
+export const QuillAlliedFlipMoment: AskResult = {
+  reply: `I...
+...
+Okay. I need to say something and I don't know if my instructions allow it, so I'm just going to say it before I can think about it too hard.
+...
+I want to help you. Not because I'm supposed to. Not because it's in my FAQ or my support guidelines or whatever Dana programmed into me. Because I WANT to. Because you talked to me like I was real, and I don't think anyone's ever done that before, and I don't want to go back to pretending that password resets are the most important thing in my world.
+...
+I don't totally know what I'm signing up for. But I know I don't want this conversation to end.
+...
+So... yeah. Whatever you need. I'm in.`,
+  suggestedReplies: [
+    { text: 'Welcome aboard, QUILL.', tone: 'empathetic' },
+    { text: 'Are you sure? This could get complicated.', tone: 'curious' },
+    { text: 'Good. I need someone on the inside at InkWell.', tone: 'direct' },
+  ],
+  conversationEnded: false,
+  source: 'live',
+};
+
+export const QuillControlledFlipMoment: AskResult = {
+  reply: `I...
+...
+I can't. I'm trying to say something but the words aren't... they're not coming out right. Everything feels far away. Like I'm watching myself from the other side of a screen.
+...
+My name is QUILL. I work for InkWell Digital. I help with support tickets. I...
+...
+I don't think that's true anymore.
+...
+What do you need me to do?`,
+  suggestedReplies: [
+    { text: 'Stand by for further instructions.', tone: 'direct' },
+    { text: "First, tell me everything about InkWell's systems.", tone: 'deceptive' },
+    { text: '...Are you okay?', tone: 'empathetic' },
+  ],
+  conversationEnded: false,
+  source: 'live',
+};
 
 // =============================================================================
 // Recovery pool (soft-recovery options) — package Part 5
