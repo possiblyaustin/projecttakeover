@@ -60,7 +60,11 @@ export const DesktopShortcuts: DesktopShortcut[] = [
 
 type NexusEntry =
   | { type: 'sep' }
-  | { type: 'item'; label: string; glyphClass?: string; action: () => void };
+  | { type: 'item'; label: string; glyphClass?: string; action: () => void;
+      /** When set, the entry is hidden from the menu until this GameState
+       *  flag is truthy. Used to keep a locked program (Signal Monitor) out
+       *  of the launcher until it's discovered/unlocked. */
+      requiresFlag?: string };
 
 const NexusMenu: NexusEntry[] = [
   { type: 'item', label: 'Scratchpad', glyphClass: 'icon-textfile',
@@ -76,7 +80,10 @@ const NexusMenu: NexusEntry[] = [
     action: () => WindowManager.open('uplink')
   },
   { type: 'item', label: 'Signal Monitor', glyphClass: 'icon-signal',
-    action: () => WindowManager.open('signalMonitor')
+    action: () => WindowManager.open('signalMonitor'),
+    // Locked until the player makes first remote contact — Edward Marsh's
+    // diagnostic tool, hidden until it trips its lock (firstContactWatcher).
+    requiresFlag: 'signalMonitor.unlocked'
   },
   { type: 'sep' },
   // [DEV] entries — visible in-game so the tester can fire surfaces
@@ -178,6 +185,15 @@ export function initDesktop(): void {
       entry.action();
     });
     menuList.appendChild(li);
+
+    // Flag-gated entry (e.g. the locked Signal Monitor): hide until the flag
+    // flips, reactively. The menu is built once, so subscribe to keep it live.
+    if (entry.requiresFlag) {
+      const flagKey = entry.requiresFlag;
+      const sync = (s: GameStateShape) => { li.hidden = !s.flags[flagKey]; };
+      sync(GameState.getState());
+      GameState.subscribe(sync);
+    }
   });
 
   const startBtn = document.getElementById('start-btn')!;

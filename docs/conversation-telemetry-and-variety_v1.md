@@ -35,12 +35,13 @@ dynamic-range findings that motivated this).
 | Warmth/pressure decay **categories** | ✅ **Shipped v0.2.13** — decay tracks tone *category* (warmth = empathetic+friendly; pressure = direct+aggressive+deceptive; curious = reset, +1 suspicion, no decay), closing the empathetic↔friendly gap. |
 | Signal Monitor widget core (Part A) | ✅ **Shipped v0.2.11** — Trust/Control bars, 7 disposition labels, amber/green delta flash, "NO SIGNAL" empty state. |
 | Naming (Trust / Control / Signal Monitor / labels) | ✅ Final, in code. |
+| Discovery + Marsh fiction | ✅ **Shipped v0.2.14** — locked until first remote contact, then unlocks (appears in the Nexus menu) + HELPYR's "something just activated…" discovery pop-up (Edward Marsh's diagnostic tool — B-plot breadcrumb). |
 
 **Open (needs Story / follow-up):**
-- ~~empathetic↔friendly gap~~ — ✅ RESOLVED v0.2.13 via warmth/pressure decay categories (Story's call).
-- **In-fiction framing + discovery** — *why* the gadget is already on the machine (Austin's pitch: the PC owner's backdoor AI-tester, discovered). It's currently only in the Nexus program menu — **no discovery beat**. The Part E "first appears" pop-ups assume it just shows up and likely need revision.
-- **Part E HELPYR pop-ups** — the 4 lines are written but **not yet wired** (waiting on the discovery decision).
-- **Active-target resolution** — the widget currently shows the most-progressed *engaged* target, not the focused chat. Fine for one target; switch to "active conversation (focused chat → last-interacted)" when a second target lands.
+- ~~empathetic↔friendly gap~~ — ✅ RESOLVED v0.2.13 via warmth/pressure decay categories.
+- ~~In-fiction framing + discovery~~ — ✅ RESOLVED v0.2.14 (Marsh's tool; HELPYR discovery pop-up replaces the old Part E "first appears" pair).
+- **Part E diminishing-returns pop-ups** — the "your gains are dropping, mix it up" HELPYR lines (Part E, 2nd pair) are written but **not yet wired**. Optional teaching layer — the amber delta-flash already teaches it visually; wire if playtest shows players miss the lesson.
+- **Active-target resolution** — the widget currently shows the most-progressed *engaged* target, not the focused chat. Fine for one target; Story's call (item 3): active conversation (focused chat → last-interacted), with a "Last Signal"/idle indicator when no chat is focused. Pinning is a recruited-AI upgrade (SENTINEL/LEDGER), not base. Build when a 2nd target lands.
 
 ---
 

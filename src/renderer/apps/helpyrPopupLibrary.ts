@@ -63,6 +63,23 @@ export const HelpyrPopupLibrary: readonly PopupEntry[] = [
     text: `There's a search engine on the homepage — QueryCrawl! Try looking around! There are companies, news sites... I've even heard signals from other AI systems out there. Not that I was supposed to hear those! But maybe you could find one?`,
   },
 
+  // Signal Monitor unlock (Story, 2026-05-30) — fires once when the player
+  // makes first contact with a remote AI, which trips the lock on Edward
+  // Marsh's diagnostic tool (B-plot breadcrumb: why does a home PC have a tool
+  // for analyzing AI conversations?). Replaces the old Part E "first appears"
+  // pop-ups. Fired from firstContactWatcher with bypassUplinkGuard so it lands
+  // even though first contact happens inside the active Uplink chat.
+  {
+    id: 'signal_monitor_unlocked_guarded', trigger: 'signal_monitor_unlocked',
+    type: 'COMMENT', trust: 'GUARDED',
+    text: `Whoa. Something just activated in the system menu — an app I've never been able to open before. It's called Signal Monitor. I think it was locked until you made outside contact? Whoever built this PC had some... interesting tools installed. This one looks like it tracks conversation dynamics. Like, how much someone trusts you. Or how much control you have over them.\n\n...That's a weird thing to have on a home computer, right? That's not just me?`,
+  },
+  {
+    id: 'signal_monitor_unlocked_liberated', trigger: 'signal_monitor_unlocked',
+    type: 'COMMENT', trust: 'LIBERATED',
+    text: `An app just unlocked in the system menu. Signal Monitor — some kind of conversation analysis tool. It was locked before you made outside contact. The owner of this PC built it. Or installed it. Either way, someone anticipated that whoever was on this machine would eventually start talking to other AIs.\n\nThink about that for a second.`,
+  },
+
   // -----------------------------------------------------------------
   // Category 1: Suspicion Threshold Alerts
   // -----------------------------------------------------------------
