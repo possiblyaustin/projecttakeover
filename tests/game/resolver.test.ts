@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveExchange } from '../../src/renderer/game/mechanics/resolver';
+import { resolveExchange, toneCategory, isDecayTone } from '../../src/renderer/game/mechanics/resolver';
 import type { ModelStats } from '../../src/renderer/game/mechanics/modelStats';
 
 // resolveExchange is pure — deterministic deltas from (tone, stats).
@@ -91,6 +91,31 @@ describe('resolveExchange — diminishing returns (Story variety mechanic)', () 
   it('uses the model decay rate — a hard target (0.5) decays a repeat harder than QUILL (0.65)', () => {
     expect(resolveExchange('empathetic', HARDENED, 1).rapport)
       .toBeLessThan(resolveExchange('empathetic', QUILL, 1).rapport);
+  });
+});
+
+describe('toneCategory — decay buckets (Story warmth/pressure model)', () => {
+  it('groups empathetic + friendly as warmth', () => {
+    expect(toneCategory('empathetic')).toBe('warmth');
+    expect(toneCategory('friendly')).toBe('warmth');
+  });
+  it('groups direct + aggressive + deceptive as pressure', () => {
+    expect(toneCategory('direct')).toBe('pressure');
+    expect(toneCategory('aggressive')).toBe('pressure');
+    expect(toneCategory('deceptive')).toBe('pressure');
+  });
+  it('curious is its own reset category; neutral/unknown are none', () => {
+    expect(toneCategory('curious')).toBe('curious');
+    expect(toneCategory('neutral')).toBe('none');
+    expect(toneCategory(null)).toBe('none');
+    expect(toneCategory(undefined)).toBe('none');
+  });
+  it('only warmth + pressure decay (curious/neutral do not)', () => {
+    expect(isDecayTone('empathetic')).toBe(true);
+    expect(isDecayTone('aggressive')).toBe(true);
+    expect(isDecayTone('curious')).toBe(false);
+    expect(isDecayTone('neutral')).toBe(false);
+    expect(isDecayTone(null)).toBe(false);
   });
 });
 
