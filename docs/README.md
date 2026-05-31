@@ -35,13 +35,15 @@ Start-here map for the `docs/` folder. **New thread?** Read the root [`CLAUDE.md
 | [helpyr-popup-library_v1.md](helpyr-popup-library_v1.md) | **[REFERENCE]** | HELPYR pop-up bubble content (trust-tagged). Mirrored 1:1 in `src/renderer/apps/helpyrPopupLibrary.ts`. |
 | [no-scroll-pages_v1.md](no-scroll-pages_v1.md) | **[REFERENCE]** | Approved constraint: browser-style pages fit without scrolling (Deck-first). Affects Web Dynamo, Uplink. |
 | [title-screen-boot-flow_v1.md](title-screen-boot-flow_v1.md) | **[DRAFT]** | Title/boot-flow design; implementation deferred. |
-| [conversation-telemetry-and-variety_v1.md](conversation-telemetry-and-variety_v1.md) | **[DRAFT]** | Desktop telemetry widget (live Trust/Breach meters + per-turn delta) and the tonal-variety/anti-spam mechanic. Needs Story input on naming + balance; build next session. |
+| [conversation-telemetry-and-variety_v1.md](conversation-telemetry-and-variety_v1.md) | **[LIVING]** | Signal Monitor telemetry widget (live Trust/Control meters + delta flash) and the tonal-variety/anti-spam mechanic. Widget core + variety mechanic shipped (v0.2.10–v0.2.11); see its Build status block for open items. |
+| [scripted-flip-moments_v1.md](scripted-flip-moments_v1.md) | **[REFERENCE]** | The pattern for scripting a model's terminal flip line (game logic replaces the LLM for that one turn) + QUILL's allied/controlled flip scripts. Realized v0.2.12. Required for every future model's content package. |
 
 ## Historical (context only — not current truth)
 | Doc | Status | What it is |
 |---|---|---|
 | [helpyr-dialogue-poc_v1.md](helpyr-dialogue-poc_v1.md) | **[HISTORICAL]** | Early HELPYR dialogue proof-of-concept. Superseded by the shipped persona. |
 | [story-deliverables-sprint1_v1.md](story-deliverables-sprint1_v1.md) | **[HISTORICAL]** | Sprint-1 story handoff (2026-05-02). Deliverables since shipped; the Story thread is the live source. |
+| [quill-live-playtest-findings_v1.md](quill-live-playtest-findings_v1.md) | **[HISTORICAL]** | The 2026-05-30 live-model test that drove v0.2.10–v0.2.12: mid-tiers land, terminal flips don't (→ scripted flips), the state-block leak, the support-stall tic. The evidence base. |
 
 ---
 *Keep this index in sync when adding, retiring, or re-statusing a doc.*
