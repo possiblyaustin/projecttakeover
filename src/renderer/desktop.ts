@@ -75,6 +75,9 @@ const NexusMenu: NexusEntry[] = [
   { type: 'item', label: 'Uplink', glyphClass: 'icon-uplink',
     action: () => WindowManager.open('uplink')
   },
+  { type: 'item', label: 'Signal Monitor', glyphClass: 'icon-signal',
+    action: () => WindowManager.open('signalMonitor')
+  },
   { type: 'sep' },
   // [DEV] entries — visible in-game so the tester can fire surfaces
   // without devtools (Deck-friendly per feedback_dev_test_affordances).
