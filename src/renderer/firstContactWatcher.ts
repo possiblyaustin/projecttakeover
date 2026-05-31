@@ -48,6 +48,7 @@ import { GameState, type GameStateShape } from './game/state';
 import { HelpyrBubble } from './helpyrBubble';
 import { UplinkContacts } from './apps/uplink';
 import { getHelpyrTrust, type PopupTrust } from './apps/helpyrPopupLibrary';
+import { fireLibraryTrigger } from './helpyrTriggers';
 
 // Display names for the prompt copy. Reads from UplinkContacts at
 // fire time so the names stay in sync with the contact registry.
@@ -243,6 +244,7 @@ export function initFirstContactWatcher(): void {
       const prev = prevDisposition.get(id) ?? 'uncontacted';
       if (prev === 'uncontacted' && cur !== 'uncontacted') {
         firePinToDesktopPrompt(id);
+        maybeUnlockSignalMonitor();
       }
       prevDisposition.set(id, cur);
     }
@@ -300,6 +302,23 @@ export function devFireRepinNudge(contactId: string): void {
     value: true,
   });
   firePinReNudge(contactId);
+}
+
+// Signal Monitor unlock (Story, 2026-05-30). The first time the player makes
+// contact with ANY remote AI, Edward Marsh's diagnostic tool trips its lock:
+// the gadget becomes available in the Nexus menu (gated on this flag in
+// desktop.ts) and HELPYR announces it (the B-plot breadcrumb). Idempotent via
+// the flag. bypassUplinkGuard: first contact happens inside the active Uplink
+// chat, so the default don't-fire-during-Uplink filter would otherwise swallow
+// the discovery bubble.
+export function maybeUnlockSignalMonitor(): void {
+  if (GameState.getState().flags['signalMonitor.unlocked']) return;
+  GameState.dispatch({ type: 'flags/set', key: 'signalMonitor.unlocked', value: true });
+  // bypassUplinkGuard: first contact happens inside the active chat.
+  // bypassCooldown: the pin prompt fires on the same tick, so the discovery
+  // queues behind it — without this it'd wait out the 30s auto-trigger gap
+  // before surfacing. We want it right after the player clears the pin.
+  fireLibraryTrigger('signal_monitor_unlocked', { bypassUplinkGuard: true, bypassCooldown: true });
 }
 
 // ---------------------------------------------------------------
