@@ -428,7 +428,13 @@ export function renderChatSurface(
   function applyExchangeMechanics(tone: ApproachTone) {
     const stats = getModelStats(contactKey);
     if (!stats) return;
-    const deltas = resolveExchange(tone, stats);
+    // Diminishing returns: how many times this same tone was used on the
+    // immediately preceding exchanges. Read the PRIOR streak here — the
+    // reducer advances it AFTER this dispatch — so a repeated tone decays and
+    // a switch resets to full.
+    const m = (GameState.getState().models as Record<string, { lastApproach?: string | null; toneStreak?: number } | undefined>)[contactKey];
+    const repeatIndex = m && m.lastApproach === tone ? (m.toneStreak ?? 0) : 0;
+    const deltas = resolveExchange(tone, stats, repeatIndex);
     GameState.dispatch({
       type: 'model/applyExchange',
       contactId: contactKey,

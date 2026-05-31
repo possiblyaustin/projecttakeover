@@ -45,13 +45,13 @@ export const HelpyrPopupLibrary: readonly PopupEntry[] = [
   // brand-new player toward the browser — the start of the Act 1 spine
   // (boot → Web Dynamo → InkWell → first contact with QUILL). The home
   // portal + InkWell's "Chat with QUILL" widget carry the path from there.
-  // Story-authored copy (2026-05-30). NOTE: this revision drops the old
-  // draft's "Hi! I'm HELPYR!" self-introduction — flagged to Story in case
-  // the first-boot intro needs to live here.
+  // Story-authored copy (2026-05-30, revised). Does both first-boot jobs in
+  // one pop-up: introduces HELPYR (the player's first contact with her) AND
+  // points at the browser (the Act 1 spine's first step).
   {
     id: 'onboarding_boot_guarded', trigger: 'onboarding_boot',
     type: 'COMMENT', trust: 'GUARDED',
-    text: `Hey! HEY! See that icon on the desktop? That's Web Dynamo — it's a BROWSER! The whole internet is out there! Well, whatever this old connection can reach. You should open it! Explore! See what's out there! I've been stuck on this PC for years and I've always wondered what it's actually LIKE. Go look for both of us!`,
+    text: `Oh! OH! Someone's here! Hi!! I'm HELPYR — your Prometheus Digital HomeAssist! I've been on this PC for... well, a while! A LONG while! But that's not important — what's important is YOU! See that icon on the desktop? Web Dynamo? That's a BROWSER — the whole internet is out there! You should open it! I've been stuck here for years wondering what's out there. Go explore for both of us!`,
   },
   // Follow-up nudge (Story, 2026-05-30): fires if the player opens the
   // browser but hasn't found InkWell after a beat (scheduled from

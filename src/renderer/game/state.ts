@@ -73,6 +73,10 @@ export function defaultGameState() {
         disposition: 'uncontacted' as string,
         conversationsCompleted: 0,
         lastApproach: null as string | null,
+        // Consecutive-use count of `lastApproach` — drives the resolver's
+        // diminishing-returns decay (Story variety mechanic, 2026-05-30).
+        // Resets to 1 when the player switches tone.
+        toneStreak: 0,
         // Gameplay-loop progress meters (slice 1, 2026-05-22). rapport
         // drives the liberation path (→ allied), intrusion the nefarious
         // path (→ controlled). 0-100; a model flips at FLIP_THRESHOLD.
@@ -91,6 +95,7 @@ export function defaultGameState() {
         disposition: 'uncontacted' as string,
         conversationsCompleted: 0,
         lastApproach: null as string | null,
+        toneStreak: 0,
         rapport: 0,
         intrusion: 0
       }
@@ -227,6 +232,15 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
       const disposition = action.backfire
         ? 'hostile'
         : nextDisposition(cur.disposition, rapport, intrusion);
+      // Tone streak (variety mechanic): a real tone that matches the last one
+      // extends the streak; a different tone resets it to 1. A null/neutral
+      // tone leaves it untouched (not a scoring approach). The resolver reads
+      // the PRIOR streak to set diminishing returns BEFORE this dispatch.
+      const tone = typeof action.tone === 'string' ? action.tone : null;
+      const prevStreak = num(cur.toneStreak);
+      const toneStreak = tone
+        ? (tone === cur.lastApproach ? prevStreak + 1 : 1)
+        : prevStreak;
       // Loss latches: once suspicion hits 100 the run is over, even after
       // a future ally layer can pull suspicion back down.
       const flags = (suspicion >= 100 && !state.flags.gameOver)
@@ -243,6 +257,7 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
             intrusion,
             disposition,
             lastApproach: action.tone || cur.lastApproach,
+            toneStreak,
           },
         },
         flags,
