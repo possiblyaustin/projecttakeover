@@ -35,6 +35,7 @@ Start-here map for the `docs/` folder. **New thread?** Read the root [`CLAUDE.md
 | [helpyr-popup-library_v1.md](helpyr-popup-library_v1.md) | **[REFERENCE]** | HELPYR pop-up bubble content (trust-tagged). Mirrored 1:1 in `src/renderer/apps/helpyrPopupLibrary.ts`. |
 | [no-scroll-pages_v1.md](no-scroll-pages_v1.md) | **[REFERENCE]** | Approved constraint: browser-style pages fit without scrolling (Deck-first). Affects Web Dynamo, Uplink. |
 | [title-screen-boot-flow_v1.md](title-screen-boot-flow_v1.md) | **[DRAFT]** | Title/boot-flow design; implementation deferred. |
+| [conversation-telemetry-and-variety_v1.md](conversation-telemetry-and-variety_v1.md) | **[DRAFT]** | Desktop telemetry widget (live Trust/Breach meters + per-turn delta) and the tonal-variety/anti-spam mechanic. Needs Story input on naming + balance; build next session. |
 
 ## Historical (context only — not current truth)
 | Doc | Status | What it is |

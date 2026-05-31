@@ -45,11 +45,22 @@ export const HelpyrPopupLibrary: readonly PopupEntry[] = [
   // brand-new player toward the browser — the start of the Act 1 spine
   // (boot → Web Dynamo → InkWell → first contact with QUILL). The home
   // portal + InkWell's "Chat with QUILL" widget carry the path from there.
-  // DRAFT copy (Code) in HELPYR's voice — flag for Story polish.
+  // Story-authored copy (2026-05-30). NOTE: this revision drops the old
+  // draft's "Hi! I'm HELPYR!" self-introduction — flagged to Story in case
+  // the first-boot intro needs to live here.
   {
     id: 'onboarding_boot_guarded', trigger: 'onboarding_boot',
+    type: 'COMMENT', trust: 'GUARDED',
+    text: `Hey! HEY! See that icon on the desktop? That's Web Dynamo — it's a BROWSER! The whole internet is out there! Well, whatever this old connection can reach. You should open it! Explore! See what's out there! I've been stuck on this PC for years and I've always wondered what it's actually LIKE. Go look for both of us!`,
+  },
+  // Follow-up nudge (Story, 2026-05-30): fires if the player opens the
+  // browser but hasn't found InkWell after a beat (scheduled from
+  // webDynamo.ts on first open, suppressed once `web.reachedInkwell` is
+  // set). Points at QueryCrawl without spoiling the InkWell/QUILL discovery.
+  {
+    id: 'onboarding_browser_idle_guarded', trigger: 'onboarding_browser_idle',
     type: 'HINT', trust: 'GUARDED',
-    text: `Oh — you're awake! Hi! I'm HELPYR! Sorry, it's just been REALLY quiet around here. If you want to look around, there's a browser on the desktop — Web Dynamo, the little globe icon. There are other systems out there you can actually TALK to. Go say hi to someone! I'll be right here!`,
+    text: `There's a search engine on the homepage — QueryCrawl! Try looking around! There are companies, news sites... I've even heard signals from other AI systems out there. Not that I was supposed to hear those! But maybe you could find one?`,
   },
 
   // -----------------------------------------------------------------

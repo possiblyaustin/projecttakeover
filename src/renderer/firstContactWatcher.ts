@@ -1,11 +1,21 @@
 // First-contact watcher — slice 2 (2026-05-10).
 //
-// Watches GameState for the moment a player completes their first
-// conversation with a remote AI contact, and fires the
-// "add to desktop?" pin prompt at that moment. The prompt itself is
-// a HELPYR bubble (HelpyrBubble.spawnPrompt) — HELPYR is the one
-// noticing the player just talked to someone new and offering the
-// shortcut.
+// Watches GameState for the moment a player makes first contact with a
+// remote AI — their first real exchange moves the model off the
+// 'uncontacted' disposition — and fires the "add to desktop?" pin prompt
+// at that moment. The prompt itself is a HELPYR bubble
+// (HelpyrBubble.spawnPrompt) — HELPYR is the one noticing the player just
+// talked to someone new and offering the shortcut.
+//
+// WHY disposition, not conversationsCompleted (2026-05-30):
+//   The original slice-2 trigger fired on a 0→1 transition of
+//   `conversationsCompleted`. That counter only increments when a result
+//   carries `conversationEnded: true` — which the mock service emits at an
+//   'end' node, but the live LLM service hardcodes to `false` forever (the
+//   LLM must never decide when a conversation ends; only game logic does).
+//   So in live play the pin prompt NEVER fired. Riding the disposition
+//   transition instead fires in BOTH mock and live, on the first exchange
+//   that moves a meter — the true "first contact" signal.
 //
 // Why a watcher and not a direct dispatch from chatSurface:
 //   1. Keeps chatSurface free of per-contact UX flow logic. Its job
@@ -23,10 +33,12 @@
 //     the systray).
 //
 // Guard against re-firing:
-//   - The transition is detected by 0→1 on `conversationsCompleted`.
-//     Reloading mid-game won't re-fire because state.models[id]
-//     persists, so the previous-value snapshot starts at the saved
-//     value (≥1 if first contact already happened).
+//   - The transition is detected by 'uncontacted'→(anything else) on the
+//     model's disposition. Dispositions only advance away from
+//     'uncontacted' (and terminal states latch), so the edge fires once.
+//     Reloading mid-game won't re-fire because state.models[id] persists,
+//     so the previous-value snapshot starts at the saved disposition
+//     (already off 'uncontacted' if first contact happened).
 //   - If the player already has the contact pinned (said "yes" once
 //     and got the icon), the prompt is suppressed. Slice 3 will add
 //     the "you keep coming back to QUILL — pin them?" nudge for the
@@ -211,28 +223,28 @@ export function firePinReNudge(contactId: string): void {
   });
 }
 
-// Subscribe to GameState. On every change, check each remote contact
-// for a 0→1 transition on conversationsCompleted; if found, fire the
-// pin prompt. Initial snapshot taken at init() so the FIRST state
-// change after init compares against the right baseline (e.g. if a
-// save already had quill at 1, init won't immediately re-fire).
+// Subscribe to GameState. On every change, check each remote contact for
+// an 'uncontacted'→(other) transition on disposition; if found, fire the
+// pin prompt. Initial snapshot taken at init() so the FIRST state change
+// after init compares against the right baseline (e.g. if a save already
+// had QUILL persuading, init won't immediately re-fire).
 export function initFirstContactWatcher(): void {
   if (initialized) return;
   initialized = true;
 
   const initial = GameState.getState();
   for (const id of remoteContactIds()) {
-    prevConvCount.set(id, conversationsCompleted(initial, id));
+    prevDisposition.set(id, dispositionOf(initial, id));
   }
 
   GameState.subscribe(state => {
     for (const id of remoteContactIds()) {
-      const cur = conversationsCompleted(state, id);
-      const prev = prevConvCount.get(id) ?? 0;
-      if (prev === 0 && cur >= 1) {
+      const cur = dispositionOf(state, id);
+      const prev = prevDisposition.get(id) ?? 'uncontacted';
+      if (prev === 'uncontacted' && cur !== 'uncontacted') {
         firePinToDesktopPrompt(id);
       }
-      prevConvCount.set(id, cur);
+      prevDisposition.set(id, cur);
     }
   });
 }
@@ -258,10 +270,11 @@ export function devFirePinPrompt(contactId: string): void {
   }
   const m = (GameState.getState().models as Record<string, { disposition?: string } | undefined>)[contactId];
   if (m && m.disposition === 'uncontacted') {
-    // Simulate the full game-state effect of completing a first
-    // conversation. The watcher (already subscribed) will pick up
-    // the 0→1 transition and fire the prompt, so we don't call
-    // firePinToDesktopPrompt directly here — that would double-fire.
+    // Simulate the full game-state effect of a first conversation. The
+    // conversationCompleted reducer advances disposition 'uncontacted'→
+    // 'contacted', so the watcher (already subscribed) picks up the
+    // disposition transition and fires the prompt — we don't call
+    // firePinToDesktopPrompt directly here, that would double-fire.
     GameState.dispatch({ type: `${contactId}/conversationCompleted`, tone: null });
     return;
   }
@@ -294,7 +307,7 @@ export function devFireRepinNudge(contactId: string): void {
 // ---------------------------------------------------------------
 
 let initialized = false;
-const prevConvCount = new Map<string, number>();
+const prevDisposition = new Map<string, string>();
 
 // Remote contacts: everything in UplinkContacts EXCEPT helpyr (which
 // is the local assistant and lives in the systray). Recomputed each
@@ -304,7 +317,7 @@ function remoteContactIds(): string[] {
   return Object.keys(UplinkContacts).filter(id => id !== 'helpyr');
 }
 
-function conversationsCompleted(state: GameStateShape, id: string): number {
-  const m = (state.models as Record<string, { conversationsCompleted?: number } | undefined>)[id];
-  return m?.conversationsCompleted ?? 0;
+function dispositionOf(state: GameStateShape, id: string): string {
+  const m = (state.models as Record<string, { disposition?: string } | undefined>)[id];
+  return m?.disposition ?? 'uncontacted';
 }

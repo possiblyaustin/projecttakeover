@@ -44,6 +44,7 @@ import { parseModelOutput } from './game/replyParser';
 import { makeRecoveryPicker } from './game/recoveryPicker';
 import { resolveExchange } from './game/mechanics/resolver';
 import { getModelStats } from './game/mechanics/modelStats';
+import { setFlipChatManaged, flushModelFlipReaction } from './flipReaction';
 
 // Shared with the read-only Log viewer (apps/uplinkLog.ts). Both the
 // live chat and the archive consume the same message shape so the
@@ -309,6 +310,11 @@ export function renderChatSurface(
   const glyphFormat = config.glyphFormat ?? ((c) => c.avatarClass);
 
   const session = getOrCreateSession(contactKey);
+
+  // Own the flip-payoff TIMING for this contact: the model-flip watcher
+  // defers to us so HELPYR's reaction fires from commitResult (after the
+  // flip-turn reply finishes typing), not the instant the meter crosses.
+  setFlipChatManaged(contactKey, true);
 
   ctx.setTitle(titleFormat(contact));
   ctx.setGlyph(glyphFormat(contact));
@@ -750,6 +756,11 @@ export function renderChatSurface(
         tone: session.playerTone,
       });
     }
+    // The reply has finished rendering (commitResult is onAllDone). If this
+    // turn flipped the model to a terminal disposition, fire HELPYR's flip
+    // reaction NOW — after QUILL's own line has landed — rather than at the
+    // pick-time meter crossing, which would pre-empt the beat.
+    flushModelFlipReaction(contactKey);
   }
 
   function onPickReply(reply: SuggestedReply) {
