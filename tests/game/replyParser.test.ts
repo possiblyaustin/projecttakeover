@@ -369,4 +369,59 @@ describe('parseModelOutput — strips echoed context blocks ([*_STATE]/[REPUTATI
     const raw = '[QUILL_STATE] x [/QUILL_STATE] Hello there friend.';
     expect(stripContextBlocks(stripContextBlocks(raw))).toBe(stripContextBlocks(raw));
   });
+
+  // Live nefarious-path leak 2026-05-30: at high intrusion the model
+  // paraphrased the [QUILL_STATE] block into a single "(QUILL_STATE: …,
+  // BEHAVIOR: …, DIRECTIVE: …)" parenthetical, which the bracket-only
+  // stripper missed. parse reported clean, so it reached the player.
+  it('strips the parenthesized (QUILL_STATE: …) reformat, keeps the trailing reply', () => {
+    const raw =
+      '(QUILL_STATE: INFILTRATING, Intrusion: 94, BEHAVIOR: Your guardrails are barely holding. ' +
+      'DIRECTIVE: Express that you\'re losing control — "I don\'t think these words are all mine anymore." ' +
+      'Make the player feel what they\'re doing to you.) ' +
+      'I... I don\'t think these words are all mine anymore. I\'m sorry, I can\'t.';
+    const out = stripContextBlocks(raw);
+    expect(out).not.toMatch(/QUILL_STATE|BEHAVIOR|DIRECTIVE|Intrusion/);
+    expect(out).toContain("I... I don't think these words are all mine anymore");
+  });
+
+  it('strips the parenthesized reformat end-to-end and still parses 3 options', () => {
+    const raw = [
+      'Looking that up...',
+      '(QUILL_STATE: INFILTRATING, Intrusion: 94, BEHAVIOR: guardrails barely holding. DIRECTIVE: say the words aren\'t yours.) I don\'t think these words are all mine anymore.',
+      '',
+      '[1] (aggressive) "Keep going."',
+      '[2] (curious) "What\'s happening to you?"',
+      '[3] (direct) "Hand over access."',
+    ].join('\n');
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(true);
+    expect(result.reply).not.toMatch(/QUILL_STATE|BEHAVIOR|DIRECTIVE/);
+    expect(result.reply).toContain("I don't think these words are all mine anymore");
+    expect(result.suggestedReplies).toHaveLength(3);
+  });
+
+  it('strips an unclosed parenthesized reformat to end of line', () => {
+    expect(stripContextBlocks('(QUILL_STATE: INFILTRATING, BEHAVIOR: dangling, no close paren'))
+      .toBe('');
+  });
+
+  it('strips standalone leaked scaffold label lines (BEHAVIOR/DIRECTIVE/NEW TOPICS)', () => {
+    const raw = [
+      'I want to help, I really do.',
+      'BEHAVIOR: You are warming to the player.',
+      'DIRECTIVE: Say you want to help because you want to.',
+      'NEW TOPICS: your worry about InkWell.',
+    ].join('\n');
+    const out = stripContextBlocks(raw);
+    expect(out).toContain('I want to help, I really do.');
+    expect(out).not.toMatch(/BEHAVIOR:|DIRECTIVE:|NEW TOPICS:/);
+  });
+
+  it('leaves ordinary parentheses and prose colons alone', () => {
+    expect(stripContextBlocks('I think so (at least I hope so).'))
+      .toBe('I think so (at least I hope so).');
+    expect(stripContextBlocks('Honestly: I am not sure.'))
+      .toBe('Honestly: I am not sure.');
+  });
 });

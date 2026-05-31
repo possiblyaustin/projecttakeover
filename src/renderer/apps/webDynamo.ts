@@ -9,6 +9,13 @@ import { WebDynamoSites, type SiteEntry, type PageEntry } from './webDynamoSites
 import { mountPageNav, type PageNavHandle } from '../components/pageNav';
 import { fireOnceLibraryTrigger } from '../helpyrTriggers';
 import { WindowManager } from '../windows';
+import { GameState } from '../game/state';
+
+// Site key for InkWell — reaching it satisfies the Act 1 spine's browser
+// leg, so it both suppresses the QueryCrawl follow-up nudge and marks the
+// onboarding path's progress. Kept as a const so the flag bridge and the
+// nudge guard can't drift from the registry key.
+const INKWELL_SITE_KEY = 'inkwell-digital.com';
 
 // History stores siteKey + page (1-indexed). The display URL shown in
 // the address bar is derived from these via displayUrlFor() — that
@@ -61,6 +68,16 @@ export const WebDynamoApp: AppDef = {
     // first time the player opens the browser. Idempotent + flag-
     // gated, so re-opens don't refire.
     fireOnceLibraryTrigger('firstOpen.webDynamo', 'first_open_webdynamo');
+
+    // Follow-up onboarding nudge (Story, 2026-05-30): if the player opens
+    // the browser but hasn't reached InkWell after a beat, HELPYR points
+    // at QueryCrawl. fireOnceLibraryTrigger's flag guard means only the
+    // first browser instance's timer that survives long enough fires it;
+    // the reachedInkwell check bails if the player already found their way.
+    setTimeout(() => {
+      if (GameState.getState().flags['web.reachedInkwell']) return;
+      fireOnceLibraryTrigger('onboarding.browserHint', 'onboarding_browser_idle');
+    }, 35000);
     container.style.background = 'var(--face)';
     container.innerHTML = `
       <div class="browser-root">
@@ -110,6 +127,13 @@ export const WebDynamoApp: AppDef = {
       const site = WebDynamoSites[siteKey] || WebDynamoSites['404']!;
       currentSiteKey = siteKey;
       currentSite = site;
+
+      // Act 1 spine: reaching InkWell satisfies the browser leg. Latch a
+      // flag (once) so the QueryCrawl follow-up nudge stays suppressed and
+      // future onboarding logic can read "the player found the site."
+      if (siteKey === INKWELL_SITE_KEY && !GameState.getState().flags['web.reachedInkwell']) {
+        GameState.dispatch({ type: 'flags/set', key: 'web.reachedInkwell', value: true });
+      }
       // restorePage (from Back/Forward) wins; otherwise honor the page
       // the URL itself addressed (e.g. typing ironwall.def/jobs lands
       // on page 2). New navigations without a slug land on page 1.

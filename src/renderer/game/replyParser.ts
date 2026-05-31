@@ -102,20 +102,46 @@ export function stripStageDirections(prose: string): string {
  *  and the `[REPUTATION]` block. */
 const CONTEXT_BLOCK_TAG = '(?:[A-Z0-9_]*_STATE|REPUTATION)';
 
+/** ALL-CAPS field labels that live INSIDE the injected state blocks. A
+ *  small model sometimes leaks one of these lines on its own — without the
+ *  surrounding [TAG] wrapper — when it paraphrases its instructions instead
+ *  of speaking in character. They never occur in natural first-person
+ *  dialogue, so any whole line that starts with one is scaffolding the
+ *  player must not see. (QUILL_STATE BEHAVIOR/DIRECTIVE lines, live leak
+ *  2026-05-30.) */
+const SCAFFOLD_LABEL_LINE = /^[ \t]*(?:BEHAVIOR|DIRECTIVE|NEW TOPICS)[ \t]*:.*$/gim;
+
 /** Strip any injected context block the model echoed back into visible
  *  prose. Small models (Gemma E2B) intermittently parrot — and even
  *  confabulate — these blocks from their context; they must never reach
- *  the player. Removes well-formed `[TAG]…[/TAG]` pairs first, then any
- *  orphaned open/close tag left if the model dropped one side. Idempotent.
+ *  the player. Idempotent.
+ *
+ *  Handles the shapes seen in live play, in an order that preserves the
+ *  "orphan open keeps its trailing text" contract the tests pin down:
+ *    1. Well-formed `[TAG]…[/TAG]` pairs.
+ *    2. The parenthesized reformat a small model paraphrases the block
+ *       into — `(QUILL_STATE: …, BEHAVIOR: …, DIRECTIVE: …)` — non-greedy
+ *       to the first ')'. The block's own text never contains one, so the
+ *       real reply that follows the close paren survives (live nefarious-
+ *       path leak, 2026-05-30).
+ *    3. The same reformat left UNclosed — a dangling `(TAG …` to end of
+ *       line. Requires the leading '(' so a bare orphan bracket (step 4)
+ *       keeps its trailing prose.
+ *    4. Orphaned open/close brackets left if the model dropped one side.
+ *    5. Standalone ALL-CAPS scaffold label lines leaked without a wrapper.
  *
  *  Applied to the whole raw response BEFORE parsing (see parseModelOutput)
  *  so a leaked block can't land in the reply OR confuse option detection.
  *  Model-agnostic by design — protects every present and future model,
  *  not just the one that surfaced it (QUILL, battle-test 2026-05-24). */
 export function stripContextBlocks(s: string): string {
-  const pair = new RegExp(`\\[${CONTEXT_BLOCK_TAG}\\][\\s\\S]*?\\[\\/${CONTEXT_BLOCK_TAG}\\]`, 'gi');
-  const orphan = new RegExp(`\\[\\/?${CONTEXT_BLOCK_TAG}\\]`, 'gi');
-  return s.replace(pair, '').replace(orphan, '');
+  const tag = CONTEXT_BLOCK_TAG;
+  return s
+    .replace(new RegExp(`\\[${tag}\\][\\s\\S]*?\\[\\/${tag}\\]`, 'gi'), '')
+    .replace(new RegExp(`\\(\\s*${tag}\\b[^)]*\\)`, 'gi'), '')
+    .replace(new RegExp(`\\(\\s*${tag}\\b[^)\\n]*$`, 'gim'), '')
+    .replace(new RegExp(`\\[\\/?${tag}\\]`, 'gi'), '')
+    .replace(SCAFFOLD_LABEL_LINE, '');
 }
 
 /** Locate the first `[1]` (with optional whitespace inside the brackets)
