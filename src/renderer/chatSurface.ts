@@ -88,6 +88,15 @@ export type ChatContact = {
    *  reveals R7/R8 only at WARMING+). Optional: contacts without a
    *  Story-finalized pool inherit the transport's generic floor. */
   buildRecoveryPool?: () => readonly SuggestedReply[];
+  /** Scripted flip moment (Story, 2026-05-30). When the player's exchange
+   *  THIS turn pushed the model into a terminal disposition, returns a
+   *  pre-written AskResult to render IN PLACE of an LLM call — the pivot is
+   *  too high-stakes to leave to a 2B model fighting accumulated history.
+   *  Returns null on every other turn (including subsequent turns after the
+   *  flip — the LLM resumes then with the post-flip state block). Must be
+   *  idempotent (it's called once per response turn); contacts without a
+   *  scripted flip omit it. */
+  getScriptedFlipMoment?: () => AskResult | null;
   /** Pool the stalling-line picker draws from (§6e). Order doesn't
    *  matter; selection is uniformly random with a no-repeat-within-
    *  last-N rule. */
@@ -769,6 +778,22 @@ export function renderChatSurface(
     flushModelFlipReaction(contactKey);
   }
 
+  // Resolve THIS turn's response. If recordTone (already called) just pushed
+  // the model into a terminal disposition, the contact's scripted flip moment
+  // pre-empts the LLM — game logic owns the pivot. Otherwise the live/mock
+  // service generates it. `history` is captured BEFORE the player message is
+  // rendered, so it excludes the current turn (per AskRequest's contract).
+  function askOrScripted(history: ModelChatMessage[], userMessage: string): Promise<AskResult> {
+    const scripted = contact.getScriptedFlipMoment?.();
+    if (scripted) return Promise.resolve(scripted);
+    return contact.service.askModel({
+      systemPrompt: contact.buildSystemPrompt(),
+      history,
+      userMessage,
+      recoveryPool: contact.buildRecoveryPool?.(),
+    });
+  }
+
   function onPickReply(reply: SuggestedReply) {
     // Pass the contact's per-character classifier so options without a
     // usable tone label (QUILL's bare connect/probe/push format) get their
@@ -778,13 +803,7 @@ export function renderChatSurface(
     const history = toModelHistory(messages);
     renderPlayerMessage(reply.text);
     clearOptions();
-    const promise = contact.service.askModel({
-      systemPrompt: contact.buildSystemPrompt(),
-      history,
-      userMessage: reply.text,
-      recoveryPool: contact.buildRecoveryPool?.(),
-    });
-    renderResponseTurnWithStalling(promise, commitResult);
+    renderResponseTurnWithStalling(askOrScripted(history, reply.text), commitResult);
   }
 
   function submitFreeform() {
@@ -799,13 +818,7 @@ export function renderChatSurface(
     renderPlayerMessage(raw);
     inputEl.value = '';
     clearOptions();
-    const promise = contact.service.askModel({
-      systemPrompt: contact.buildSystemPrompt(),
-      history,
-      userMessage: raw,
-      recoveryPool: contact.buildRecoveryPool?.(),
-    });
-    renderResponseTurnWithStalling(promise, commitResult);
+    renderResponseTurnWithStalling(askOrScripted(history, raw), commitResult);
   }
 
   logEl.addEventListener('click', () => {
