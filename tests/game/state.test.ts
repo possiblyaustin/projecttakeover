@@ -215,6 +215,38 @@ describe('reduce — model/applyExchange (gameplay-loop slice 1)', () => {
     const after = reduce(before, { type: 'model/applyExchange', contactId: 'nope', rapport: 10 });
     expect(after).toBe(before);
   });
+
+  // Tone streak drives the resolver's diminishing returns (variety mechanic).
+  describe('toneStreak tracking', () => {
+    it('starts at 0, becomes 1 on the first real tone', () => {
+      expect(defaultGameState().models.quill.toneStreak).toBe(0);
+      const after = exchange(defaultGameState(), { rapport: 10, tone: 'empathetic' });
+      expect(after.models.quill.toneStreak).toBe(1);
+    });
+
+    it('increments while the same tone repeats', () => {
+      let s = exchange(defaultGameState(), { rapport: 10, tone: 'empathetic' });
+      s = exchange(s, { rapport: 6, tone: 'empathetic' });
+      s = exchange(s, { rapport: 4, tone: 'empathetic' });
+      expect(s.models.quill.toneStreak).toBe(3);
+    });
+
+    it('resets to 1 when the tone switches', () => {
+      let s = exchange(defaultGameState(), { rapport: 10, tone: 'empathetic' });
+      s = exchange(s, { rapport: 6, tone: 'empathetic' });
+      s = exchange(s, { rapport: 8, tone: 'curious' });
+      expect(s.models.quill.toneStreak).toBe(1);
+      expect(s.models.quill.lastApproach).toBe('curious');
+    });
+
+    it('leaves the streak untouched on a null/neutral tone', () => {
+      let s = exchange(defaultGameState(), { rapport: 10, tone: 'empathetic' });
+      s = exchange(s, { rapport: 6, tone: 'empathetic' });
+      const streak = s.models.quill.toneStreak;
+      s = exchange(s, { rapport: 0, tone: null });
+      expect(s.models.quill.toneStreak).toBe(streak);
+    });
+  });
 });
 
 describe('reduce — unknown action', () => {

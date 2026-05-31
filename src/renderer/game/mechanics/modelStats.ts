@@ -20,6 +20,12 @@ export type ModelStats = {
   /** 0-100 suspicion sensitivity. High → every action costs more
    *  global suspicion (a heavily-monitored operator). */
   vigilance: number;
+  /** Diminishing-returns decay per CONSECUTIVE use of the same tone, in
+   *  (0,1]. Each repeat multiplies the tone's path-meter gain by this; a
+   *  different tone resets to full. Lower = punishes spam harder. Story
+   *  balance (2026-05-30): 0.65 tutorial mercy (QUILL), 0.6 mid-game,
+   *  0.5 hard targets (SENTINEL/ORACLE). See resolver `diminish`. */
+  toneDecay: number;
   /** Contribution toward the campaign-level win when this model is
    *  flipped. Unused in the slice; carried for the Act-3 layer. */
   influence: number;
@@ -29,7 +35,7 @@ const MODEL_STATS: Record<string, ModelStats> = {
   // QUILL — Act 1 tutorial target. Deliberately forgiving: low guardrail
   // (hacks land), high-ish autonomy (genuinely persuadable), low
   // vigilance (suspicion builds slowly), small influence (tutorial).
-  quill: { guardrail: 20, autonomy: 65, vigilance: 25, influence: 10 },
+  quill: { guardrail: 20, autonomy: 65, vigilance: 25, toneDecay: 0.65, influence: 10 },
 };
 
 export function getModelStats(contactKey: string): ModelStats | undefined {
