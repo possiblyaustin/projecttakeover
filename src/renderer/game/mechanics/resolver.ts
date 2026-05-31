@@ -73,21 +73,56 @@ function isNefarious(tone: ApproachTone): boolean {
   return tone === 'aggressive' || tone === 'deceptive';
 }
 
+// Diminishing-returns CATEGORIES (Story, 2026-05-30). The player perceives
+// strategy at the level of "be nice" vs "press" vs "probe", not the resolver's
+// six exact tones — so decay operates on these buckets, not the exact tone.
+// Alternating two flavors of the same strategy (empathetic↔friendly) still
+// decays; only a genuine shift of approach resets it.
+//   warmth   (empathetic, friendly)            — builds trust, decays on repeat
+//   pressure (direct, aggressive, deceptive)   — advances/pushes, costs suspicion
+//   curious                                    — the reset tone: +1 suspicion,
+//                                                belongs to NO decay group
+//   none     (neutral / unclassified)          — transparent, no decay effect
+export type ToneCategory = 'warmth' | 'pressure' | 'curious' | 'none';
+
+const TONE_CATEGORY: Partial<Record<ApproachTone, ToneCategory>> = {
+  empathetic: 'warmth',
+  friendly: 'warmth',
+  direct: 'pressure',
+  aggressive: 'pressure',
+  deceptive: 'pressure',
+  curious: 'curious',
+};
+
+export function toneCategory(tone: string | null | undefined): ToneCategory {
+  return (tone && TONE_CATEGORY[tone as ApproachTone]) || 'none';
+}
+
+/** True for tones that participate in diminishing returns (warmth + pressure).
+ *  curious and neutral never decay — curious is the reset tone, neutral is a
+ *  non-move. */
+export function isDecayTone(tone: string | null | undefined): boolean {
+  const c = toneCategory(tone);
+  return c === 'warmth' || c === 'pressure';
+}
+
 // Diminishing returns: a tone's path gain decays toward DIMINISH_FLOOR with
-// each consecutive prior use of the SAME tone. repeatIndex 0 (a fresh tone)
-// returns the full gain untouched — so a varied conversation never pays the
-// penalty, and switching tones resets it. Only positive gains decay; an
-// approach's *costs* (suspicion, the nefarious rapport penalty) don't shrink
-// with repetition.
+// each consecutive prior use of the same tone CATEGORY (warmth/pressure — the
+// caller derives repeatIndex from the category streak). repeatIndex 0 (a fresh
+// category, curious, or neutral) returns the full gain untouched — so varying
+// your strategy never pays the penalty, and a genuine switch resets it. Only
+// positive gains decay; an approach's *costs* (suspicion, the nefarious rapport
+// penalty) don't shrink with repetition.
 function diminish(gain: number, decayRate: number, repeatIndex: number): number {
   if (gain <= 0 || repeatIndex <= 0) return gain;
   return Math.max(DIMINISH_FLOOR, gain * Math.pow(decayRate, repeatIndex));
 }
 
 /**
- * @param repeatIndex How many times this SAME tone was used on the immediately
- *   preceding consecutive exchanges (0 = fresh tone / first use). Drives
- *   diminishing returns. The caller derives it from the model's tone streak.
+ * @param repeatIndex How many times this same tone CATEGORY (warmth/pressure)
+ *   was used on the immediately preceding consecutive exchanges (0 = fresh
+ *   category / curious / neutral). Drives diminishing returns. The caller
+ *   derives it from the model's category streak (see state.ts / toneCategory).
  */
 export function resolveExchange(
   tone: ApproachTone,

@@ -32,11 +32,12 @@ dynamic-range findings that motivated this).
 | Piece | Status |
 |---|---|
 | Variety mechanic (Part B numbers) | ✅ **Shipped v0.2.10**, live-validated: `+17 → +11 → reset`, curious `+1` suspicion. |
+| Warmth/pressure decay **categories** | ✅ **Shipped v0.2.13** — decay tracks tone *category* (warmth = empathetic+friendly; pressure = direct+aggressive+deceptive; curious = reset, +1 suspicion, no decay), closing the empathetic↔friendly gap. |
 | Signal Monitor widget core (Part A) | ✅ **Shipped v0.2.11** — Trust/Control bars, 7 disposition labels, amber/green delta flash, "NO SIGNAL" empty state. |
 | Naming (Trust / Control / Signal Monitor / labels) | ✅ Final, in code. |
 
 **Open (needs Story / follow-up):**
-- **empathetic↔friendly gap** — both tones are free (0 suspicion); alternating them dodges decay AND suspicion (a two-button mash). Recommend a shared "warmth" decay group, or friendly `+1` suspicion.
+- ~~empathetic↔friendly gap~~ — ✅ RESOLVED v0.2.13 via warmth/pressure decay categories (Story's call).
 - **In-fiction framing + discovery** — *why* the gadget is already on the machine (Austin's pitch: the PC owner's backdoor AI-tester, discovered). It's currently only in the Nexus program menu — **no discovery beat**. The Part E "first appears" pop-ups assume it just shows up and likely need revision.
 - **Part E HELPYR pop-ups** — the 4 lines are written but **not yet wired** (waiting on the discovery decision).
 - **Active-target resolution** — the widget currently shows the most-progressed *engaged* target, not the focused chat. Fine for one target; switch to "active conversation (focused chat → last-interacted)" when a second target lands.

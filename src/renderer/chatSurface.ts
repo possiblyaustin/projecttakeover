@@ -42,7 +42,7 @@ import type {
 import { classifyApproach } from './game/approachClassifier';
 import { parseModelOutput } from './game/replyParser';
 import { makeRecoveryPicker } from './game/recoveryPicker';
-import { resolveExchange } from './game/mechanics/resolver';
+import { resolveExchange, toneCategory, isDecayTone } from './game/mechanics/resolver';
 import { getModelStats } from './game/mechanics/modelStats';
 import { setFlipChatManaged, flushModelFlipReaction } from './flipReaction';
 
@@ -437,12 +437,15 @@ export function renderChatSurface(
   function applyExchangeMechanics(tone: ApproachTone) {
     const stats = getModelStats(contactKey);
     if (!stats) return;
-    // Diminishing returns: how many times this same tone was used on the
-    // immediately preceding exchanges. Read the PRIOR streak here — the
-    // reducer advances it AFTER this dispatch — so a repeated tone decays and
-    // a switch resets to full.
+    // Diminishing returns: how many times this same tone CATEGORY (warmth/
+    // pressure) was used on the immediately preceding exchanges. Read the PRIOR
+    // streak here — the reducer advances it AFTER this dispatch — so repeating a
+    // strategy decays and a genuine switch (or curious) resets to full. curious
+    // and neutral never decay (isDecayTone false → repeatIndex 0).
     const m = (GameState.getState().models as Record<string, { lastApproach?: string | null; toneStreak?: number } | undefined>)[contactKey];
-    const repeatIndex = m && m.lastApproach === tone ? (m.toneStreak ?? 0) : 0;
+    const repeatIndex = m && isDecayTone(tone) && toneCategory(tone) === toneCategory(m.lastApproach)
+      ? (m.toneStreak ?? 0)
+      : 0;
     const deltas = resolveExchange(tone, stats, repeatIndex);
     GameState.dispatch({
       type: 'model/applyExchange',

@@ -41,6 +41,8 @@
 //                              latch (flags.gameOver).
 // Pre-release no-migration policy means old saves get dropped on
 // version mismatch (see loadFromStorage).
+import { toneCategory } from './mechanics/resolver';
+
 const STORAGE_KEY = 'pt.gamestate.v1';
 const VERSION = 4;
 const SAVE_DEBOUNCE_MS = 250;
@@ -232,15 +234,22 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
       const disposition = action.backfire
         ? 'hostile'
         : nextDisposition(cur.disposition, rapport, intrusion);
-      // Tone streak (variety mechanic): a real tone that matches the last one
-      // extends the streak; a different tone resets it to 1. A null/neutral
-      // tone leaves it untouched (not a scoring approach). The resolver reads
-      // the PRIOR streak to set diminishing returns BEFORE this dispatch.
+      // Tone streak (variety mechanic): diminishing returns track tone
+      // CATEGORY (warmth / pressure), not the exact tone — alternating two
+      // flavors of the same strategy still decays (Story, 2026-05-30). A
+      // same-category tone extends the streak; a category switch resets it to
+      // 1. curious is the reset tone (not a decay group → streak 0). neutral/
+      // unclassified is transparent (preserve the run). The resolver reads the
+      // PRIOR streak to set diminishing returns BEFORE this dispatch.
       const tone = typeof action.tone === 'string' ? action.tone : null;
+      const cat = toneCategory(tone);
       const prevStreak = num(cur.toneStreak);
-      const toneStreak = tone
-        ? (tone === cur.lastApproach ? prevStreak + 1 : 1)
-        : prevStreak;
+      const toneStreak =
+        cat === 'warmth' || cat === 'pressure'
+          ? (cat === toneCategory(cur.lastApproach) ? prevStreak + 1 : 1)
+          : cat === 'curious'
+            ? 0
+            : prevStreak;
       // Loss latches: once suspicion hits 100 the run is over, even after
       // a future ally layer can pull suspicion back down.
       const flags = (suspicion >= 100 && !state.flags.gameOver)

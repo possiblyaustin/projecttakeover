@@ -231,12 +231,36 @@ describe('reduce — model/applyExchange (gameplay-loop slice 1)', () => {
       expect(s.models.quill.toneStreak).toBe(3);
     });
 
-    it('resets to 1 when the tone switches', () => {
+    it('keeps decaying across two flavors of the SAME category (warmth)', () => {
+      // empathetic -> friendly is the exploit Story closed: both are warmth, so
+      // alternating them still climbs the streak rather than resetting it.
+      let s = exchange(defaultGameState(), { rapport: 10, tone: 'empathetic' });
+      s = exchange(s, { rapport: 8, tone: 'friendly' });
+      s = exchange(s, { rapport: 6, tone: 'empathetic' });
+      expect(s.models.quill.toneStreak).toBe(3);
+    });
+
+    it('also tracks the pressure category (direct -> aggressive keeps the streak)', () => {
+      let s = exchange(defaultGameState(), { intrusion: 5, tone: 'direct' });
+      s = exchange(s, { intrusion: 14, tone: 'aggressive' });
+      expect(s.models.quill.toneStreak).toBe(2);
+    });
+
+    it('resets when the category switches (warmth -> pressure)', () => {
+      let s = exchange(defaultGameState(), { rapport: 10, tone: 'empathetic' });
+      s = exchange(s, { rapport: 6, tone: 'empathetic' });
+      s = exchange(s, { intrusion: 14, tone: 'aggressive' });
+      expect(s.models.quill.toneStreak).toBe(1);
+    });
+
+    it('curious is the reset tone — streak drops to 0, and the next warmth is fresh', () => {
       let s = exchange(defaultGameState(), { rapport: 10, tone: 'empathetic' });
       s = exchange(s, { rapport: 6, tone: 'empathetic' });
       s = exchange(s, { rapport: 8, tone: 'curious' });
-      expect(s.models.quill.toneStreak).toBe(1);
+      expect(s.models.quill.toneStreak).toBe(0);
       expect(s.models.quill.lastApproach).toBe('curious');
+      s = exchange(s, { rapport: 10, tone: 'empathetic' });
+      expect(s.models.quill.toneStreak).toBe(1); // fresh warmth after the reset
     });
 
     it('leaves the streak untouched on a null/neutral tone', () => {
