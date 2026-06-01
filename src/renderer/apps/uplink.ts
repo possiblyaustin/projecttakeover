@@ -12,6 +12,7 @@ import {
   classifyQuillApproach,
   quillToneFor,
   QuillStallingPool,
+  buildQuillStallingPool,
   QuillFallbackPool,
   QuillPersonaPrompt,
   buildQuillStateBlock,
@@ -163,9 +164,15 @@ export const UplinkContacts: Record<string, ChatContact> = {
     },
     buildRecoveryPool: buildQuillRecoveryPool,
     stallingPool: QuillStallingPool,
+    // Disposition-tiered stalling so the wait-filler matches QUILL's arc
+    // (no support-desk voice once she's warmed up / flipped).
+    buildStallingPool: () => buildQuillStallingPool(GameState.getState().models.quill),
     typeMs: 18,
     pauseMs: 1100,
-    stallingThresholdMs: 10000,
+    // Raised 10s→13s: real live turns hover right at ~10s, so a 10s threshold
+    // fired the filler on nearly every turn. 13s keeps it for genuinely slow
+    // turns while most land under it (animated indicator covers the wait).
+    stallingThresholdMs: 13000,
     classifyApproach: classifyQuillApproach,
   },
 };
