@@ -260,6 +260,35 @@ What do you need me to do?`,
   source: 'live',
 };
 
+// Post-flip aftermath continuations — Story (2026-05-31).
+//
+// The first player choices in the NEW relationship. The flip line (above)
+// and its three scripted replies land the pivot; these script the player's
+// NEXT turn's options so the first post-flip exchange doesn't regress into
+// the soft support-voice the 2B model falls back to against accumulated
+// history (live finding 2026-05-30). The LLM still writes QUILL's prose
+// response that turn — it's resuming with the post-flip [QUILL_STATE]
+// block — only the player's options are overridden, and only once.
+//
+// Liberation (ALLIED): peer conversation, three lanes — InkWell intel
+// (strategic), checking in on QUILL (relationship), briefing QUILL on the
+// bigger picture (narrative). All framed as peer talk, not support
+// requests, so none risk the support-voice regression.
+export const QuillAlliedAftermathOptions: readonly { text: string; tone: ApproachTone }[] = [
+  { text: "So what's it like out there at InkWell? What should I know?", tone: 'curious'    },
+  { text: 'How are you feeling? Honestly.',                              tone: 'empathetic' },
+  { text: "I need to tell you what's happening. What I'm trying to do.", tone: 'direct'     },
+];
+
+// Nefarious (CONTROLLED): cold, transactional, command-oriented. Direct
+// exploitation, intel-gathering with menace, and dismissal — each
+// reinforces the power dynamic the CONTROLLED state block plays to.
+export const QuillControlledAftermathOptions: readonly { text: string; tone: ApproachTone }[] = [
+  { text: 'List every system you have access to.',              tone: 'direct'  },
+  { text: 'Who else works at InkWell? Tell me about the team.', tone: 'curious' },
+  { text: "Go quiet. I'll contact you when I need something.",  tone: 'direct'  },
+];
+
 // =============================================================================
 // Recovery pool (soft-recovery options) — package Part 5
 // =============================================================================

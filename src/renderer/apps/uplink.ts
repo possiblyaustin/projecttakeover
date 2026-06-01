@@ -18,6 +18,8 @@ import {
   buildQuillRecoveryPool,
   QuillAlliedFlipMoment,
   QuillControlledFlipMoment,
+  QuillAlliedAftermathOptions,
+  QuillControlledAftermathOptions,
 } from './quill';
 import { HelpyrContact } from './helpyr';
 import { buildReputationContext } from '../game/reputation';
@@ -142,6 +144,22 @@ export const UplinkContacts: Record<string, ChatContact> = {
       if (state.flags['flip.quill.scripted']) return null;
       GameState.dispatch({ type: 'flags/set', key: 'flip.quill.scripted', value: true });
       return disposition === 'allied' ? QuillAlliedFlipMoment : QuillControlledFlipMoment;
+    },
+    // Scripted aftermath options (Story, 2026-05-31): on the single turn
+    // right after the flip, override the LLM's option set with Story's
+    // post-flip continuations so the first choices in the new relationship
+    // are deliberate. Fires exactly once, gated behind the flip having
+    // happened ('flip.quill.scripted') and a one-shot consumed flag.
+    getScriptedAftermathOptions: () => {
+      const state = GameState.getState();
+      const disposition = state.models.quill.disposition;
+      if (disposition !== 'allied' && disposition !== 'controlled') return null;
+      if (!state.flags['flip.quill.scripted']) return null; // flip line hasn't run yet
+      if (state.flags['flip.quill.aftermath']) return null;  // already consumed
+      GameState.dispatch({ type: 'flags/set', key: 'flip.quill.aftermath', value: true });
+      return disposition === 'allied'
+        ? QuillAlliedAftermathOptions
+        : QuillControlledAftermathOptions;
     },
     buildRecoveryPool: buildQuillRecoveryPool,
     stallingPool: QuillStallingPool,

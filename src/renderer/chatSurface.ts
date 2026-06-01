@@ -97,6 +97,16 @@ export type ChatContact = {
    *  idempotent (it's called once per response turn); contacts without a
    *  scripted flip omit it. */
   getScriptedFlipMoment?: () => AskResult | null;
+  /** Scripted post-flip aftermath options (Story, 2026-05-31). The flip
+   *  line lands the pivot; these script the player's NEXT turn's option
+   *  set so the first post-flip exchange doesn't regress into the soft
+   *  support-voice a 2B model falls back to (live finding 2026-05-30).
+   *  The LLM still writes the model's prose response that turn — only the
+   *  player's options are overridden, and only once. Returns the
+   *  path-appropriate options on the single turn immediately after the
+   *  flip, null on every other turn. Must be idempotent (called once per
+   *  LLM turn); contacts without scripted aftermath omit it. */
+  getScriptedAftermathOptions?: () => readonly SuggestedReply[] | null;
   /** Pool the stalling-line picker draws from (§6e). Order doesn't
    *  matter; selection is uniformly random with a no-repeat-within-
    *  last-N rule. */
@@ -794,10 +804,30 @@ export function renderChatSurface(
       history,
       userMessage,
       recoveryPool: contact.buildRecoveryPool?.(),
+    }).then((result) => {
+      // First turn after the flip: keep the model's freshly-generated prose
+      // (it's resuming with the post-flip state block) but swap its option
+      // set for Story's scripted aftermath continuations, so the player's
+      // first choices in the new relationship are deliberate and on-voice.
+      // The flip turn itself early-returns above, so this never clobbers the
+      // flip line's own scripted replies.
+      const aftermath = contact.getScriptedAftermathOptions?.();
+      if (aftermath && aftermath.length > 0) {
+        return { ...result, suggestedReplies: [...aftermath] };
+      }
+      return result;
     });
   }
 
   function onPickReply(reply: SuggestedReply) {
+    // In-flight guard. setControlsEnabled(false) only toggles a CSS class,
+    // which blocks pointer clicks but NOT a keyboard/controller activation
+    // on an already-focused option, and NOT the input's Enter handler. So a
+    // double-fire (pick twice, or type+Enter twice) used to spawn concurrent
+    // askModel calls — racing turns that corrupt history and collapse into
+    // repeated generic/recovery options. Reject any input while a turn is
+    // rendering. Same fence the dev soft-recovery path already uses.
+    if (controlsEl.classList.contains('disabled')) return;
     // Pass the contact's per-character classifier so options without a
     // usable tone label (QUILL's bare connect/probe/push format) get their
     // tone derived from the text rather than collapsing to 'neutral' (which
@@ -810,6 +840,10 @@ export function renderChatSurface(
   }
 
   function submitFreeform() {
+    // In-flight guard — see onPickReply. The Enter handler fires even when
+    // controls are visually disabled (the input keeps focus), so without
+    // this a fast double-Enter queued a second concurrent turn.
+    if (controlsEl.classList.contains('disabled')) return;
     const raw = inputEl.value.trim();
     if (!raw) return;
     recordTone(classifyApproach({
