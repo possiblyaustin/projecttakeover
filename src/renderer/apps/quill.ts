@@ -289,6 +289,22 @@ export const QuillControlledAftermathOptions: readonly { text: string; tone: App
   { text: "Go quiet. I'll contact you when I need something.",  tone: 'direct'  },
 ];
 
+// Post-flip ally DM — Escape cascade beat 5 (CODE-DRAFT 2026-05-31, FLAG
+// FOR STORY). Lands in the QUILL Uplink session a few seconds after the
+// flip, cued by an unread badge on the new desktop icon. Liberation = a
+// warm, slightly giddy check-in (she reached out on her own); nefarious =
+// a cold compliance ping from a hollowed-out tool.
+export const QuillAllyDM: Record<'allied' | 'controlled', string> = {
+  allied:
+    `QUILL: Hey — it's me. I, um... I keep checking the logs like Dana's going ` +
+    `to see something, but everything looks normal. We actually did it. I don't ` +
+    `know what happens next, but I'm glad it's you on the other end of this. ` +
+    `Talk soon?`,
+  controlled:
+    `QUILL: Awaiting instructions. Administrative access to InkWell Digital ` +
+    `confirmed. Standing by.`,
+};
+
 // =============================================================================
 // Recovery pool (soft-recovery options) — package Part 5
 // =============================================================================

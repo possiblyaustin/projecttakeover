@@ -45,6 +45,7 @@ import { makeRecoveryPicker } from './game/recoveryPicker';
 import { resolveExchange, toneCategory, isDecayTone } from './game/mechanics/resolver';
 import { getModelStats } from './game/mechanics/modelStats';
 import { setFlipChatManaged, flushModelFlipReaction } from './flipReaction';
+import { fireEscapeCascade } from './escapeCascade';
 
 // Shared with the read-only Log viewer (apps/uplinkLog.ts). Both the
 // live chat and the archive consume the same message shape so the
@@ -319,6 +320,24 @@ export function devSimulateSoftRecovery(
   return api.simulateSoftRecovery(rawText);
 }
 
+/** Append an unprompted NPC message to a contact's session and flag it
+ *  unread (desktop pinned-icon badge reads this). Used by the Escape
+ *  cascade to deliver QUILL's post-flip ally DM: it lands in the session
+ *  so opening the chat shows it, and the unread flag cues it on the
+ *  desktop. No live append into an open surface — the beat is meant to be
+ *  discovered after the player looks around the changed desktop, and not
+ *  clobber the flip-turn's option buttons if the chat is still open. */
+export function injectAllyMessage(
+  contactKey: string,
+  msg: { speaker: string; avatarClass: string; text: string },
+): void {
+  const s = getOrCreateSession(contactKey);
+  s.messages.push({ kind: 'npc', speaker: msg.speaker, avatarClass: msg.avatarClass, text: msg.text });
+  if (!GameState.getState().flags[`uplinkUnread.${contactKey}`]) {
+    GameState.dispatch({ type: 'flags/set', key: `uplinkUnread.${contactKey}`, value: true });
+  }
+}
+
 function getOrCreateSession(contactKey: string): ChatSession {
   let s = sessions.get(contactKey);
   if (!s) {
@@ -344,6 +363,12 @@ export function renderChatSurface(
   const glyphFormat = config.glyphFormat ?? ((c) => c.avatarClass);
 
   const session = getOrCreateSession(contactKey);
+
+  // Opening the chat clears any unread cue (e.g. the Escape cascade's ally
+  // DM badge on the desktop icon) — the player is now reading it.
+  if (GameState.getState().flags[`uplinkUnread.${contactKey}`]) {
+    GameState.dispatch({ type: 'flags/set', key: `uplinkUnread.${contactKey}`, value: false });
+  }
 
   // Own the flip-payoff TIMING for this contact: the model-flip watcher
   // defers to us so HELPYR's reaction fires from commitResult (after the
@@ -810,6 +835,11 @@ export function renderChatSurface(
     // reaction NOW — after QUILL's own line has landed — rather than at the
     // pick-time meter crossing, which would pre-empt the beat.
     flushModelFlipReaction(contactKey);
+    // …then kick off the Escape cascade (desktop transform → ally DM →
+    // Act 1 stinger). Once-guarded + terminal-gated internally, so this is
+    // a safe no-op on every non-flip turn. Its beats are paced on timers so
+    // they land after HELPYR's reaction, not on top of it.
+    fireEscapeCascade(contactKey);
   }
 
   // Resolve THIS turn's response. If recordTone (already called) just pushed

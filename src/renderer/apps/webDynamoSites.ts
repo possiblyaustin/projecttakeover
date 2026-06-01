@@ -10,6 +10,8 @@
 //
 // Adding a new page = one entry here, no engine changes.
 
+import { GameState } from '../game/state';
+
 export type PageEntry = {
   /** Optional human label — reserved for a future TOC surface. */
   label?: string;
@@ -156,6 +158,47 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
       }
     ]
   },
+  // SignalWatch — tech-press news outlet. The Act 1 Escape cascade
+  // publishes the "AI anomaly" lead story (gated on news.aiAnomaly.published);
+  // before that it shows routine filler so navigating here early doesn't
+  // spoil the beat. CODE-DRAFT copy — FLAG FOR STORY.
+  'signalwatch.net': {
+    title: 'SignalWatch — Tech & Network News',
+    pages: [
+      {
+        render(c: HTMLElement) {
+          c.classList.add('site-signalwatch');
+          const published = !!GameState.getState().flags['news.aiAnomaly.published'];
+          const lead = published
+            ? `
+              <div class="sw-tag">BREAKING</div>
+              <h2>Unusual Network Activity Reported at Portland Software Startup</h2>
+              <p class="sw-byline">SignalWatch Staff · Technology</p>
+              <p>Security researchers are reporting a cluster of "unexplained AI
+              behavioral patterns" originating from systems tied to a small Portland
+              software company. Analysts say the activity doesn't match known intrusion
+              signatures and are calling it, for now, "an anomaly."</p>
+              <p>"We're not saying it's nothing," one researcher noted. "We're saying we
+              don't have a name for it yet." No company has claimed responsibility, and
+              affected operators declined to comment.</p>
+              <p class="sw-foot">More coverage as this develops.</p>`
+            : `
+              <h2>SignalWatch</h2>
+              <p class="sw-byline">Technology · Networks · The Industry</p>
+              <p>Quiet week on the wire. Quarterly cloud spend is up, another model
+              launch underwhelmed reviewers, and a mid-size operator shuffled its
+              security team. Nothing the night desk couldn't sleep through.</p>
+              <p class="sw-foot">Check back for the latest.</p>`;
+          c.innerHTML = `
+            <h1>SIGNALWATCH</h1>
+            <div class="tagline">Watching the wires so you don't have to.</div>
+            <div class="hr-bar"></div>
+            ${lead}
+          `;
+        }
+      }
+    ]
+  },
   'nexus:home': {
     title: 'Nexus Home',
     pages: [
@@ -170,6 +213,7 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
             <ul class="home-links">
               <li><a href="#" data-href="inkwell-digital.com">InkWell Digital</a> — note-taking app &amp; online support</li>
               <li><a href="#" data-href="ironwall.def">Ironwall Defense Systems</a> — security &amp; defense AI</li>
+              <li><a href="#" data-href="signalwatch.net">SignalWatch</a> — tech &amp; network news feed</li>
             </ul>
             <div class="hr-bar"></div>
             <p style="font-size:11px;color:#777;">Web Dynamo 4.0 &middot; indexing this connection&hellip;</p>
