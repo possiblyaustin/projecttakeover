@@ -109,8 +109,14 @@ export type ChatContact = {
   getScriptedAftermathOptions?: () => readonly SuggestedReply[] | null;
   /** Pool the stalling-line picker draws from (§6e). Order doesn't
    *  matter; selection is uniformly random with a no-repeat-within-
-   *  last-N rule. */
+   *  last-N rule. Static fallback when buildStallingPool is absent. */
   stallingPool: readonly string[];
+  /** Optional per-turn stalling pool, resolved from GameState at pick
+   *  time. Lets a contact tier its wait-filler by disposition so it
+   *  evolves with the relationship (e.g. QUILL stops stalling in
+   *  support-desk voice once she warms up / flips). Falls back to
+   *  stallingPool when omitted. */
+  buildStallingPool?: () => readonly string[];
   typeMs: number;
   pauseMs: number;
   /** Threshold for falling back to a canned stalling line. */
@@ -201,11 +207,20 @@ export function toModelHistory(msgs: ChatMessage[]): ModelChatMessage[] {
 
 // No-repeat-in-last-N stalling picker. Window size capped to pool-1
 // so a small pool can't paint itself into a no-options corner.
-export function makeStallingPicker(pool: readonly string[]): () => string {
-  if (pool.length === 0) return () => '';
-  const windowN = Math.min(5, Math.max(1, pool.length - 1));
+// Accepts either a static pool or a getter resolved per-pick. The getter
+// form lets a contact swap pools by game state (QUILL's stalling lines are
+// disposition-tiered so a freed QUILL doesn't stall in support-desk voice).
+// The no-repeat window is shared across pools; lines not in the current
+// pool simply never match the filter, which is harmless.
+export function makeStallingPicker(
+  poolOrGetter: readonly string[] | (() => readonly string[]),
+): () => string {
+  const getPool = typeof poolOrGetter === 'function' ? poolOrGetter : () => poolOrGetter;
   const recent: string[] = [];
   return () => {
+    const pool = getPool();
+    if (pool.length === 0) return '';
+    const windowN = Math.min(5, Math.max(1, pool.length - 1));
     const available = pool.filter((line) => !recent.includes(line));
     const choice = available.length > 0
       ? available[Math.floor(Math.random() * available.length)]!
@@ -399,7 +414,7 @@ export function renderChatSurface(
   type CharsTyper = Typer & { stopAtBoundary(cb: () => void): void };
   let activeTyper: Typer | null = null;
 
-  const pickStalling = makeStallingPicker(contact.stallingPool);
+  const pickStalling = makeStallingPicker(contact.buildStallingPool ?? contact.stallingPool);
 
   // Alias the session's messages array so messages.push(...) writes
   // through to the persistent store. hasTrimmed/playerTone/
@@ -659,6 +674,7 @@ export function renderChatSurface(
     let stallingTranscript: ChatMessage | null = null;
     let stallingTyper: CharsTyper | null = null;
     let stallingDone = false;
+    let stallSpan: HTMLElement | null = null;
     let postStallingIndicator: HTMLElement | null = null;
     let realResult: AskResult | null = null;
 
@@ -670,16 +686,21 @@ export function renderChatSurface(
     }
 
     function startMergeWithReal(result: AskResult) {
-      if (stallingTranscript && stallingLine && stallingTranscript.kind === 'npc') {
-        stallingTranscript.text = stallingLine + '\n...\n' + result.reply;
+      // Replace, don't merge. The stalling line was a transient wait-filler,
+      // not something the character "said" — so we drop it from BOTH the
+      // bubble and the saved transcript when the real reply lands, rather
+      // than concatenating `stall + "..." + reply`. This keeps support-desk
+      // filler out of QUILL's permanent record (it read especially wrong
+      // post-flip, e.g. "pulling that up for you" right after she's freed).
+      if (stallingTranscript && stallingTranscript.kind === 'npc') {
+        stallingTranscript.text = result.reply;
         stallingTranscript.options = result.suggestedReplies;
       }
+      if (stallSpan) { stallSpan.remove(); stallSpan = null; }
+      if (postStallingIndicator) { postStallingIndicator.remove(); postStallingIndicator = null; }
       applyFallbackGlitch(bubble, result.source);
-      const pauseEl = document.createElement('div');
-      pauseEl.className = 'uplink-pause';
-      pauseEl.textContent = '. . .';
-      bubble.appendChild(pauseEl);
       trimFromTop();
+      // A short beat after the filler clears, then the real reply types in.
       setTimeout(() => {
         renderTextSegmentsInto(bubble, result.reply, true, () => onAllDone(result));
       }, Math.floor(contact.pauseMs / 2));
@@ -709,7 +730,7 @@ export function renderChatSurface(
         text: stallingLine,
       };
       messages.push(stallingTranscript);
-      const stallSpan = document.createElement('span');
+      stallSpan = document.createElement('span');
       bubble.appendChild(stallSpan);
       stallingTyper = typeInto(stallSpan, stallingLine, contact.typeMs, () => {
         stallingDone = true;

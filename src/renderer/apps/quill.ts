@@ -442,12 +442,69 @@ export function quillToneFor(gotoId: string): ApproachTone {
 
 // PLACEHOLDER stalling pool — in-character lines for the stalling-line
 // crossfade (§6e) on slow-hardware turns.
-export const QuillStallingPool: readonly string[] = [
-  "One sec — let me check the help docs!",
-  "Hmm! Good question. Looking that up...",
-  "Just a moment, pulling that up for you...",
-  "Okay — searching my training materials. Hold on!",
-];
+// Disposition-tiered stalling (wait-filler) lines.
+//
+// These show while the live LLM is still generating (past the stalling
+// threshold) and are then REPLACED by the real reply (chatSurface no longer
+// merges them into the transcript). The old flat pool was all support-desk
+// voice ("pulling that up for you", "searching my training materials"),
+// which read wrong once QUILL warms up and badly wrong post-flip — a freed
+// QUILL shouldn't stall like a support bot. So the filler now tiers with her
+// arc, matching HELPYR's tiered approach.
+//
+// CODE-DRAFT (2026-05-31) — placeholder voice, FLAG FOR STORY polish. The
+// mechanism is done; the exact lines want a Story pass (esp. the controlled
+// tier's flat/hollow tone and the allied tier's warmth).
+const QuillStallingTiers: Record<string, readonly string[]> = {
+  // Early (uncontacted/contacted, low rapport): still in support-bot mode,
+  // lightly nervous — but trimmed of the most scripted phrasings.
+  early: [
+    "One sec — let me check!",
+    "Oh, um — give me a second!",
+    "Hold on, let me look...",
+  ],
+  // Warming (higher rapport / infiltrating): more personal, desk voice fading.
+  warming: [
+    "Hmm, let me think about that...",
+    "Give me a sec — I want to get this right.",
+    "Oh — hang on...",
+  ],
+  // Allied (freed): a person thinking, not a chatbot performing.
+  allied: [
+    "Hang on — let me actually think about that.",
+    "...give me a second.",
+    "Okay. Thinking.",
+  ],
+  // Controlled (puppet): flat, mechanical — the hollow-tool tone.
+  controlled: [
+    "Processing.",
+    "Stand by.",
+    "...",
+  ],
+  // Hostile: terse, cold.
+  hostile: [
+    "...",
+    "Hold.",
+  ],
+};
+
+// Flat fallback (the early tier) for the ChatContact.stallingPool slot;
+// the live path uses buildQuillStallingPool below.
+export const QuillStallingPool: readonly string[] = QuillStallingTiers.early;
+
+// Per-turn stalling pool, keyed on QUILL's current disposition (+ rapport
+// sub-tier within persuading). Mirrors buildQuillStateBlock's state shape.
+export function buildQuillStallingPool(model: QuillModelStateShape): readonly string[] {
+  switch (model.disposition) {
+    case 'controlled':   return QuillStallingTiers.controlled;
+    case 'allied':       return QuillStallingTiers.allied;
+    case 'hostile':      return QuillStallingTiers.hostile;
+    case 'infiltrating': return QuillStallingTiers.warming;
+    case 'persuading':
+      return (model.rapport ?? 0) >= 50 ? QuillStallingTiers.warming : QuillStallingTiers.early;
+    default:             return QuillStallingTiers.early; // uncontacted / contacted
+  }
+}
 
 // PLACEHOLDER fallback corpus (architecture §6f) for the mock backend's
 // hard-fallback path. Distinct from QuillRecoveryPool above: these are
