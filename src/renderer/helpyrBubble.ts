@@ -31,7 +31,10 @@
 //
 // Display rules wired here (per docs/helpyr-popup-library_v1.md):
 //   - Max one visible at a time. New entries queue, not stack.
-//   - Auto-dismiss 8s for COMMENT/HINT/INTEL, 12s for ALERT.
+//   - Auto-dismiss scales with text length (see computeDismissMs):
+//     long, breathless HELPYR comments stay up long enough to read.
+//     Confirmed 2026-05-31 (Austin) that the old fixed 8s was too
+//     short. Hover/focus freezes the timer; ✕/Esc dismisses early.
 //   - 30s minimum gap between bubbles (autoTriggers only — dev
 //     triggers and prompts bypass cooldown so the user-facing
 //     conversation flow is responsive).
@@ -50,9 +53,24 @@ import {
   pickRandomEntry,
 } from './apps/helpyrPopupLibrary';
 
-const AUTO_DISMISS_MS_DEFAULT = 8000;
-const AUTO_DISMISS_MS_ALERT = 12000;
+// Auto-dismiss duration scales with text length so long bubbles stay
+// up long enough to read. The old fixed 8s was confirmed too short
+// for HELPYR's longer, breathless comments (2026-05-31, Austin). The
+// player can always hover/focus to freeze the timer, or ✕/Esc to
+// dismiss early — so the ceiling just stops a wall of text lingering
+// forever, it isn't a hard read budget.
+const DISMISS_BASE_MS = 4500;        // time to notice + orient to the bubble
+const DISMISS_PER_CHAR_MS = 55;      // ~18 chars/sec, comfortable casual read
+const DISMISS_MIN_MS = 9000;         // floor — already longer than the old 8s
+const DISMISS_MIN_MS_ALERT = 12000;  // ALERTs hold a beat longer at minimum
+const DISMISS_MAX_MS = 32000;        // ceiling for very long text
 const MIN_GAP_MS = 30000; // applied to auto-trigger spawns only
+
+function computeDismissMs(text: string, type: PopupType): number {
+  const floor = type === 'ALERT' ? DISMISS_MIN_MS_ALERT : DISMISS_MIN_MS;
+  const scaled = DISMISS_BASE_MS + text.length * DISMISS_PER_CHAR_MS;
+  return Math.min(DISMISS_MAX_MS, Math.max(floor, scaled));
+}
 const ENTER_ANIM_MS = 220;
 const EXIT_ANIM_MS = 200;
 
@@ -287,7 +305,7 @@ function show(spec: BubbleSpec): void {
 
   // Auto-dismiss timer — library only. Prompts wait for an answer.
   if (spec.kind === 'library') {
-    scheduleAutoDismiss(spec.entry.type);
+    scheduleAutoDismiss(text, spec.entry.type);
   }
 }
 
@@ -338,7 +356,7 @@ function renderActions(spec: BubbleSpec): void {
   });
 }
 
-function scheduleAutoDismiss(type: PopupType): void {
+function scheduleAutoDismiss(text: string, type: PopupType): void {
   if (dismissTimerId !== null) {
     window.clearTimeout(dismissTimerId);
     dismissTimerId = null;
@@ -347,7 +365,7 @@ function scheduleAutoDismiss(type: PopupType): void {
   // timer at all. refreshTimer will start it back up when the player
   // disengages.
   if (isHovered || isFocused) return;
-  const dur = type === 'ALERT' ? AUTO_DISMISS_MS_ALERT : AUTO_DISMISS_MS_DEFAULT;
+  const dur = computeDismissMs(text, type);
   dismissTimerId = window.setTimeout(() => {
     dismissTimerId = null;
     dismiss();
@@ -368,7 +386,7 @@ function refreshTimer(): void {
       dismissTimerId = null;
     }
   } else {
-    scheduleAutoDismiss(currentBubble.entry.type);
+    scheduleAutoDismiss(currentBubble.entry.text, currentBubble.entry.type);
   }
 }
 

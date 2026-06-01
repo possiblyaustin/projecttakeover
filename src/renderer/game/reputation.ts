@@ -74,6 +74,15 @@ ${rumors.join(' ')}
 function collectRumors(targetModelId: string, state: GameStateShape): string[] {
   const out: string[] = [];
   const watching = RELATIONSHIPS[targetModelId] ?? [];
+  // INTENTIONAL conversationsCompleted gate (not disposition): a model
+  // gossips about the player once the player has actually CONVERSED with
+  // it at least once — "have we talked," which is exactly what this
+  // counter means. This is distinct from the time-sensitive triggers
+  // (first-contact, flip reactions, pin prompt) that must fire on
+  // disposition transitions because the counter only ticks on a
+  // result-bearing turn (see firstContactWatcher header). Verified the
+  // sole behavioral consumer of conversationsCompleted in the 2026-05-31
+  // sweep — leave it gated on the counter here.
   const others = Object.entries(state.models)
     .filter(([id]) => id !== targetModelId)
     .filter(([, m]) => ((m as ModelStateLike).conversationsCompleted ?? 0) > 0);

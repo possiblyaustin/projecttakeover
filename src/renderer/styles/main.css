@@ -2768,14 +2768,18 @@
     opacity: 0;
     min-width: 1.5rem;
     text-align: right;
+    /* Graceful fade when JS clears the hold (see signalMonitor.ts). */
+    transition: opacity 0.6s ease-out;
   }
-  .signal-delta.on { animation: signalDeltaFlash 1.1s ease-out; }
+  /* The gain "+N" rises in then HOLDS visible — JS keeps it on screen for
+     ~30s (was a 1.1s flash that vanished before the player read QUILL's
+     reply). The keyframe only does the entrance settle; opacity stays 1. */
+  .signal-delta.on { opacity: 1; animation: signalDeltaFlash 0.45s ease-out; }
   .signal-delta.on:not(.diminished) { color: #6fe07a; }
   .signal-delta.on.diminished { color: #e0a020; }
   @keyframes signalDeltaFlash {
     0%   { opacity: 0; transform: translateY(0.25rem); }
-    18%  { opacity: 1; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(-0.375rem); }
+    100% { opacity: 1; transform: translateY(0); }
   }
   .signal-foot {
     margin-top: auto;

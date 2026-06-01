@@ -190,12 +190,32 @@ export function firePinReNudge(contactId: string): void {
   if (!state.flags[`pinDeclined.${contactId}`]) return;
   if (state.desktopPins.some(p => p.contactId === contactId)) return;
 
-  // Clear the flag immediately so even if the player dismisses with
+  // Don't nudge on the very next visit after a decline — firing the
+  // re-nudge on the immediate re-open reads as the pin prompt "popping
+  // twice" (Austin, 2026-05-31). This beat is a "you keep coming back"
+  // observation, so it should wait for a GENUINE repeat visit: the first
+  // revisit after declining ARMS it (silently), the next one fires. Uses
+  // the existing boolean flag store (no numeric counter needed).
+  if (!state.flags[`pinNudgeArmed.${contactId}`]) {
+    GameState.dispatch({
+      type: 'flags/set',
+      key: `pinNudgeArmed.${contactId}`,
+      value: true,
+    });
+    return;
+  }
+
+  // Clear both flags immediately so even if the player dismisses with
   // ✕/Esc (not a button), we don't re-fire on every subsequent
   // visit. Treating dismiss-without-answer as "leave me alone."
   GameState.dispatch({
     type: 'flags/set',
     key: `pinDeclined.${contactId}`,
+    value: false,
+  });
+  GameState.dispatch({
+    type: 'flags/set',
+    key: `pinNudgeArmed.${contactId}`,
     value: false,
   });
 

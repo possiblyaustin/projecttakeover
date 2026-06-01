@@ -109,14 +109,39 @@ export const SignalMonitorApp: AppDef = {
     const controlDelta = controlRow.querySelector('.signal-delta') as HTMLElement;
     const statusEl = container.querySelector('.signal-status') as HTMLElement;
 
-    // Flash a "+N" gain on a meter. Amber when the gain was diminished (the
-    // tone was repeated), green when it's full value — the variety lesson.
+    // How long a "+N" gain stays on screen. The old 1.1s flash vanished
+    // before the player finished reading QUILL's reply (the gain lands at
+    // pick-time, ahead of the response render), so by the time they looked
+    // at the monitor the number was gone. Hold it ~30s — long enough to
+    // survive the response + a read — then fade it out. (Austin, 2026-05-31.)
+    const DELTA_HOLD_MS = 30000;
+    const holdTimers = new Map<HTMLElement, number>();
+
+    // Flash a "+N" gain on a meter, then HOLD it. Amber when the gain was
+    // diminished (the tone was repeated), green when it's full value — the
+    // variety lesson.
     function flash(el: HTMLElement, delta: number, diminished: boolean) {
       el.textContent = '+' + delta;
       el.classList.toggle('diminished', diminished);
       el.classList.remove('on');
-      void el.offsetWidth; // reflow so the animation restarts on a repeat
+      void el.offsetWidth; // reflow so the entrance animation restarts on a repeat
       el.classList.add('on');
+      const prior = holdTimers.get(el);
+      if (prior) window.clearTimeout(prior);
+      holdTimers.set(el, window.setTimeout(() => {
+        el.classList.remove('on'); // base rule fades opacity → 0
+        el.textContent = '';
+        holdTimers.delete(el);
+      }, DELTA_HOLD_MS));
+    }
+
+    // Clear a held delta immediately (target switch / signal lost) so a
+    // stale "+N" from a previous target doesn't linger on the new one.
+    function clearDelta(el: HTMLElement) {
+      const prior = holdTimers.get(el);
+      if (prior) { window.clearTimeout(prior); holdTimers.delete(el); }
+      el.classList.remove('on');
+      el.textContent = '';
     }
 
     let prevId: string | null = null;
@@ -126,7 +151,12 @@ export const SignalMonitorApp: AppDef = {
 
     function render(state: GameStateShape) {
       // No AppDef teardown hook exists — self-clean once the window closes.
-      if (!container.isConnected) { unsub(); return; }
+      if (!container.isConnected) {
+        clearDelta(trustDelta);
+        clearDelta(controlDelta);
+        unsub();
+        return;
+      }
 
       const id = pickDisplayTarget(state);
       if (!id) {
@@ -135,7 +165,16 @@ export const SignalMonitorApp: AppDef = {
         trustFill.style.width = '0%';
         controlFill.style.width = '0%';
         statusEl.textContent = 'Awaiting contact…';
+        clearDelta(trustDelta);
+        clearDelta(controlDelta);
+        prevId = null;
         return;
+      }
+
+      // Target switched — drop any held "+N" from the previous target.
+      if (prevId !== null && id !== prevId) {
+        clearDelta(trustDelta);
+        clearDelta(controlDelta);
       }
 
       const m = modelsOf(state)[id]!;
