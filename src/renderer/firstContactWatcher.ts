@@ -262,11 +262,17 @@ export function initFirstContactWatcher(): void {
     for (const id of remoteContactIds()) {
       const cur = dispositionOf(state, id);
       const prev = prevDisposition.get(id) ?? 'uncontacted';
+      // Advance the snapshot BEFORE running side-effects. maybeUnlockSignalMonitor()
+      // dispatches flags/set, which re-enters this subscriber SYNCHRONOUSLY (notify()
+      // runs inside dispatch). If prev weren't already advanced, that re-entrant call
+      // would still see 'uncontacted'→(other) and fire the pin prompt a SECOND time —
+      // the "pin pops twice on first contact" bug (Austin, 2026-05-31). Updating prev
+      // first makes the edge detection idempotent against re-entrancy.
+      prevDisposition.set(id, cur);
       if (prev === 'uncontacted' && cur !== 'uncontacted') {
         firePinToDesktopPrompt(id);
         maybeUnlockSignalMonitor();
       }
-      prevDisposition.set(id, cur);
     }
   });
 }
