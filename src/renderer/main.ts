@@ -41,6 +41,10 @@ import { initIdleWatcher, devFireIdleTrigger } from './idleWatcher';
 import { initModelFlipWatcher } from './modelFlipWatcher';
 import { initLossScreen } from './lossScreen';
 import { fireLibraryTrigger, fireOnceLibraryTrigger } from './helpyrTriggers';
+import { setCascadeDeps, fireEscapeCascade } from './escapeCascade';
+import { injectAllyMessage } from './chatSurface';
+import { UplinkContacts } from './apps/uplink';
+import { QuillAllyDM } from './apps/quill';
 
 // ---- Boot order ----
 // 1. Register every app the system knows about.
@@ -81,6 +85,25 @@ initIdleWatcher();
 //    100 — init early so a loaded game-over save surfaces immediately.
 initModelFlipWatcher();
 initLossScreen();
+
+// 7b. Escape cascade (Act 1 post-flip payoff). The coordinator is a leaf
+//     (chatSurface triggers it from commitResult); here we inject the beats
+//     that need non-leaf deps: the ally-DM injection and the news stinger.
+setCascadeDeps({
+  deliverAllyDM: (contactId, disposition) => {
+    const contact = UplinkContacts[contactId];
+    // Only QUILL has ally-DM copy today; other models no-op until theirs lands.
+    const copy = contactId === 'quill'
+      ? QuillAllyDM[disposition === 'controlled' ? 'controlled' : 'allied']
+      : null;
+    if (!contact || !copy) return;
+    injectAllyMessage(contactId, { speaker: contact.name, avatarClass: contact.avatarClass, text: copy });
+  },
+  // bypassUplinkGuard: the player may still be in the flipped contact's chat.
+  // bypassCooldown: HELPYR's flip reaction fired ~7s earlier (within the 30s
+  // gap), so without this the stinger would be swallowed by the cooldown.
+  fireNewsStinger: () => fireLibraryTrigger('news_ai_anomaly', { bypassUplinkGuard: true, bypassCooldown: true }),
+});
 
 // 8. Launch README on startup so the player has a welcome surface.
 DesktopShortcuts[0]!.launch();
@@ -123,6 +146,19 @@ setTimeout(() => {
   // contacts are the keys of UplinkContacts in apps/uplink.ts.
   openContact(id: string) {
     WindowManager.open('uplink', { contact: id });
+  },
+  // Drive the Act 1 Escape cascade on demand (desktop pin slide-in → ally
+  // DM → news stinger). Flips QUILL to the given terminal disposition, clears
+  // the persistent once-flag, and fires. Re-test needs a reload (the in-memory
+  // once-guard also latches). disposition: 'allied' (default) | 'controlled'.
+  devFireEscapeCascade: (disposition: 'allied' | 'controlled' = 'allied') => {
+    if (disposition === 'controlled') {
+      GameState.dispatch({ type: 'model/applyExchange', contactId: 'quill', intrusion: 100 });
+    } else {
+      GameState.dispatch({ type: 'model/applyExchange', contactId: 'quill', rapport: 100 });
+    }
+    GameState.dispatch({ type: 'flags/set', key: 'escapeCascade.quill', value: false });
+    fireEscapeCascade('quill');
   },
   helpyr: {
     // Spawn a random eligible bubble for the current trust level

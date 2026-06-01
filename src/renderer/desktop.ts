@@ -267,16 +267,22 @@ type DesktopIconSpec = {
   top: number;
   onClick: () => void;
   pinnedContactId?: string;
+  /** Play the slide-in entrance animation (used when a pin first appears,
+   *  e.g. the Escape cascade auto-pinning a freshly-flipped ally). */
+  enterAnim?: boolean;
+  /** Show an unread cue dot (e.g. an unread ally DM waiting in Uplink). */
+  unread?: boolean;
 };
 function makeDesktopIcon(spec: DesktopIconSpec): HTMLElement {
   const icon = document.createElement('div');
-  icon.className = 'desktop-icon';
+  icon.className = 'desktop-icon' + (spec.enterAnim ? ' pin-enter' : '');
   icon.tabIndex = 0;
   icon.dataset.focusable = 'true';
   if (spec.pinnedContactId) icon.dataset.pinnedContact = spec.pinnedContactId;
   icon.style.left = (spec.left * UI_SCALE) + 'px';
   icon.style.top  = (spec.top  * UI_SCALE) + 'px';
-  icon.innerHTML = `<div class="glyph ${spec.glyphClass}"></div><div class="label"></div>`;
+  const badge = spec.unread ? '<div class="desktop-icon-unread" aria-label="unread message"></div>' : '';
+  icon.innerHTML = `<div class="glyph ${spec.glyphClass}"></div><div class="label"></div>${badge}`;
   icon.querySelector('.label')!.textContent = spec.label;
   // Cursor-first: a single click (physical, A button, or Enter)
   // launches the app. The hover highlight indicates what's selected.
@@ -292,8 +298,14 @@ function makeDesktopIcon(spec: DesktopIconSpec): HTMLElement {
 // short list (player adds them one-at-a-time after each first
 // conversation), so the cost of full rebuild is negligible and the
 // logic is simpler than a diff.
+// Tracks which contacts were pinned on the previous render so a NEWLY
+// pinned one gets the slide-in animation while existing ones don't
+// re-animate on every unrelated state change (this rebuilds fully each time).
+let prevPinnedIds: string[] = [];
+
 function renderPinnedIcons(state: GameStateShape, desktopEl: HTMLElement): void {
   desktopEl.querySelectorAll('[data-pinned-contact]').forEach(el => el.remove());
+  const currentIds = state.desktopPins.map(p => p.contactId);
   state.desktopPins.forEach((pin, i) => {
     const contact = UplinkContacts[pin.contactId];
     if (!contact) {
@@ -311,9 +323,12 @@ function renderPinnedIcons(state: GameStateShape, desktopEl: HTMLElement): void 
       top: PIN_TOP_BASE + i * PIN_TOP_STRIDE,
       onClick: () => WindowManager.open('uplink', { contact: pin.contactId }),
       pinnedContactId: pin.contactId,
+      enterAnim: !prevPinnedIds.includes(pin.contactId),
+      unread: !!state.flags[`uplinkUnread.${pin.contactId}`],
     });
     desktopEl.appendChild(icon);
   });
+  prevPinnedIds = currentIds;
 }
 
 // HELPYR tray button: opens the HELPYR app window, or focuses it if

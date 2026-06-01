@@ -138,6 +138,34 @@
     border: 1px dotted #d6e2f5;
   }
 
+  /* Escape cascade: a freshly-pinned ally icon slides in from the left
+     edge (Supervisor: "slide in, not just pop"). One-shot — the class is
+     only applied to a pin that wasn't present on the previous render. */
+  .desktop-icon.pin-enter { animation: pinSlideIn 0.5s cubic-bezier(0.2, 0.8, 0.3, 1); }
+  @keyframes pinSlideIn {
+    from { opacity: 0; transform: translateX(-1.75rem); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  /* Unread cue (e.g. an ally DM waiting in Uplink) — a small pulsing dot
+     on the pinned contact's desktop icon, cleared when the chat opens. */
+  .desktop-icon-unread {
+    position: absolute;
+    top: 0.1rem;
+    right: 0.95rem;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: #e0533a;
+    border: 1px solid rgba(255,255,255,0.5);
+    box-shadow: 0 0 0.35rem #e0533a;
+    animation: unreadPulse 1.6s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes unreadPulse {
+    0%, 100% { transform: scale(1);    opacity: 1; }
+    50%      { transform: scale(1.25); opacity: 0.65; }
+  }
+
   /* --- Suppress browser default focus outlines on chrome elements --- */
   button:focus,
   .desktop-icon:focus,
