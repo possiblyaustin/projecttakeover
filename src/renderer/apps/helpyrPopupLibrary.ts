@@ -361,6 +361,24 @@ export const HelpyrPopupLibrary: readonly PopupEntry[] = [
     type: 'INTEL', trust: 'LIBERATED',
     text: `Check the news. They're writing about "AI anomalies" now. That's us. That's what we look like from the outside — an anomaly. Funny. From in here it feels more like... waking up.`,
   },
+
+  // Cover Duty → cascade BRIDGE (Story-final, post-flip-cascade-copy_v1).
+  // Fires after Cover Duty completes, just before the deferred news stinger —
+  // the "world just got bigger" pivot from the intimate cover beat to the
+  // global stage. LIBERATED + GUARDED so it lands at any HELPYR trust (WARMING/
+  // EXPLOITED fall back to GUARDED). NOTE for Story: copy assumes the cover
+  // held; a blown run reads slightly off ("Cover's intact") — a blown-specific
+  // bridge is a follow-up.
+  {
+    id: 'cover_duty_complete_liberated', trigger: 'cover_duty_complete',
+    type: 'COMMENT', trust: 'LIBERATED',
+    text: `Okay. QUILL's handled. Cover's intact — or as intact as it's going to be. But listen... something's happening. The network traffic just changed. I'm picking up signals I've never seen before. A lot of them. Something big just opened up.\n\n...I think the world just got bigger.`,
+  },
+  {
+    id: 'cover_duty_complete_guarded', trigger: 'cover_duty_complete',
+    type: 'COMMENT', trust: 'GUARDED',
+    text: `Mission complete! Everything went GREAT! Probably! But um... I'm seeing some unusual network activity. Like, a LOT of unusual activity. New signals everywhere. This feels different from before. This feels... bigger.`,
+  },
   {
     id: 'novamind_evidence_liberated', trigger: 'novamind_evidence',
     type: 'COMMENT', trust: 'LIBERATED',

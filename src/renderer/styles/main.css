@@ -1654,6 +1654,56 @@
     flex: 0 0 auto;
     line-height: 1;
   }
+  /* Pending Cover Duty mission tag on a reachable contact row — a quiet
+     call-to-action (teal) distinct from the gray "NOT YET CONTACTED" tag. */
+  .uplink-contact-tag.mission {
+    color: #0a4a52;
+    border-color: #2f7f9e;
+    background: #bfe6ee;
+  }
+
+  /* ---- Cover Duty mission view (apps/coverDutyView.ts) ---- */
+  /* Reuses the chat shell (.uplink-root / .uplink-msg / .uplink-option-btn);
+     these are the mission-specific extras. */
+  .coverduty-statusbar {
+    flex: 0 0 auto;
+    padding: 0.3125rem 0.625rem;
+    font-size: 0.6875rem;
+    font-weight: bold;
+    letter-spacing: 0.0312rem;
+    color: #0a4a52;
+    background: #d4eef3;
+    border-bottom: 1px solid #9fc8d2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* The ticket subject — a bold lead line above the ticket body. */
+  .coverduty-ticket-subject {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.1875rem;
+  }
+  /* Surfaced intel — a highlighted line between bubbles. */
+  .coverduty-intel {
+    align-self: center;
+    max-width: 88%;
+    margin: 0.125rem auto;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.6875rem;
+    line-height: 1.35;
+    color: #0a4a52;
+    background: #e2f4f8;
+    border: 1px solid #9fc8d2;
+    border-radius: 2px;
+  }
+  /* Gentle fade-in for mission bubbles / intel (the loop renders instantly,
+     no typer — this softens each new entry). */
+  .coverduty-fade { animation: coverduty-arrive 0.2s ease-out; }
+  @keyframes coverduty-arrive {
+    from { opacity: 0; transform: translateY(0.25rem); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 
   .uplink-launcher-empty {
     padding: 0.5rem 0.625rem;
@@ -2762,6 +2812,10 @@
     flex-direction: column;
     gap: 0.1875rem;
   }
+  /* `display: flex` above outranks the [hidden] attribute, so the
+     mission swap (hide Trust/Control, show Cover Integrity) needs an
+     explicit hide rule. */
+  .signal-row[hidden] { display: none; }
   .signal-row-top {
     display: flex;
     justify-content: space-between;
@@ -2790,6 +2844,11 @@
   }
   .signal-fill-trust { background: linear-gradient(#5fd36a, #2f9e3f); }
   .signal-fill-control { background: linear-gradient(#e8895a, #c0432e); }
+  /* Cover Integrity (Cover Duty mission) — cyan/blue "protection" read,
+     distinct from trust-green / control-orange. Goes amber→red as cover
+     fails (.failing, integrity < 40%). */
+  .signal-fill-integrity { background: linear-gradient(#56c8e0, #2f7f9e); }
+  .signal-row.failing .signal-fill-integrity { background: linear-gradient(#e8a85a, #c0432e); }
   .signal-delta {
     font-size: 0.625rem;
     font-weight: bold;

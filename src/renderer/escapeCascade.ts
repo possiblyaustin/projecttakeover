@@ -25,23 +25,39 @@
 // beats then run on paced setTimeouts so they don't stack on top of the
 // flip line / HELPYR bubble. Once-guarded per model.
 //
-// Trigger-ordering vs the post-flip MISSIONS (Cover Duty / Storefront) is
-// deliberately NOT wired here — Story hasn't ruled on whether the "world
-// noticed" stinger should precede or follow a stay-unnoticed mission. The
-// cascade stands alone; sequencing is a one-call change when that lands.
+// ORDERING (Story LOCKED 2026-06-02): flip → aftermath → Cover Duty →
+// cascade-stinger. So the cascade SPLITS:
+//   • At flip (fireEscapeCascade): desktop transform + ally DM land — the
+//     intimate "you have an ally now" beats that bridge INTO Cover Duty.
+//   • The "world noticed" NEWS STINGER is DEFERRED for contacts that have a
+//     post-flip mission (QUILL): it fires from fireCoverDutyComplete AFTER
+//     the mission resolves, preceded by Story's bridge HELPYR pop-up
+//     ("…the world just got bigger"). Contacts with no mission fire the
+//     stinger inline at flip, as before.
 
 import { GameState } from './game/state';
 
 const TERMINAL = new Set(['allied', 'controlled']);
 
-// Once-guard: a model's cascade runs exactly once per run.
+// Contacts whose post-flip mission defers the world stinger until the
+// mission completes. (QUILL = Cover Duty; future mission-bearing models add
+// here.) A contact NOT in this set fires the stinger inline at flip.
+const MISSION_CONTACTS = new Set(['quill']);
+
+// Once-guards: each fires its beats exactly once per run.
 const started = new Set<string>();
+const stingerFired = new Set<string>();
 
 // Pacing (ms from cascade start — i.e. just after HELPYR's flip reaction).
 // Each beat lands and breathes before the next; tuned so nothing stacks.
 const BEAT_DESKTOP_MS = 1800; // ally pins to the desktop (slide-in)
 const BEAT_ALLY_DM_MS = 4200; // ally DM lands in Uplink (unread badge)
-const BEAT_STINGER_MS = 6800; // Act 1 news stinger
+const BEAT_STINGER_MS = 6800; // Act 1 news stinger (no-mission contacts)
+
+// Post-mission pacing (ms from fireCoverDutyComplete): bridge pop-up lands
+// first, then the news stinger breathes after it.
+const POST_BRIDGE_MS = 600;   // "…the world just got bigger" HELPYR pop-up
+const POST_STINGER_MS = 5200; // then the SignalWatch article + news nudge
 
 type CascadeDeps = {
   /** Beat 5 — inject the post-flip ally message into the contact's Uplink
@@ -49,6 +65,9 @@ type CascadeDeps = {
   deliverAllyDM: (contactId: string, disposition: string) => void;
   /** Beat 6 — fire HELPYR's "check the news" nudge (news_ai_anomaly). */
   fireNewsStinger: () => void;
+  /** Bridge — fire HELPYR's "the world just got bigger" pop-up after Cover
+   *  Duty completes, before the news stinger (cover_duty_complete trigger). */
+  fireBridgePopup: () => void;
 };
 
 let deps: CascadeDeps | null = null;
@@ -91,16 +110,36 @@ export function fireEscapeCascade(contactId: string): void {
   }, BEAT_DESKTOP_MS);
 
   // Beat 5 — ally DM lands in Uplink, cued by an unread badge on the new
-  // desktop icon. Warm if allied, cold/transactional if controlled.
+  // desktop icon. Warm if allied, cold/transactional if controlled. This is
+  // the bridge INTO Cover Duty ("my ticket queue is getting backed up").
   window.setTimeout(() => {
     deps?.deliverAllyDM(contactId, disposition);
   }, BEAT_ALLY_DM_MS);
 
-  // Beat 6 — Act 1 stinger: the world noticed. Publish the SignalWatch
-  // article (gates its "new" state + discoverability) and fire HELPYR's
-  // news nudge so the player knows to go look.
-  window.setTimeout(() => {
-    GameState.dispatch({ type: 'flags/set', key: 'news.aiAnomaly.published', value: true });
-    deps?.fireNewsStinger();
-  }, BEAT_STINGER_MS);
+  // Beat 6 — Act 1 stinger: the world noticed. DEFERRED for mission-bearing
+  // contacts (fires from fireCoverDutyComplete instead, after the mission);
+  // contacts with no post-flip mission fire it inline here at flip.
+  if (!MISSION_CONTACTS.has(contactId)) {
+    window.setTimeout(() => fireStinger(contactId), BEAT_STINGER_MS);
+  }
+}
+
+/** The "world noticed" beat: publish the SignalWatch article (gates its
+ *  headline + discoverability) and fire HELPYR's news nudge. Once-guarded
+ *  per contact so the deferred + inline paths can't double-fire. */
+function fireStinger(contactId: string): void {
+  if (stingerFired.has(contactId)) return;
+  stingerFired.add(contactId);
+  GameState.dispatch({ type: 'flags/set', key: 'news.aiAnomaly.published', value: true });
+  deps?.fireNewsStinger();
+}
+
+/** Post-flip ordering payoff: called when a contact's Cover Duty mission
+ *  resolves. Fires Story's bridge HELPYR pop-up ("…the world just got
+ *  bigger"), then — after it breathes — the deferred world stinger. Safe to
+ *  call more than once (both beats are once-guarded). */
+export function fireCoverDutyComplete(contactId: string): void {
+  if (stingerFired.has(contactId)) return; // already ran (e.g. reopened view)
+  window.setTimeout(() => deps?.fireBridgePopup(), POST_BRIDGE_MS);
+  window.setTimeout(() => fireStinger(contactId), POST_STINGER_MS);
 }

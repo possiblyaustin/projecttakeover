@@ -45,6 +45,8 @@ import { setCascadeDeps, fireEscapeCascade } from './escapeCascade';
 import { injectAllyMessage } from './chatSurface';
 import { UplinkContacts } from './apps/uplink';
 import { QuillAllyDM } from './apps/quill';
+import { initCoverDutyWatcher } from './coverDutyWatcher';
+import { selectBatchIds } from './game/missions/coverDuty';
 
 // ---- Boot order ----
 // 1. Register every app the system knows about.
@@ -86,6 +88,11 @@ initIdleWatcher();
 initModelFlipWatcher();
 initLossScreen();
 
+// 7a. Cover Duty watcher (post-flip missions slice 1). Arms QUILL's mission
+//     once it's allied + the aftermath turn is consumed. Init after the flip
+//     watcher so the flip/aftermath beats settle first.
+initCoverDutyWatcher();
+
 // 7b. Escape cascade (Act 1 post-flip payoff). The coordinator is a leaf
 //     (chatSurface triggers it from commitResult); here we inject the beats
 //     that need non-leaf deps: the ally-DM injection and the news stinger.
@@ -103,6 +110,10 @@ setCascadeDeps({
   // bypassCooldown: HELPYR's flip reaction fired ~7s earlier (within the 30s
   // gap), so without this the stinger would be swallowed by the cooldown.
   fireNewsStinger: () => fireLibraryTrigger('news_ai_anomaly', { bypassUplinkGuard: true, bypassCooldown: true }),
+  // Bridge pop-up after Cover Duty completes ("…the world just got bigger"),
+  // just before the deferred news stinger. bypassCooldown so it isn't eaten
+  // by an earlier mission-completion bubble.
+  fireBridgePopup: () => fireLibraryTrigger('cover_duty_complete', { bypassUplinkGuard: true, bypassCooldown: true }),
 });
 
 // 8. Launch README on startup so the player has a welcome surface.
@@ -159,6 +170,18 @@ setTimeout(() => {
     }
     GameState.dispatch({ type: 'flags/set', key: 'escapeCascade.quill', value: false });
     fireEscapeCascade('quill');
+  },
+  // Jump straight into QUILL's Cover Duty mission (post-flip missions slice 1).
+  // Flips QUILL allied + marks the aftermath consumed so the watcher arms,
+  // clears any prior run (so it's re-runnable), arms a fresh batch, and opens
+  // the mission view. Re-call any time to restart with a new batch.
+  devStartCoverDuty: () => {
+    GameState.dispatch({ type: 'model/applyExchange', contactId: 'quill', rapport: 100 });
+    GameState.dispatch({ type: 'flags/set', key: 'flip.quill.scripted', value: true });
+    GameState.dispatch({ type: 'flags/set', key: 'flip.quill.aftermath', value: true });
+    GameState.dispatch({ type: 'mission/coverDuty/clear', contactId: 'quill' });
+    GameState.dispatch({ type: 'mission/coverDuty/arm', contactId: 'quill', ticketIds: selectBatchIds() });
+    WindowManager.open('uplink', { contact: 'quill' });
   },
   helpyr: {
     // Spawn a random eligible bubble for the current trust level
