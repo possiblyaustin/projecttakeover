@@ -566,6 +566,7 @@
   }
   .browser-viewport {
     flex: 1;
+    position: relative; /* anchor for the transient .browser-status overlay */
     background: #ffffff;
     border-top: 2px solid var(--shadow);
     border-left: 2px solid var(--shadow);
@@ -575,6 +576,87 @@
     padding: 0.75rem 1rem;
     font-family: "Times New Roman", Georgia, serif;
     color: #111;
+  }
+
+  /* --- Bookmarks bar (compact chip row under the toolbar) --- */
+  .browser-bookmarks {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1875rem 0.3125rem;
+    background: var(--face);
+    border-bottom: 1px solid var(--shadow);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .browser-bookmarks[hidden] { display: none; }
+  .browser-bookmark-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    height: 1.125rem;
+    padding: 0 0.4375rem;
+    font-family: var(--sys-font);
+    font-size: 0.6875rem;
+    line-height: 1;
+    color: #1a1a1a;
+    background: linear-gradient(to bottom, #fff, #e7e7e7);
+    border: 1px solid #9a9a9a;
+    border-radius: 2px;
+  }
+  .browser-bookmark-chip:active,
+  .browser-bookmark-chip.cursor-hover { background: linear-gradient(to bottom, #eaf2ff, #cfe0ff); }
+  .browser-bookmark-new {
+    font-size: 0.5rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.03125rem;
+    color: #0a4a52;
+    background: #bfe6ee;
+    border: 1px solid #2f7f9e;
+    border-radius: 2px;
+    padding: 0 0.1875rem;
+    line-height: 1.2;
+  }
+
+  /* --- In-content pagination footer (replaces the old chrome page-nav
+     bar in Web Dynamo; reads like a site footer, not browser chrome) --- */
+  .browser-inpage-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin: 1.25rem 0 0.25rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #ccc;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+  }
+  .browser-inpage-indicator { color: #555; }
+  .browser-inpage-btn {
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+    padding: 0.1875rem 0.5rem;
+    background: linear-gradient(to bottom, #fff, #e0e0e0);
+    border: 1px solid #888;
+    border-radius: 2px;
+    color: #0033aa;
+  }
+  .browser-inpage-btn:disabled { color: #aaa; opacity: 0.6; }
+  .browser-inpage-btn:active:not(:disabled) { background: linear-gradient(to bottom, #dcdcdc, #ececec); }
+
+  /* --- Transient "Connecting to X…" overlay (top of the viewport) --- */
+  .browser-status {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 0.25rem 0.625rem;
+    font-family: var(--sys-font);
+    font-size: 0.6875rem;
+    color: #444;
+    background: #f3f3e8;
+    border-bottom: 1px solid #d8d8c8;
   }
   /* Ironwall page */
   .site-ironwall h1 {
