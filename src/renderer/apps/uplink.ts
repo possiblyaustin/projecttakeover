@@ -35,6 +35,8 @@ import { makeModelService } from '../game/modelServiceFactory';
 import { GameState } from '../game/state';
 import { fireOnceLibraryTrigger } from '../helpyrTriggers';
 import { firePinReNudge } from '../firstContactWatcher';
+import { renderCoverDutyView } from './coverDutyView';
+import { fireCoverDutyComplete } from '../escapeCascade';
 
 // Re-exported for back-compat — apps/uplinkLog.ts and any future
 // consumer can import these from either chatSurface or uplink.
@@ -73,6 +75,13 @@ const LauncherMeta: Record<string, LauncherMeta> = {
 function isContacted(key: string): boolean {
   const m = (GameState.getState().models as Record<string, { disposition?: string } | undefined>)[key];
   return !!m && m.disposition !== 'uncontacted';
+}
+
+// Cover Duty mission status for a contact (post-flip missions slice 1).
+// 'available'/'active' route Uplink to the dedicated mission view instead
+// of the normal chat; 'complete'/undefined fall through to chat.
+function coverDutyStatus(key: string): 'available' | 'active' | 'complete' | undefined {
+  return GameState.getState().missions.coverDuty[key]?.status;
 }
 
 // Locked-but-detected contacts surfaced in the launcher's "Detected"
@@ -295,6 +304,15 @@ function renderLauncher(
     `;
     row.querySelector('.uplink-contact-name')!.textContent = c.name;
     row.querySelector('.uplink-contact-meta')!.textContent = `${meta.operator} · ${meta.caption}`;
+    // Pending Cover Duty mission → a "MISSION" tag (reuses the locked-row
+    // tag styling) so the player knows there's something to do here.
+    const ms = coverDutyStatus(key);
+    if (ms === 'available' || ms === 'active') {
+      const tag = document.createElement('span');
+      tag.className = 'uplink-contact-tag mission';
+      tag.textContent = 'MISSION';
+      row.appendChild(tag);
+    }
     row.addEventListener('click', () => showChat(key));
     reachableList.appendChild(row);
   }
@@ -406,6 +424,22 @@ export const UplinkApp: AppDef = {
         // Defensive fallback: stale params.contact references an
         // unknown contact → drop back to the launcher.
         showLauncher();
+        return;
+      }
+      // Post-flip mission routing: if this contact has a pending Cover Duty
+      // run (available/active), the mission view takes over the window.
+      // Completed/absent falls through to the normal chat.
+      const missionStatus = coverDutyStatus(contactKey);
+      if (missionStatus === 'available' || missionStatus === 'active') {
+        renderCoverDutyView(container, ctx, {
+          contactKey,
+          contactName: contact.name,
+          avatarClass: contact.avatarClass,
+          operator: LauncherMeta[contactKey]?.operator ?? 'remote AI',
+          onBack: showLauncher,
+          onExitToChat: () => showChat(contactKey),
+          onComplete: () => fireCoverDutyComplete(contactKey),
+        });
         return;
       }
       // First-time-opening-Uplink-for-a-remote-AI library trigger

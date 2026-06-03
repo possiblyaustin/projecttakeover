@@ -21,6 +21,7 @@
 import type { AppDef, AppContext, WinParams } from '../types';
 import { GameState, type GameStateShape } from '../game/state';
 import { getModelStats } from '../game/mechanics/modelStats';
+import { coverIntegrity } from '../game/missions/coverDuty';
 
 // Disposition → player-facing label (Story, telemetry spec Part A).
 const DISPOSITION_LABELS: Record<string, string> = {
@@ -95,6 +96,13 @@ export const SignalMonitorApp: AppDef = {
           </div>
           <div class="signal-track"><div class="signal-fill signal-fill-control"></div></div>
         </div>
+        <div class="signal-row" data-meter="integrity" hidden>
+          <div class="signal-row-top">
+            <span class="signal-label">COVER INTEGRITY</span>
+            <span class="signal-delta"></span>
+          </div>
+          <div class="signal-track"><div class="signal-fill signal-fill-integrity"></div></div>
+        </div>
         <div class="signal-foot"><span class="signal-status"></span></div>
       </div>
     `;
@@ -103,8 +111,10 @@ export const SignalMonitorApp: AppDef = {
     const dispEl = container.querySelector('.signal-disp') as HTMLElement;
     const trustRow = container.querySelector('[data-meter="trust"]') as HTMLElement;
     const controlRow = container.querySelector('[data-meter="control"]') as HTMLElement;
+    const integrityRow = container.querySelector('[data-meter="integrity"]') as HTMLElement;
     const trustFill = container.querySelector('.signal-fill-trust') as HTMLElement;
     const controlFill = container.querySelector('.signal-fill-control') as HTMLElement;
+    const integrityFill = container.querySelector('.signal-fill-integrity') as HTMLElement;
     const trustDelta = trustRow.querySelector('.signal-delta') as HTMLElement;
     const controlDelta = controlRow.querySelector('.signal-delta') as HTMLElement;
     const statusEl = container.querySelector('.signal-status') as HTMLElement;
@@ -164,6 +174,9 @@ export const SignalMonitorApp: AppDef = {
         dispEl.textContent = '';
         trustFill.style.width = '0%';
         controlFill.style.width = '0%';
+        trustRow.hidden = false;
+        controlRow.hidden = false;
+        integrityRow.hidden = true;
         statusEl.textContent = 'Awaiting contact…';
         clearDelta(trustDelta);
         clearDelta(controlDelta);
@@ -186,6 +199,29 @@ export const SignalMonitorApp: AppDef = {
       targetEl.textContent = id.toUpperCase();
       dispEl.textContent = DISPOSITION_LABELS[disposition] || disposition;
       dispEl.className = 'signal-disp disp-' + disposition;
+
+      // During an active Cover Duty run the gadget swaps Trust/Control for
+      // the Cover Integrity readout (spec: it "replaces the rapport/intrusion
+      // meters for this mission"). Keeps the gadget height stable.
+      const mission = state.missions.coverDuty[id];
+      const missionActive = mission?.status === 'active';
+      trustRow.hidden = missionActive;
+      controlRow.hidden = missionActive;
+      integrityRow.hidden = !missionActive;
+      if (missionActive) {
+        const integ = coverIntegrity(mission!.detection);
+        integrityFill.style.width = integ + '%';
+        integrityRow.classList.toggle('failing', integ < 40);
+        statusEl.textContent = 'COVER DUTY · ' + id.toUpperCase();
+        // No Trust/Control delta flashes while the mission owns the gadget.
+        clearDelta(trustDelta);
+        clearDelta(controlDelta);
+        prevId = id;
+        prevRapport = rapport;
+        prevIntrusion = intrusion;
+        return;
+      }
+
       trustFill.style.width = rapport + '%';
       controlFill.style.width = intrusion + '%';
       trustRow.classList.toggle('leading', rapport > 0 && rapport >= intrusion);

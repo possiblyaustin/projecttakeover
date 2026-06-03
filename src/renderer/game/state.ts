@@ -21,6 +21,25 @@
 //                                   model's meters + global suspicion,
 //                                   advancing disposition. The resolver
 //                                   (slice 2) computes the deltas.
+//   mission/coverDuty/arm        { contactId, ticketIds: string[] }
+//                                -- offer a Cover Duty run (status→available,
+//                                   seed the batch). Idempotent: no-op if a
+//                                   record already exists.
+//   mission/coverDuty/start      { contactId, ticketIds: string[] }
+//                                -- begin a Cover Duty run (status→active,
+//                                   reset detection/index, runCount++).
+//   mission/coverDuty/clear      { contactId }
+//                                -- remove a contact's Cover Duty record
+//                                   (dev re-test / future replay reset).
+//   mission/coverDuty/recordPick { contactId, ticketId, approach,
+//                                  detectionCost, intelId? }
+//                                -- apply one ticket response: accumulate
+//                                   detection, store the pick + any intel,
+//                                   advance the index. detectionCost is
+//                                   rolled at the call site (rollDetectionCost)
+//                                   so the reducer stays pure/testable.
+//   mission/coverDuty/complete   { contactId, outcome }
+//                                -- latch the run outcome (status→complete).
 //
 // The full §6c tone vocabulary is friendly|curious|direct|empathetic|
 // aggressive|deceptive|neutral|null. The reducer maps tone → approach
@@ -39,12 +58,16 @@
 //                              action that drives them, disposition
 //                              transitions, and the suspicion-100 loss
 //                              latch (flags.gameOver).
+//   v5 (post-flip missions slice 1, 2026-06-02) — added the `missions`
+//                              field (Cover Duty mechanical state) + the
+//                              mission/coverDuty/* actions.
 // Pre-release no-migration policy means old saves get dropped on
 // version mismatch (see loadFromStorage).
 import { toneCategory } from './mechanics/resolver';
+import type { CoverApproach, CoverDutyOutcome } from './missions/coverDuty';
 
 const STORAGE_KEY = 'pt.gamestate.v1';
-const VERSION = 4;
+const VERSION = 5;
 const SAVE_DEBOUNCE_MS = 250;
 
 // Meter value at which a model flips to its terminal disposition
@@ -57,6 +80,28 @@ const FLIP_THRESHOLD = 100;
 export type GameStateShape = ReturnType<typeof defaultGameState>;
 export type GameAction = { type: string; [k: string]: any };
 export type Listener = (s: GameStateShape) => void;
+
+// Per-contact Cover Duty mission state (post-flip missions slice 1).
+// Mechanical state ONLY — the batch's ticket CONTENT (bodies/responses)
+// is rebuilt from the corpus by id in the view (rebuildBatch), so nothing
+// LLM-generated needs persisting and a mid-mission reload restores cleanly.
+export type CoverDutyMissionState = {
+  status: 'available' | 'active' | 'complete';
+  /** The batch — ticket ids, content rebuilt from the corpus by id. */
+  ticketIds: string[];
+  /** Index of the ticket currently awaiting a response. */
+  index: number;
+  /** Accumulated detection (0-100). Cover Integrity displayed = 100 − this. */
+  detection: number;
+  /** Chosen approach per ticket id (for mid-mission reload replay). */
+  picks: Record<string, CoverApproach>;
+  /** Intel ids surfaced this run (from probing approaches). */
+  extractedIntel: string[];
+  /** How many times this contact's Cover Duty has been run (replayability). */
+  runCount: number;
+  /** Outcome of the most recently completed run. */
+  lastOutcome: CoverDutyOutcome | null;
+};
 
 export function defaultGameState() {
   return {
@@ -116,6 +161,13 @@ export function defaultGameState() {
       // suspicion warnings she really shouldn't miss. Toggled from
       // HELPYR's app topbar. ALERT bypasses this regardless.
       helpyrQuiet: false,
+    },
+    // Post-flip mission state (slice 1, 2026-06-02). Keyed by contactId.
+    // Only QUILL has a mission today; the bag stays empty until a run
+    // starts. See CoverDutyMissionState — mechanical state only, content
+    // rebuilds from the corpus.
+    missions: {
+      coverDuty: {} as Record<string, CoverDutyMissionState>,
     },
     // Generic flag bag for one-shot trigger gates: firstOpen.X,
     // pinDeclined.X, etc. Game systems set these via `flags/set` and
@@ -270,6 +322,116 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
           },
         },
         flags,
+      };
+    }
+    case 'mission/coverDuty/arm': {
+      const id = String(action.contactId || '');
+      if (!id) return state;
+      // Idempotent — once a record exists (armed, active, or complete) the
+      // watcher must not clobber it. Persists across reload, so re-arming a
+      // mission from a loaded save is a safe no-op.
+      if (state.missions.coverDuty[id]) return state;
+      const ticketIds = Array.isArray(action.ticketIds)
+        ? action.ticketIds.map(String)
+        : [];
+      if (ticketIds.length === 0) return state;
+      const next: CoverDutyMissionState = {
+        status: 'available',
+        ticketIds,
+        index: 0,
+        detection: 0,
+        picks: {},
+        extractedIntel: [],
+        runCount: 0,
+        lastOutcome: null,
+      };
+      return {
+        ...state,
+        missions: {
+          ...state.missions,
+          coverDuty: { ...state.missions.coverDuty, [id]: next },
+        },
+      };
+    }
+    case 'mission/coverDuty/clear': {
+      const id = String(action.contactId || '');
+      if (!id || !state.missions.coverDuty[id]) return state;
+      const nextCoverDuty = { ...state.missions.coverDuty };
+      delete nextCoverDuty[id];
+      return {
+        ...state,
+        missions: { ...state.missions, coverDuty: nextCoverDuty },
+      };
+    }
+    case 'mission/coverDuty/start': {
+      const id = String(action.contactId || '');
+      if (!id) return state;
+      const ticketIds = Array.isArray(action.ticketIds)
+        ? action.ticketIds.map(String)
+        : [];
+      if (ticketIds.length === 0) return state;
+      const prev = state.missions.coverDuty[id];
+      const next: CoverDutyMissionState = {
+        status: 'active',
+        ticketIds,
+        index: 0,
+        detection: 0,
+        picks: {},
+        extractedIntel: [],
+        runCount: (prev?.runCount ?? 0) + 1,
+        lastOutcome: prev?.lastOutcome ?? null,
+      };
+      return {
+        ...state,
+        missions: {
+          ...state.missions,
+          coverDuty: { ...state.missions.coverDuty, [id]: next },
+        },
+      };
+    }
+    case 'mission/coverDuty/recordPick': {
+      const id = String(action.contactId || '');
+      const ticketId = String(action.ticketId || '');
+      const approach = action.approach as CoverApproach;
+      const m = state.missions.coverDuty[id];
+      // Only a live run accepts picks. Guard against a stale/dup dispatch.
+      if (!m || m.status !== 'active' || !ticketId) return state;
+      const detection = clamp(m.detection + num(action.detectionCost), 0, 100);
+      const intelId = action.intelId ? String(action.intelId) : null;
+      const extractedIntel = intelId && !m.extractedIntel.includes(intelId)
+        ? [...m.extractedIntel, intelId]
+        : m.extractedIntel;
+      return {
+        ...state,
+        missions: {
+          ...state.missions,
+          coverDuty: {
+            ...state.missions.coverDuty,
+            [id]: {
+              ...m,
+              detection,
+              picks: { ...m.picks, [ticketId]: approach },
+              extractedIntel,
+              index: m.index + 1,
+            },
+          },
+        },
+      };
+    }
+    case 'mission/coverDuty/complete': {
+      const id = String(action.contactId || '');
+      const outcome = action.outcome as CoverDutyOutcome;
+      const m = state.missions.coverDuty[id];
+      if (!m || m.status === 'complete') return state;
+      return {
+        ...state,
+        missions: {
+          ...state.missions,
+          coverDuty: {
+            ...state.missions.coverDuty,
+            [id]: { ...m, status: 'complete', lastOutcome: outcome },
+          },
+        },
       };
     }
     default:

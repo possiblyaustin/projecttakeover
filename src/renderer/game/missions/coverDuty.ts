@@ -408,3 +408,41 @@ export function pickFallbackBatch(rng: () => number = Math.random): CoverTicket[
     ...pick(FALLBACK_OPERATOR_TICKETS, 1),
   ];
 }
+
+// ---------------------------------------------------------------------------
+// Runtime helpers — bridge the durable mission state (ticket IDs in
+// GameState) back to ticket CONTENT (the view rebuilds bubbles from these).
+// ---------------------------------------------------------------------------
+
+/** All corpus tickets across the three kinds, for id lookup. */
+const ALL_FALLBACK_TICKETS: readonly CoverTicket[] = [
+  ...FALLBACK_MUNDANE_TICKETS,
+  ...FALLBACK_OPPORTUNITY_TICKETS,
+  ...FALLBACK_OPERATOR_TICKETS,
+];
+
+/** Look up one corpus ticket by id (undefined if unknown). */
+export function getCoverDutyTicketById(id: string): CoverTicket | undefined {
+  return ALL_FALLBACK_TICKETS.find((t) => t.id === id);
+}
+
+/** Rebuild a batch's content from its persisted ticket ids. Unknown ids
+ *  are dropped (defensive against a corpus edit between save + load). */
+export function rebuildBatch(ids: readonly string[]): CoverTicket[] {
+  return ids.map(getCoverDutyTicketById).filter((t): t is CoverTicket => !!t);
+}
+
+/** Resolve an intel id (stored in mission state) back to its summary, for
+ *  the end-of-run intel recap. */
+export function getIntelSummaryById(intelId: string): string | undefined {
+  for (const t of ALL_FALLBACK_TICKETS) {
+    if (t.intel?.id === intelId) return t.intel.summary;
+  }
+  return undefined;
+}
+
+/** Select a fresh batch and return JUST the ids — the durable seed stored
+ *  in GameState. Content rebuilds from these via rebuildBatch. */
+export function selectBatchIds(rng: () => number = Math.random): string[] {
+  return pickFallbackBatch(rng).map((t) => t.id);
+}
