@@ -11,6 +11,7 @@ import {
   isValidTicketBody,
   buildTicketPrompt,
   pickFallbackBatch,
+  draftReply,
   DETECTION_COST,
   OPERATOR_DETECTION_COST,
   FALLBACK_MUNDANE_TICKETS,
@@ -164,6 +165,15 @@ describe('pickFallbackBatch', () => {
     const batch = pickFallbackBatch(() => 0.7);
     const ids = batch.map((t) => t.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('draftReply (live seam)', () => {
+  it('returns the corpus response for the chosen tier', async () => {
+    const t = FALLBACK_OPPORTUNITY_TICKETS[0]!;
+    for (const tier of APPROACHES) {
+      await expect(draftReply(t, tier, { delayMs: 0 })).resolves.toBe(t.responses[tier]);
+    }
   });
 });
 

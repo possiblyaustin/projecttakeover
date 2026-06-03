@@ -11,6 +11,7 @@
 // Adding a new page = one entry here, no engine changes.
 
 import { GameState } from '../game/state';
+import { renderInkwellConsole } from './inkwellConsole';
 
 export type PageEntry = {
   /** Optional human label — reserved for a future TOC surface. */
@@ -154,6 +155,40 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
               &ldquo;Finally a notes app that just works.&rdquo; — Mike R., Austin
             </p>
           `;
+        }
+      }
+    ]
+  },
+  // InkWell support admin console — Cover Duty's home (post-flip missions
+  // slice 2). Gated: until QUILL is flipped + the mission is armed (the
+  // coverDuty.quill record exists, set by coverDutyWatcher), the path shows
+  // a staff-login wall with no way in. Once armed, it renders the helpdesk
+  // console (apps/inkwellConsole.ts). Registered as its own top-level key so
+  // resolveUrl's exact-match wins before path-peeling → stays single-page
+  // (no pager). Reachable via the "InkWell Admin" bookmark + QUILL's DM.
+  'inkwell-digital.com/admin': {
+    title: 'InkWell Support — Admin Console',
+    pages: [
+      {
+        render(c: HTMLElement) {
+          const armed = !!GameState.getState().missions.coverDuty['quill'];
+          if (!armed) {
+            c.classList.add('site-inkwell');
+            c.innerHTML = `
+              <h1>InkWell Support — Staff Login</h1>
+              <div class="tagline">Authorized personnel only.</div>
+              <div class="hr-bar"></div>
+              <form class="ink-login" onsubmit="return false">
+                <label>Staff ID<input type="text" disabled placeholder="employee@inkwell-digital.com"></label>
+                <label>Password<input type="password" disabled placeholder="••••••••"></label>
+                <button type="button" disabled>Sign in</button>
+              </form>
+              <p style="font-size:11px;color:#900;">SSO required. Contact your administrator for access.</p>
+              <p style="font-size:11px;color:#777;">&copy; 2007 InkWell Digital, Portland, OR</p>
+            `;
+            return;
+          }
+          renderInkwellConsole(c);
         }
       }
     ]

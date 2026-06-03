@@ -738,6 +738,113 @@
     background: linear-gradient(to bottom, #4a7cd0 0%, #3565aa 60%, #244a85 100%);
     box-shadow: 0 0 0 1px rgba(58, 108, 192, 0.5);
   }
+  /* Staff-login gate (pre-flip admin path) */
+  .ink-login { display: flex; flex-direction: column; gap: 0.5rem; max-width: 16rem; margin: 0.75rem 0; }
+  .ink-login label { display: flex; flex-direction: column; gap: 0.1875rem; font-family: var(--sys-font); font-size: 0.75rem; color: #445; }
+  .ink-login input { padding: 0.25rem 0.375rem; border: 1px solid #9aa; background: #f2f2f2; }
+  .ink-login button { align-self: flex-start; padding: 0.3125rem 0.875rem; font-family: var(--sys-font); font-weight: bold; color: #888; background: #ddd; border: 1px solid #bbb; }
+
+  /* ---- InkWell support console (apps/inkwellConsole.ts) ---- */
+  /* A 2007 helpdesk app rendered inside the browser viewport. Sans-serif
+     (overrides the viewport's serif), boxed like a contained web app. */
+  .ink-console {
+    font-family: var(--sys-font);
+    color: #1c2330;
+    border: 1px solid #9fb0c8;
+    border-radius: 0.25rem;
+    overflow: hidden;
+    background: #f3f5f9;
+  }
+  .ink-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.4375rem 0.625rem;
+    color: #fff;
+    background: linear-gradient(to bottom, #3a6cc0, #244a85);
+    border-bottom: 1px solid #14305a;
+  }
+  .ink-brand { font-weight: bold; font-size: 0.8125rem; letter-spacing: 0.0156rem; }
+  .ink-brand span { font-weight: normal; opacity: 0.85; }
+  .ink-queuecount { font-size: 0.6875rem; opacity: 0.9; white-space: nowrap; }
+  .ink-body { padding: 0.5rem 0.625rem; }
+  .ink-assistant {
+    display: flex; align-items: center; gap: 0.4375rem;
+    padding: 0.375rem 0.625rem;
+    background: #e7eefb; border-top: 1px solid #c3d2ea;
+    font-size: 0.75rem; color: #2a3954; line-height: 1.3;
+  }
+  .ink-assistant-avatar { width: 1.125rem; height: 1.125rem; flex: 0 0 auto; border-radius: 2px; }
+
+  /* Queue */
+  .ink-queue { display: flex; flex-direction: column; gap: 0.1875rem; }
+  .ink-ticket-row {
+    display: flex; align-items: center; gap: 0.5rem;
+    width: 100%; text-align: left;
+    padding: 0.375rem 0.5rem;
+    background: #fff; border: 1px solid #d4dcea; border-radius: 0.1875rem;
+    font-family: var(--sys-font); font-size: 0.75rem; color: #1c2330;
+  }
+  button.ink-ticket-row:active, button.ink-ticket-row.cursor-hover { background: #eef3fc; }
+  .ink-ticket-row.done { opacity: 0.62; }
+  .ink-status { flex: 0 0 auto; font-size: 0.5625rem; font-weight: bold; letter-spacing: 0.0312rem; padding: 0.0625rem 0.25rem; border-radius: 2px; }
+  .ink-status.open { color: #7a4a00; background: #ffe9c2; border: 1px solid #e0b066; }
+  .ink-status.closed { color: #2c6a2c; background: #d6f0d6; border: 1px solid #8cc88c; }
+  .ink-ticket-subject { flex: 1; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ink-ticket-from { flex: 0 0 auto; color: #6a7488; font-size: 0.6875rem; }
+
+  /* Ticket detail */
+  .ink-ticket-detail { background: #fff; border: 1px solid #d4dcea; border-radius: 0.1875rem; padding: 0.5rem 0.625rem; }
+  .ink-back { font-family: var(--sys-font); font-size: 0.6875rem; color: #1d3f73; background: none; border: 0; padding: 0 0 0.25rem; cursor: pointer; }
+  .ink-ticket-meta { display: flex; flex-direction: column; gap: 0.0625rem; margin-bottom: 0.375rem; }
+  .ink-ticket-meta .ink-d-from { font-size: 0.6875rem; color: #6a7488; }
+  .ink-ticket-body { font-size: 0.8125rem; line-height: 1.4; color: #222b3a; white-space: pre-wrap; }
+
+  /* Tier picker */
+  .ink-tiers { display: flex; flex-direction: column; gap: 0.3125rem; margin-top: 0.5rem; }
+  .ink-tier-btn {
+    display: flex; flex-direction: column; gap: 0.0625rem; text-align: left;
+    padding: 0.375rem 0.5rem;
+    background: linear-gradient(to bottom, #fff, #eef2f8);
+    border: 1px solid #b8c6dd; border-radius: 0.1875rem;
+    font-family: var(--sys-font); color: #1c2330;
+  }
+  .ink-tier-btn:active, .ink-tier-btn.cursor-hover { background: linear-gradient(to bottom, #eaf2ff, #d6e4fb); }
+  .ink-tier-btn strong { font-size: 0.75rem; }
+  .ink-tier-btn span { font-size: 0.6875rem; color: #5a6884; }
+
+  /* Composer (drafting + review) */
+  .ink-composer { margin-top: 0.5rem; }
+  .ink-drafting { font-size: 0.75rem; color: #5a6884; font-style: italic; padding: 0.5rem; background: #eef2f8; border: 1px dashed #b8c6dd; border-radius: 0.1875rem; }
+  .ink-dots { animation: ink-blink 1.2s steps(3, end) infinite; }
+  @keyframes ink-blink { 0%, 20% { opacity: 0.2; } 50% { opacity: 1; } 100% { opacity: 0.2; } }
+  .ink-draft {
+    font-size: 0.8125rem; line-height: 1.4; color: #1c2330; white-space: pre-wrap;
+    padding: 0.5rem; background: #fffef5; border: 1px solid #e4dca8; border-radius: 0.1875rem;
+    margin-bottom: 0.375rem;
+  }
+
+  /* Outcome */
+  .ink-outcome { padding: 0.625rem; border-radius: 0.25rem; }
+  .ink-outcome-intact { background: #e6f4e6; border: 1px solid #8cc88c; }
+  .ink-outcome-stressed { background: #fff3da; border: 1px solid #e0b066; }
+  .ink-outcome-blown { background: #fae4e4; border: 1px solid #d98a8a; }
+  .ink-outcome-title { margin: 0 0 0.375rem; font-size: 0.9375rem; }
+  .ink-outcome-body { margin: 0; font-size: 0.8125rem; line-height: 1.45; white-space: pre-wrap; color: #2a2f3a; }
+  .ink-intel-recap { margin-top: 0.5rem; padding: 0.5rem; background: #e2f4f8; border: 1px solid #9fc8d2; border-radius: 0.1875rem; }
+  .ink-intel-head { font-size: 0.6875rem; font-weight: bold; letter-spacing: 0.0312rem; color: #0a4a52; margin-bottom: 0.25rem; }
+  .ink-intel-item { font-size: 0.6875rem; line-height: 1.35; color: #0a4a52; margin-bottom: 0.1875rem; }
+
+  /* Buttons */
+  .ink-btn {
+    margin-top: 0.5rem; padding: 0.375rem 0.75rem;
+    font-family: var(--sys-font); font-size: 0.75rem;
+    background: linear-gradient(to bottom, #fff, #e0e0e0); border: 1px solid #9a9a9a; border-radius: 0.1875rem;
+  }
+  .ink-btn.ink-primary {
+    font-weight: bold; color: #fff;
+    background: linear-gradient(to bottom, #3a6cc0, #244a85); border-color: #14305a;
+  }
+  .ink-btn.ink-primary:active, .ink-btn.ink-primary.cursor-hover { background: linear-gradient(to bottom, #4a7cd0, #2a5499); }
 
   /* Nexus home portal — the browser's landing page */
   .site-home h1 {

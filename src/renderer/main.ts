@@ -171,17 +171,17 @@ setTimeout(() => {
     GameState.dispatch({ type: 'flags/set', key: 'escapeCascade.quill', value: false });
     fireEscapeCascade('quill');
   },
-  // Jump straight into QUILL's Cover Duty mission (post-flip missions slice 1).
+  // Jump straight into QUILL's Cover Duty mission (post-flip missions slice 2).
   // Flips QUILL allied + marks the aftermath consumed so the watcher arms,
   // clears any prior run (so it's re-runnable), arms a fresh batch, and opens
-  // the mission view. Re-call any time to restart with a new batch.
+  // the InkWell admin console in Web Dynamo. Re-call any time for a new batch.
   devStartCoverDuty: () => {
     GameState.dispatch({ type: 'model/applyExchange', contactId: 'quill', rapport: 100 });
     GameState.dispatch({ type: 'flags/set', key: 'flip.quill.scripted', value: true });
     GameState.dispatch({ type: 'flags/set', key: 'flip.quill.aftermath', value: true });
     GameState.dispatch({ type: 'mission/coverDuty/clear', contactId: 'quill' });
     GameState.dispatch({ type: 'mission/coverDuty/arm', contactId: 'quill', ticketIds: selectBatchIds() });
-    WindowManager.open('uplink', { contact: 'quill' });
+    WindowManager.open('webDynamo', { url: 'inkwell-digital.com/admin' });
   },
   helpyr: {
     // Spawn a random eligible bubble for the current trust level

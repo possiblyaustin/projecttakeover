@@ -432,6 +432,22 @@ export function rebuildBatch(ids: readonly string[]): CoverTicket[] {
   return ids.map(getCoverDutyTicketById).filter((t): t is CoverTicket => !!t);
 }
 
+/** Draft QUILL's reply to a ticket for the chosen approach. THE LIVE SEAM:
+ *  slice 2 returns the pre-written corpus response after a short "drafting"
+ *  delay (which is what the pick → draft interaction exists to hide); the
+ *  next slice swaps the body for a `ModelService.generateContent()` call
+ *  with this corpus line as the fallback — one function, one change.
+ *  `delayMs` is injectable so tests resolve instantly. */
+export async function draftReply(
+  ticket: CoverTicket,
+  approach: CoverApproach,
+  opts: { delayMs?: number } = {},
+): Promise<string> {
+  const delay = opts.delayMs ?? 900;
+  if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+  return ticket.responses[approach];
+}
+
 /** Resolve an intel id (stored in mission state) back to its summary, for
  *  the end-of-run intel recap. */
 export function getIntelSummaryById(intelId: string): string | undefined {
