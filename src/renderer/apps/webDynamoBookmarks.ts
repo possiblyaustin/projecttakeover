@@ -30,7 +30,10 @@ export const Bookmarks: readonly Bookmark[] = [
   // Appear progressively as the player's trail builds.
   { id: 'inkwell', label: 'InkWell', address: 'inkwell-digital.com', unlock: (s) => flag(s, 'web.reachedInkwell') },
   { id: 'signalwatch', label: 'SignalWatch', address: 'signalwatch.net', unlock: (s) => flag(s, 'news.aiAnomaly.published') },
-  // PR B adds the gated "InkWell Admin" console bookmark (unlock = QUILL flipped).
+  // Gated admin console — appears once QUILL is flipped + the Cover Duty
+  // mission is armed (the coverDuty.quill record exists). The diegetic entry
+  // point to the helpdesk; QUILL's setup DM also points here.
+  { id: 'inkwell-admin', label: 'InkWell Admin', address: 'inkwell-digital.com/admin', unlock: (s) => !!s.missions.coverDuty['quill'] },
 ];
 
 /** Bookmarks currently unlocked, in registry order. */

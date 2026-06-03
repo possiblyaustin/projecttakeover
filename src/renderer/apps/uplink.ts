@@ -35,8 +35,6 @@ import { makeModelService } from '../game/modelServiceFactory';
 import { GameState } from '../game/state';
 import { fireOnceLibraryTrigger } from '../helpyrTriggers';
 import { firePinReNudge } from '../firstContactWatcher';
-import { renderCoverDutyView } from './coverDutyView';
-import { fireCoverDutyComplete } from '../escapeCascade';
 
 // Re-exported for back-compat — apps/uplinkLog.ts and any future
 // consumer can import these from either chatSurface or uplink.
@@ -426,22 +424,10 @@ export const UplinkApp: AppDef = {
         showLauncher();
         return;
       }
-      // Post-flip mission routing: if this contact has a pending Cover Duty
-      // run (available/active), the mission view takes over the window.
-      // Completed/absent falls through to the normal chat.
-      const missionStatus = coverDutyStatus(contactKey);
-      if (missionStatus === 'available' || missionStatus === 'active') {
-        renderCoverDutyView(container, ctx, {
-          contactKey,
-          contactName: contact.name,
-          avatarClass: contact.avatarClass,
-          operator: LauncherMeta[contactKey]?.operator ?? 'remote AI',
-          onBack: showLauncher,
-          onExitToChat: () => showChat(contactKey),
-          onComplete: () => fireCoverDutyComplete(contactKey),
-        });
-        return;
-      }
+      // Cover Duty now lives in Web Dynamo (the InkWell admin console), not
+      // here — QUILL's chat stays a normal chat. The launcher still shows a
+      // MISSION badge (below) as a signal; QUILL's setup DM points the player
+      // at the console.
       // First-time-opening-Uplink-for-a-remote-AI library trigger
       // (slice 3). HELPYR is the local assistant — chatting with
       // her doesn't count, so we exclude that key.

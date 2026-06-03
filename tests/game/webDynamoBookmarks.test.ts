@@ -24,6 +24,16 @@ describe('visibleBookmarks', () => {
     expect(visibleBookmarks(s).map((b) => b.id)).toContain('signalwatch');
   });
 
+  it('reveals InkWell Admin once the Cover Duty mission is armed', () => {
+    const s = defaultGameState();
+    expect(visibleBookmarks(s).map((b) => b.id)).not.toContain('inkwell-admin');
+    s.missions.coverDuty['quill'] = {
+      status: 'available', ticketIds: ['x'], index: 0, detection: 0,
+      picks: {}, extractedIntel: [], runCount: 0, lastOutcome: null,
+    };
+    expect(visibleBookmarks(s).map((b) => b.id)).toContain('inkwell-admin');
+  });
+
   it('preserves registry order', () => {
     const s = defaultGameState();
     s.flags['web.reachedInkwell'] = true;

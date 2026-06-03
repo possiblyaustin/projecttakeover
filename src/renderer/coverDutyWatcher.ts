@@ -24,7 +24,8 @@
 //     the arm action no-ops and we just latch `armed`.
 
 import { GameState, type GameStateShape } from './game/state';
-import { selectBatchIds } from './game/missions/coverDuty';
+import { selectBatchIds, COVER_DUTY_SETUP } from './game/missions/coverDuty';
+import { injectAllyMessage } from './chatSurface';
 
 let initialized = false;
 let armed = false;
@@ -45,6 +46,13 @@ function maybeArm(state: GameStateShape): void {
     type: 'mission/coverDuty/arm',
     contactId: 'quill',
     ticketIds: selectBatchIds(),
+  });
+  // Relationship bookend: QUILL's setup DM lands in Uplink, pointing the
+  // player at the InkWell Admin console (the mission's home in Web Dynamo).
+  injectAllyMessage('quill', {
+    speaker: 'QUILL',
+    avatarClass: 'avatar-quill',
+    text: COVER_DUTY_SETUP,
   });
 }
 
