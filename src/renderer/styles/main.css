@@ -765,7 +765,15 @@
   }
   .ink-brand { font-weight: bold; font-size: 0.8125rem; letter-spacing: 0.0156rem; }
   .ink-brand span { font-weight: normal; opacity: 0.85; }
-  .ink-queuecount { font-size: 0.6875rem; opacity: 0.9; white-space: nowrap; }
+  .ink-headmeta { display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
+  .ink-queuecount { font-size: 0.6875rem; opacity: 0.9; }
+  /* Cover Integrity readout — surfaced in the console header so the mission
+     is self-contained (Signal Monitor needn't sit alongside; at Deck the
+     wide browser leaves no room). Mirrors the SM intact/stressed/blown bands. */
+  .ink-cover { font-size: 0.6875rem; font-weight: bold; padding: 0.0625rem 0.3125rem; border-radius: 2px; }
+  .ink-cover.ok { color: #d6f0d6; background: rgba(255,255,255,0.12); }
+  .ink-cover.warn { color: #1c2330; background: #e0a020; }
+  .ink-cover.danger { color: #fff; background: #c0432e; }
   .ink-body { padding: 0.5rem 0.625rem; }
   .ink-assistant {
     display: flex; align-items: center; gap: 0.4375rem;

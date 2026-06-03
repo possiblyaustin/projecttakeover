@@ -25,6 +25,7 @@ import {
   intelSurfaces,
   resolveCoverOutcome,
   getIntelSummaryById,
+  coverIntegrity,
   buildDraftPrompt,
   isValidDraft,
   COVER_DUTY_OUTCOME_MESSAGE,
@@ -125,7 +126,10 @@ export function renderInkwellConsole(container: HTMLElement): void {
       <div class="ink-console">
         <header class="ink-head">
           <div class="ink-brand">InkWell <span>Support</span> · Admin Console</div>
-          <div class="ink-queuecount">Queue: ${total - answeredCount} open · ${answeredCount}/${total} cleared</div>
+          <div class="ink-headmeta">
+            <span class="ink-queuecount">${total - answeredCount} open · ${answeredCount}/${total} cleared</span>
+            <span class="ink-cover ${coverClass(m.detection)}">Cover ${coverIntegrity(m.detection)}%</span>
+          </div>
         </header>
         <div class="ink-body" data-body></div>
         ${showAssistant ? `<footer class="ink-assistant">
@@ -366,4 +370,14 @@ export function renderInkwellConsole(container: HTMLElement): void {
 
 function stripPrefix(text: string): string {
   return text.replace(/^[A-Z][A-Za-z0-9 ]*:\s*/, '');
+}
+
+// Cover Integrity color tier for the console header (mirrors the Signal
+// Monitor's intact/stressed/blown bands so the readout matches the meter):
+// >60 ok, 30-60 warn, <30 danger.
+function coverClass(detection: number): string {
+  const integ = coverIntegrity(detection);
+  if (integ > 60) return 'ok';
+  if (integ >= 30) return 'warn';
+  return 'danger';
 }
