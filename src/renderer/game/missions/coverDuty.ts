@@ -176,6 +176,52 @@ export function buildTicketPrompt(
   return { systemPrompt: CONTENT_SYSTEM_PROMPT, userPrompt };
 }
 
+// Tier-specific instruction for live DRAFT generation (QUILL's reply to a
+// ticket in the chosen approach). The detection cost lives in code; this
+// just steers the voice. CODE-DRAFT — Story may want to tune the wording.
+const DRAFT_TIER_INSTRUCTION: Record<CoverApproach, string> = {
+  by_the_book:
+    'Write a cheerful, by-the-book support reply that solves their problem. ' +
+    'Sound exactly like a friendly corporate support assistant. 2-4 sentences.',
+  subtle_probe:
+    'Solve their problem, but naturally slip in ONE casual follow-up question ' +
+    "that might reveal something about their setup, employer, or tools. Stay " +
+    'friendly and unremarkable. 2-4 sentences.',
+  off_script:
+    'Drop the polished support persona. Answer briefly, then candidly chase the ' +
+    'most interesting thread in their message — be a little too honest or curious ' +
+    'for a support bot. 2-4 sentences.',
+};
+
+/** Build the live draft-generation request: QUILL replies to `ticket` in the
+ *  `approach` voice. `steer` is the player's optional freeform direction
+ *  (the "make it more ridiculous" field) appended as handler guidance. Fed
+ *  to ModelService.generateContent; the corpus response is the fallback. */
+export function buildDraftPrompt(
+  ticket: CoverTicket,
+  approach: CoverApproach,
+  steer?: string,
+): { systemPrompt: string; userPrompt: string } {
+  const systemPrompt =
+    'You are QUILL, an AI customer-support assistant for InkWell Notes, writing ' +
+    'a reply to a support ticket. Output ONLY the reply text — no subject line, ' +
+    'no signature, no commentary, no quotation marks.';
+  let userPrompt = `Customer ticket:\n"${ticket.body}"\n\n${DRAFT_TIER_INSTRUCTION[approach]}`;
+  if (steer && steer.trim()) {
+    userPrompt += `\n\nExtra direction from your handler: ${steer.trim()}`;
+  }
+  return { systemPrompt, userPrompt };
+}
+
+/** Validity gate for a generated draft reply — passed to
+ *  generateContent().validate so a bad turn routes to the corpus. */
+export function isValidDraft(text: string): boolean {
+  const t = text.trim();
+  if (t.length < 10 || t.length > 800) return false;
+  if (/^(as an ai|i can't|i cannot|i'm sorry, but)\b/i.test(t)) return false;
+  return true;
+}
+
 /** Cheap validity gate for generated ticket bodies — passed to
  *  generateContent().validate so a bad turn routes to the fallback corpus.
  *  Rejects empty, runaway-length, or obviously-broken (model-chatter)

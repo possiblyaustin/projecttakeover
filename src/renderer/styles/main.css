@@ -794,7 +794,16 @@
 
   /* Ticket detail */
   .ink-ticket-detail { background: #fff; border: 1px solid #d4dcea; border-radius: 0.1875rem; padding: 0.5rem 0.625rem; }
-  .ink-back { font-family: var(--sys-font); font-size: 0.6875rem; color: #1d3f73; background: none; border: 0; padding: 0 0 0.25rem; cursor: pointer; }
+  .ink-back {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    margin-bottom: 0.4375rem;
+    font-family: var(--sys-font); font-size: 0.6875rem; font-weight: bold; color: #1d3f73;
+    padding: 0.25rem 0.5rem;
+    background: linear-gradient(to bottom, #fff, #e6ecf6);
+    border: 1px solid #b8c6dd; border-radius: 0.1875rem; cursor: pointer;
+  }
+  .ink-back::before { content: '◀'; font-size: 0.5625rem; }
+  .ink-back:active, .ink-back.cursor-hover { background: linear-gradient(to bottom, #eaf2ff, #d6e4fb); }
   .ink-ticket-meta { display: flex; flex-direction: column; gap: 0.0625rem; margin-bottom: 0.375rem; }
   .ink-ticket-meta .ink-d-from { font-size: 0.6875rem; color: #6a7488; }
   .ink-ticket-body { font-size: 0.8125rem; line-height: 1.4; color: #222b3a; white-space: pre-wrap; }
@@ -846,6 +855,15 @@
   }
   .ink-btn.ink-primary:active, .ink-btn.ink-primary.cursor-hover { background: linear-gradient(to bottom, #4a7cd0, #2a5499); }
   .ink-actions { display: flex; gap: 0.4375rem; flex-wrap: wrap; }
+  /* Freeform redraft steer (review phase) */
+  .ink-steer { display: flex; gap: 0.3125rem; margin-bottom: 0.4375rem; }
+  .ink-steer-input {
+    flex: 1; min-width: 0;
+    padding: 0.25rem 0.4375rem;
+    font-family: var(--sys-font); font-size: 0.6875rem;
+    border: 1px solid #b8c6dd; border-radius: 0.1875rem; background: #fff;
+  }
+  .ink-steer-btn { flex: 0 0 auto; margin-top: 0; }
 
   /* Nexus home portal — the browser's landing page */
   .site-home h1 {

@@ -100,3 +100,34 @@ export function makeModelService(spec: ModelServiceSpec): ModelService {
   }
   return new MockModelService(spec.mock);
 }
+
+// Mock contact for the content-generation service. The console only calls
+// generateContent (never askModel), and it returns EMPTY so the caller
+// falls back to its pre-written corpus — with delayMs preserving the
+// "drafting…" beat offline. So in mock/?mock mode, mission content is the
+// corpus shown after a realistic pause; live mode hits the real model.
+const CONTENT_MOCK: MockContact = {
+  dialogue: {},
+  wildcards: { confused: '' },
+  classify: () => 'confused',
+  toneFor: () => 'neutral',
+  generateContent: () => '',
+  delayMs: 900,
+};
+
+/** Service for single-turn mission CONTENT generation (post-flip missions —
+ *  e.g. Cover Duty draft replies). Live transport in llamacpp mode; in mock
+ *  mode a MockModelService whose generateContent returns empty so callers
+ *  fall back to their corpus (the deterministic offline path). No per-call
+ *  fallback handler — content fallback is the mission layer's job. */
+export function makeContentService(): ModelService {
+  if (activeBackend() === 'llamacpp') {
+    const urlOverride = llamaUrlOverride();
+    return new LlamaCppModelService({
+      ...DEFAULT_LLAMA,
+      baseUrl: defaultLlamaBaseUrl(),
+      ...(urlOverride ? { baseUrl: urlOverride } : {}),
+    });
+  }
+  return new MockModelService(CONTENT_MOCK);
+}
