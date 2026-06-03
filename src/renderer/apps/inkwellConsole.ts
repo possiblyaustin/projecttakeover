@@ -25,15 +25,36 @@ import {
   intelSurfaces,
   resolveCoverOutcome,
   getIntelSummaryById,
-  draftReply,
+  buildDraftPrompt,
+  isValidDraft,
   COVER_DUTY_OUTCOME_MESSAGE,
   COVER_DUTY_DANA_BLOWN,
   type CoverTicket,
   type CoverApproach,
 } from '../game/missions/coverDuty';
 import type { CoverDutyMissionState } from '../game/state';
+import { makeContentService } from '../game/modelServiceFactory';
 import { fireCoverDutyComplete } from '../escapeCascade';
 import { injectAllyMessage } from '../chatSurface';
+
+// Shared content service for live draft generation. Live (llama) in normal
+// play; in ?mock it returns empty so draft() falls back to the corpus after
+// the mock's built-in delay (the "drafting…" beat still plays offline).
+const contentService = makeContentService();
+
+/** Generate QUILL's reply to a ticket for the chosen approach. Live model
+ *  when available, the corpus response as the always-available fallback.
+ *  `steer` is the player's optional freeform redraft direction. */
+async function draft(ticket: CoverTicket, approach: CoverApproach, steer?: string): Promise<string> {
+  const { systemPrompt, userPrompt } = buildDraftPrompt(ticket, approach, steer);
+  try {
+    const r = await contentService.generateContent({ systemPrompt, userPrompt, validate: isValidDraft });
+    if (r.source === 'live' && r.content.trim()) return r.content.trim();
+  } catch {
+    /* fall through to corpus */
+  }
+  return ticket.responses[approach];
+}
 
 const CONTACT = 'quill';
 
@@ -159,7 +180,7 @@ export function renderInkwellConsole(container: HTMLElement): void {
     const card = document.createElement('div');
     card.className = 'ink-ticket-detail';
     card.innerHTML = `
-      <button class="ink-back" data-focusable="true" tabindex="0">← Queue</button>
+      <button class="ink-back" data-focusable="true" tabindex="0">Queue</button>
       <div class="ink-ticket-meta"><strong class="ink-d-subject"></strong><span class="ink-d-from"></span></div>
       <div class="ink-ticket-body"></div>
     `;
@@ -193,16 +214,25 @@ export function renderInkwellConsole(container: HTMLElement): void {
     if (v.phase === 'drafting') {
       composer.innerHTML = `<div class="ink-drafting">QUILL is drafting a reply<span class="ink-dots">…</span></div>`;
     } else {
-      composer.innerHTML = `<div class="ink-draft" data-draft></div>`;
+      composer.innerHTML = `
+        <div class="ink-draft" data-draft></div>
+        <div class="ink-steer">
+          <input type="text" class="ink-steer-input" data-steer placeholder="Want it different? Tell QUILL how… (e.g. ‘be weirdly honest’)" spellcheck="false" data-focusable="true" />
+          <button class="ink-btn ink-steer-btn" data-focusable="true" tabindex="0">↺ Redraft</button>
+        </div>
+      `;
       composer.querySelector('[data-draft]')!.textContent = v.draft ?? '';
+      const steerInput = composer.querySelector('[data-steer]') as HTMLInputElement;
+      const redraft = () => runDraft(t, v.tier!, steerInput.value.trim() || undefined);
+      composer.querySelector('.ink-steer-btn')!.addEventListener('click', redraft);
+      steerInput.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter') redraft(); });
+
       const actions = document.createElement('div');
       actions.className = 'ink-actions';
       const send = button('Send reply', () => sendReply(t, v.tier!));
       send.classList.add('ink-primary');
-      // "Don't like it" escape: go back to the approach picker and try a
-      // different tier. (Slice 3: a freeform "tell QUILL how to respond"
-      // re-draft via generateContent will live here too.)
-      const redo = button('↺ Different approach', () => {
+      // "Don't like the angle" escape: back to the approach picker.
+      const redo = button('Different approach', () => {
         view = { kind: 'ticket', id: t.id, phase: 'choose' };
         assistant = 'No good? Pick a different angle and I’ll redo it.';
         render();
@@ -249,17 +279,23 @@ export function renderInkwellConsole(container: HTMLElement): void {
   // ---- transitions ----
 
   function pickTier(ticket: CoverTicket, tier: CoverApproach): void {
+    runDraft(ticket, tier);
+  }
+
+  /** Drive the drafting beat → live (or corpus) draft → review. Shared by
+   *  the tier pick and the freeform "redraft" steer. */
+  function runDraft(ticket: CoverTicket, tier: CoverApproach, steer?: string): void {
     if (busy) return;
     busy = true;
     view = { kind: 'ticket', id: ticket.id, phase: 'drafting', tier };
     assistant = 'Drafting…';
     render();
-    draftReply(ticket, tier).then((draft) => {
+    draft(ticket, tier, steer).then((text) => {
       busy = false;
       // If the player navigated away mid-draft, don't clobber their view.
       if (view.kind !== 'ticket' || view.id !== ticket.id) return;
-      assistant = 'Draft’s ready — send it when you’re happy with it.';
-      view = { kind: 'ticket', id: ticket.id, phase: 'review', tier, draft };
+      assistant = 'Draft’s ready — send it, redraft, or pick a different angle.';
+      view = { kind: 'ticket', id: ticket.id, phase: 'review', tier, draft: text };
       render();
     });
   }

@@ -61,7 +61,10 @@ export const WebDynamoApp: AppDef = {
   id: 'webDynamo',
   name: 'Web Dynamo',
   glyphClass: 'icon-browser',
-  defaultSize: { w: 620, h: 440 },
+  // Bumped from 620×440 (v0.2.25): wider reflows long pages into fewer lines
+  // (less vertical scroll) + a little more height. Still fits Deck baseline
+  // (1280×800, UI_SCALE 1.5 → ~853×533 logical) with margin.
+  defaultSize: { w: 720, h: 484 },
   contentBevel: false,
   noContentPad: true,
   render(container: HTMLElement, params: WinParams, ctx: AppContext) {

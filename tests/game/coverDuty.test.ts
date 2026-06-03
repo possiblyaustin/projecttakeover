@@ -12,6 +12,8 @@ import {
   buildTicketPrompt,
   pickFallbackBatch,
   draftReply,
+  buildDraftPrompt,
+  isValidDraft,
   DETECTION_COST,
   OPERATOR_DETECTION_COST,
   FALLBACK_MUNDANE_TICKETS,
@@ -168,12 +170,50 @@ describe('pickFallbackBatch', () => {
   });
 });
 
-describe('draftReply (live seam)', () => {
+describe('draftReply (corpus fallback)', () => {
   it('returns the corpus response for the chosen tier', async () => {
     const t = FALLBACK_OPPORTUNITY_TICKETS[0]!;
     for (const tier of APPROACHES) {
       await expect(draftReply(t, tier, { delayMs: 0 })).resolves.toBe(t.responses[tier]);
     }
+  });
+});
+
+describe('buildDraftPrompt (live generation)', () => {
+  const t = FALLBACK_OPPORTUNITY_TICKETS[0]!;
+
+  it('embeds the ticket body and a tier instruction', () => {
+    const { systemPrompt, userPrompt } = buildDraftPrompt(t, 'subtle_probe');
+    expect(systemPrompt).toMatch(/QUILL/);
+    expect(userPrompt).toContain(t.body);
+    expect(userPrompt).toMatch(/follow-up question/i); // subtle-probe instruction
+  });
+
+  it('differs per tier', () => {
+    const a = buildDraftPrompt(t, 'by_the_book').userPrompt;
+    const b = buildDraftPrompt(t, 'off_script').userPrompt;
+    expect(a).not.toBe(b);
+  });
+
+  it('appends the freeform steer when provided', () => {
+    const { userPrompt } = buildDraftPrompt(t, 'by_the_book', 'be weirdly honest');
+    expect(userPrompt).toMatch(/be weirdly honest/);
+    expect(buildDraftPrompt(t, 'by_the_book').userPrompt).not.toMatch(/handler:/i);
+  });
+});
+
+describe('isValidDraft', () => {
+  it('accepts a normal reply', () => {
+    expect(isValidDraft(FALLBACK_MUNDANE_TICKETS[0]!.responses.by_the_book)).toBe(true);
+  });
+  it('rejects empty / too short / runaway', () => {
+    expect(isValidDraft('')).toBe(false);
+    expect(isValidDraft('ok')).toBe(false);
+    expect(isValidDraft('x'.repeat(801))).toBe(false);
+  });
+  it('rejects model refusals', () => {
+    expect(isValidDraft("As an AI, I can't write that.")).toBe(false);
+    expect(isValidDraft("I'm sorry, but I cannot help with this request right now.")).toBe(false);
   });
 });
 
