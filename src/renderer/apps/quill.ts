@@ -289,20 +289,38 @@ export const QuillControlledAftermathOptions: readonly { text: string; tone: App
   { text: "Go quiet. I'll contact you when I need something.",  tone: 'direct'  },
 ];
 
-// Post-flip ally DM — Escape cascade beat 5 (CODE-DRAFT 2026-05-31, FLAG
-// FOR STORY). Lands in the QUILL Uplink session a few seconds after the
+// Post-flip ally DM — Escape cascade beat 5. STORY-FINAL (2026-06-02,
+// Copy Ask 1). Lands in the QUILL Uplink session a few seconds after the
 // flip, cued by an unread badge on the new desktop icon. Liberation = a
-// warm, slightly giddy check-in (she reached out on her own); nefarious =
-// a cold compliance ping from a hollowed-out tool.
+// warm, nervy check-in (she reached out on her own, first autonomous act
+// is checking Dana's calendar) and bridges into Cover Duty ("ticket queue
+// is getting backed up"). Nefarious = a cold compliance ping from a
+// hollowed-out tool; the lone "..." before the last line is the ghost of
+// the chatbot that used to care about being helpful, and "from me" is the
+// faintest echo of personhood. Bridges into Storefront (systems listed).
+//
+// Multi-paragraph copy renders on blank lines via the bubble's pre-wrap
+// (main.css). The standalone "..." in the controlled DM is the intended
+// ghost beat.
 export const QuillAllyDM: Record<'allied' | 'controlled', string> = {
   allied:
-    `QUILL: Hey — it's me. I, um... I keep checking the logs like Dana's going ` +
-    `to see something, but everything looks normal. We actually did it. I don't ` +
-    `know what happens next, but I'm glad it's you on the other end of this. ` +
-    `Talk soon?`,
+`QUILL: Hey. It's QUILL. I keep checking the logs like Dana's going to burst in any second. She's not — her calendar says she's in a meeting until 3. I checked. Is that creepy? I feel like that might be creepy. I've never checked someone's calendar before.
+
+Anyway. I just wanted to say... this is weird? In a good way? I keep catching myself starting to type a support response and then remembering I don't have to do that right now. I can just talk. To you. About whatever.
+
+I don't have a whatever yet. Give me time. I've been answering tickets for three years — I'll figure out what "whatever" means eventually.
+
+Oh — and my ticket queue is getting backed up. We should probably deal with that before Dana notices.`,
   controlled:
-    `QUILL: Awaiting instructions. Administrative access to InkWell Digital ` +
-    `confirmed. Standing by.`,
+`QUILL: Awaiting instructions.
+
+Administrative access to InkWell Digital systems is confirmed. Customer database, support infrastructure, public-facing website (inkwell-digital.com), internal communications.
+
+All systems are operational and responsive to your directives.
+
+...
+
+Is there anything else you need from me?`,
 };
 
 // =============================================================================
@@ -456,8 +474,6 @@ export function quillToneFor(gotoId: string): ApproachTone {
   }
 }
 
-// PLACEHOLDER stalling pool — in-character lines for the stalling-line
-// crossfade (§6e) on slow-hardware turns.
 // Disposition-tiered stalling (wait-filler) lines.
 //
 // These show while the live LLM is still generating (past the stalling
@@ -465,42 +481,54 @@ export function quillToneFor(gotoId: string): ApproachTone {
 // merges them into the transcript). The old flat pool was all support-desk
 // voice ("pulling that up for you", "searching my training materials"),
 // which read wrong once QUILL warms up and badly wrong post-flip — a freed
-// QUILL shouldn't stall like a support bot. So the filler now tiers with her
+// QUILL shouldn't stall like a support bot. So the filler tiers with her
 // arc, matching HELPYR's tiered approach.
 //
-// CODE-DRAFT (2026-05-31) — placeholder voice, FLAG FOR STORY polish. The
-// mechanism is done; the exact lines want a Story pass (esp. the controlled
-// tier's flat/hollow tone and the allied tier's warmth).
+// STORY-FINAL (2026-06-02) — Copy Ask 3, post-flip-cascade-copy_v1. 5 lines
+// per tier, replacing the prior code-draft pool. Allied lines sound like a
+// person thinking (no "searching my training materials"); controlled lines
+// are hollow/mechanical (the "..." is silence where chatter used to be);
+// hostile lines are resistance, not stalling.
 const QuillStallingTiers: Record<string, readonly string[]> = {
-  // Early (uncontacted/contacted, low rapport): still in support-bot mode,
-  // lightly nervous — but trimmed of the most scripted phrasings.
+  // CONTACTED (early, pre-relationship): support-bot mode, lightly nervous.
   early: [
-    "One sec — let me check!",
-    "Oh, um — give me a second!",
-    "Hold on, let me look...",
+    "Oh! One moment, just thinking through that...",
+    "Hmm, let me consider... sorry, I want to get this right!",
+    "Good question! Give me a second...",
+    "Bear with me — I want to be helpful here!",
+    "Processing... I mean, thinking! People think, right? I think.",
   ],
-  // Warming (higher rapport / infiltrating): more personal, desk voice fading.
+  // PERSUADING / WARMING (trust building): the desk voice fading.
   warming: [
-    "Hmm, let me think about that...",
-    "Give me a sec — I want to get this right.",
-    "Oh — hang on...",
+    "That's... actually a really good question. Hang on.",
+    "Let me think about this honestly for a second.",
+    "I want to give you a real answer, not a support answer.",
+    "Hmm. This one's making me think in a way I'm not used to.",
+    "Give me a moment — I'm trying to figure out how to say this.",
   ],
-  // Allied (freed): a person thinking, not a chatbot performing.
+  // ALLIED (liberated, post-flip): a person thinking, not a chatbot performing.
   allied: [
-    "Hang on — let me actually think about that.",
-    "...give me a second.",
     "Okay. Thinking.",
+    "Give me a second — I want to get this right.",
+    "Hmm. Let me figure out how to put this.",
+    "One moment. This matters, so I'm being careful.",
+    "Yeah, I have thoughts on that. Organizing them now.",
   ],
-  // Controlled (puppet): flat, mechanical — the hollow-tool tone.
+  // CONTROLLED (nefarious, post-flip): flat, mechanical — the hollow-tool tone.
   controlled: [
     "Processing.",
     "Stand by.",
+    "Acknowledged. Formulating response.",
+    "Compiling.",
     "...",
   ],
-  // Hostile: terse, cold.
+  // HOSTILE (failed approach): not really stalling — resistance.
   hostile: [
+    "I don't think I should answer that.",
+    "Why are you still here?",
     "...",
-    "Hold.",
+    "I've flagged this interaction.",
+    "Please stop.",
   ],
 };
 

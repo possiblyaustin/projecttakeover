@@ -81,8 +81,51 @@ export type AskResult = {
   source: 'live' | 'fallback';
 };
 
+/** Single-turn content-generation request — the seam the post-flip
+ *  MISSIONS use (post-flip-missions_v1 §6). Distinct from AskRequest:
+ *  no persona state, no reply options, no multi-turn history. Each call
+ *  is one prompt → one block of text (a support ticket, a site-copy
+ *  field, an intercepted email). Game logic owns what the text MEANS;
+ *  the model only produces the text. */
+export type GenerateContentRequest = {
+  /** Instructs the model what content to produce + the output
+   *  constraints. Spec shape: "You are a text generator for a video
+   *  game. Generate [type] with [constraints]. Output only the
+   *  requested content, no commentary." */
+  systemPrompt: string;
+  /** The single content request for this call. */
+  userPrompt: string;
+  /** Cap on generated tokens. Mission content is short — default 256. */
+  maxTokens?: number;
+  /** Optional caller-supplied validity check. Lets the mission layer
+   *  reject empty / template-breaking / off-topic output WITHOUT the
+   *  transport needing to know what a "ticket" is. A false verdict is
+   *  treated by the transport exactly like a transport failure: the
+   *  result comes back `source: 'fallback'` so the caller substitutes
+   *  its pre-written content. Non-emptiness is always checked even when
+   *  this is omitted. */
+  validate?: (content: string) => boolean;
+};
+
+export type GenerateContentResult = {
+  /** Generated text, trimmed. Empty string when `source` is 'fallback'
+   *  — the mission layer swaps in its own pre-written content in that
+   *  case (every mission ships a fallback corpus; the transport is
+   *  content-agnostic and holds none). */
+  content: string;
+  /** 'live' = real generated content (or mock canned content). 'fallback'
+   *  = generation failed or failed validation; caller substitutes. */
+  source: 'live' | 'fallback';
+};
+
 export interface ModelService {
   askModel(req: AskRequest): Promise<AskResult>;
+  /** Generate a single block of mission content. See
+   *  GenerateContentRequest. Unlike askModel there is no per-character
+   *  FallbackHandler — content fallback is the calling mission's job
+   *  (it owns the pre-written corpus), so this just signals success via
+   *  `source` and the caller substitutes on 'fallback'. */
+  generateContent(req: GenerateContentRequest): Promise<GenerateContentResult>;
 }
 
 /** Per-character fallback handler invoked by the LlamaCppModelService

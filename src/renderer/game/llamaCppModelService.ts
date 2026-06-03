@@ -39,6 +39,8 @@ import type {
   AskResult,
   ModelChatMessage,
   FallbackHandler,
+  GenerateContentRequest,
+  GenerateContentResult,
 } from './modelService';
 import { parseModelOutput } from './replyParser';
 import { makeRecoveryPicker, GENERIC_RECOVERY_OPTIONS } from './recoveryPicker';
@@ -159,6 +161,45 @@ export class LlamaCppModelService implements ModelService {
       conversationEnded: false,
       source: 'live',
     };
+  }
+
+  /** Single-turn mission content generation (post-flip-missions §6).
+   *  Best-effort: builds a system+user pair, calls the same completion
+   *  endpoint askModel uses, and on ANY failure (transport error,
+   *  timeout, empty output, or caller `validate` returning false)
+   *  returns `source: 'fallback'` with empty content so the mission
+   *  layer swaps in its pre-written corpus. No parser, no options block
+   *  — the response IS the content. */
+  async generateContent(req: GenerateContentRequest): Promise<GenerateContentResult> {
+    const messages: ChatMessageBody[] = [];
+    if (req.systemPrompt) messages.push({ role: 'system', content: req.systemPrompt });
+    messages.push({ role: 'user', content: req.userPrompt });
+    const body = {
+      model: this.modelName,
+      messages,
+      max_tokens: req.maxTokens ?? 256,
+    };
+
+    let content: string;
+    try {
+      const fetched = await this.fetchCompletion(body);
+      content = fetched.content.trim();
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      if (typeof console !== 'undefined') {
+        console.info('[Mission] content generation fallback:', reason);
+      }
+      return { content: '', source: 'fallback' };
+    }
+
+    // Empty output, or caller's domain validation rejected it → fallback.
+    if (content.length === 0 || (req.validate && !req.validate(content))) {
+      if (typeof console !== 'undefined') {
+        console.info('[Mission] content generation fallback: validation');
+      }
+      return { content: '', source: 'fallback' };
+    }
+    return { content, source: 'live' };
   }
 
   /** Invoke the configured fallback handler, force source: 'fallback'
