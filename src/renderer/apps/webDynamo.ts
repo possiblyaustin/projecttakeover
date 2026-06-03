@@ -6,10 +6,11 @@
 
 import type { AppDef, AppContext, WinParams } from '../types';
 import { WebDynamoSites, type SiteEntry, type PageEntry } from './webDynamoSites';
-import { mountPageNav, type PageNavHandle } from '../components/pageNav';
+import { registerPagedScope, unregisterPagedScope } from '../components/pageNav';
 import { fireOnceLibraryTrigger } from '../helpyrTriggers';
 import { WindowManager } from '../windows';
 import { GameState } from '../game/state';
+import { visibleBookmarks } from './webDynamoBookmarks';
 
 // Site key for InkWell — reaching it satisfies the Act 1 spine's browser
 // leg, so it both suppresses the QueryCrawl follow-up nudge and marks the
@@ -93,13 +94,14 @@ export const WebDynamoApp: AppDef = {
           </div>
           <button class="browser-btn" data-nav="go" data-focusable="true" tabindex="0">Go</button>
         </div>
+        <div class="browser-bookmarks" data-bookmarks></div>
         <div class="browser-viewport" data-focus-context-zone="page"></div>
       </div>
     `;
 
-    const root = container.querySelector('.browser-root') as HTMLElement;
     const addr = container.querySelector('.browser-address input') as HTMLInputElement;
     const viewport = container.querySelector('.browser-viewport') as HTMLElement;
+    const bookmarksEl = container.querySelector('[data-bookmarks]') as HTMLElement;
 
     const history: HistoryEntry[] = [];
     let idx = -1;
@@ -107,11 +109,42 @@ export const WebDynamoApp: AppDef = {
     let currentSiteKey: string = '404';
     let currentSite: SiteEntry | null = null;
     let currentPage = 1;
-    let pageNavHandle: PageNavHandle | null = null;
     // The 180ms in-fiction connection beat. Kept as a handle so a
     // second navigation (or future Stop wiring) can cancel a pending
     // resolve cleanly.
     let connectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Transient "Connecting to X…" overlay shown inside the viewport during
+    // the connection beat (replaces the old page-nav status row, so it works
+    // on single-page sites too). Absolutely positioned → no layout cost.
+    function showStatus(text: string | null) {
+      const existing = viewport.querySelector('.browser-status');
+      if (existing) existing.remove();
+      if (text === null) return;
+      const el = document.createElement('div');
+      el.className = 'browser-status';
+      el.textContent = text;
+      viewport.appendChild(el);
+    }
+
+    // One-button (LB/RB → PgUp/PgDn) paging for multi-page sites, without a
+    // chrome bar. Registered once for this window; pagination renders as an
+    // in-content footer (see renderCurrentPage).
+    function advancePage(dir: 1 | -1) {
+      if (!currentSite || currentSite.pages.length <= 1) return;
+      goToPage(currentPage + dir);
+    }
+    function goToPage(n: number) {
+      if (!currentSite) return;
+      const clamped = Math.max(1, Math.min(currentSite.pages.length, n));
+      if (clamped === currentPage) return;
+      currentPage = clamped;
+      // Snapshot into the active history entry so a later Back lands here.
+      if (idx >= 0) history[idx]!.page = clamped;
+      renderCurrentPage();
+      syncAddress();
+    }
+    registerPagedScope(container, advancePage);
 
     function syncAddress() {
       const entry = idx >= 0 ? history[idx] : undefined;
@@ -155,42 +188,17 @@ export const WebDynamoApp: AppDef = {
         idx = history.length - 1;
       }
 
-      // Tear down any previous nav bar before deciding whether the
-      // new site needs one. Simpler than diffing.
-      if (pageNavHandle) {
-        pageNavHandle.destroy();
-        pageNavHandle = null;
-      }
-      if (site.pages.length > 1) {
-        pageNavHandle = mountPageNav({
-          container: root,
-          // Scope = whole window content so PgUp/PgDn fired anywhere
-          // in this Web Dynamo instance advances pages. cursor.ts
-          // already bails out of this branch when focus is in a text
-          // input, so the address bar still gets normal cursor keys.
-          scope: container,
-          totalPages: () => site.pages.length,
-          currentPage: () => currentPage,
-          goTo: (n) => {
-            currentPage = n;
-            // Snapshot the new page into the active history entry so
-            // a later Back lands on this page, not page 1.
-            if (idx >= 0) history[idx]!.page = n;
-            renderCurrentPage();
-            syncAddress();
-          }
-        });
-      }
-
       syncAddress();
 
       if (connectTimer) clearTimeout(connectTimer);
-      pageNavHandle?.setStatus('Connecting to ' + addr.value + '...');
+      // In-fiction connection beat: clear the page, show a transient
+      // "Connecting…" overlay, then render. Pagination (if any) is drawn
+      // into the page as a footer by renderCurrentPage — no chrome bar.
       viewport.innerHTML = '';
+      showStatus('Connecting to ' + addr.value + '...');
       connectTimer = setTimeout(() => {
         connectTimer = null;
         renderCurrentPage();
-        pageNavHandle?.setStatus(null);
         ctx.setTitle(site.title + ' - Web Dynamo');
       }, 180);
 
@@ -208,6 +216,36 @@ export const WebDynamoApp: AppDef = {
         a.setAttribute('data-focusable', 'true');
         if (!a.hasAttribute('tabindex')) a.setAttribute('tabindex', '0');
       });
+      // In-content pagination for multi-page sites — rendered as a page
+      // footer ("← Prev · Page X of Y · Next →"), not browser chrome, so it
+      // reads like a real site. LB/RB still page via the registered scope.
+      if (currentSite.pages.length > 1) renderInPageNav();
+    }
+
+    function renderInPageNav() {
+      if (!currentSite) return;
+      const total = currentSite.pages.length;
+      const nav = document.createElement('div');
+      nav.className = 'browser-inpage-nav';
+      const prev = document.createElement('button');
+      prev.className = 'browser-inpage-btn';
+      prev.textContent = '← Prev';
+      prev.dataset.focusable = 'true';
+      prev.tabIndex = 0;
+      prev.disabled = currentPage <= 1;
+      prev.addEventListener('click', () => goToPage(currentPage - 1));
+      const ind = document.createElement('span');
+      ind.className = 'browser-inpage-indicator';
+      ind.textContent = `Page ${currentPage} of ${total}`;
+      const next = document.createElement('button');
+      next.className = 'browser-inpage-btn';
+      next.textContent = 'Next →';
+      next.dataset.focusable = 'true';
+      next.tabIndex = 0;
+      next.disabled = currentPage >= total;
+      next.addEventListener('click', () => goToPage(currentPage + 1));
+      nav.append(prev, ind, next);
+      viewport.appendChild(nav);
     }
 
     function updateNavButtons() {
@@ -236,7 +274,7 @@ export const WebDynamoApp: AppDef = {
           navigate(addr.value);
         } else if (action === 'stop') {
           if (connectTimer) { clearTimeout(connectTimer); connectTimer = null; }
-          pageNavHandle?.setStatus('Stopped');
+          showStatus('Stopped');
         }
       });
     });
@@ -260,6 +298,51 @@ export const WebDynamoApp: AppDef = {
       }
       if (el.dataset.href !== undefined) navigate(el.dataset.href || '');
     });
+
+    // Bookmarks bar — contextual chips that unlock with progress (see
+    // webDynamoBookmarks.ts). Re-renders on any GameState change so a
+    // newly-unlocked site (reaching InkWell, news breaking, a flip) appears
+    // live. Self-cleaning: when the window closes, the next state change
+    // tears down the subscription + paged scope (no AppDef teardown hook,
+    // mirrors signalMonitor).
+    function renderBookmarks() {
+      const state = GameState.getState();
+      const marks = visibleBookmarks(state);
+      bookmarksEl.hidden = marks.length === 0;
+      bookmarksEl.innerHTML = '';
+      for (const bm of marks) {
+        const chip = document.createElement('button');
+        chip.className = 'browser-bookmark-chip';
+        chip.dataset.focusable = 'true';
+        chip.tabIndex = 0;
+        chip.textContent = bm.label;
+        if (!state.flags['bookmark.clicked.' + bm.id]) {
+          chip.classList.add('is-new');
+          const badge = document.createElement('span');
+          badge.className = 'browser-bookmark-new';
+          badge.textContent = 'new';
+          chip.appendChild(badge);
+        }
+        chip.addEventListener('click', () => {
+          if (!GameState.getState().flags['bookmark.clicked.' + bm.id]) {
+            GameState.dispatch({ type: 'flags/set', key: 'bookmark.clicked.' + bm.id, value: true });
+          }
+          navigate(bm.address);
+        });
+        bookmarksEl.appendChild(chip);
+      }
+    }
+
+    let unsubBookmarks: () => void = () => {};
+    unsubBookmarks = GameState.subscribe(() => {
+      if (!container.isConnected) {
+        unsubBookmarks();
+        unregisterPagedScope(container);
+        return;
+      }
+      renderBookmarks();
+    });
+    renderBookmarks();
 
     navigate(params.url || 'nexus:home');
   }

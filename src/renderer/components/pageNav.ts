@@ -54,8 +54,21 @@ export type PageNavHandle = {
 // Scope registry — cursor.ts queries this when PgUp/PgDn fires to
 // decide whether to advance pages or fall through to scroll. Keys
 // are scope elements; values are the advance callback for that scope.
-type AdvanceFn = (dir: 1 | -1) => void;
+export type AdvanceFn = (dir: 1 | -1) => void;
 const scopes = new Map<HTMLElement, AdvanceFn>();
+
+/** Register a PgUp/PgDn (LB/RB) paging scope WITHOUT the visible nav bar.
+ *  Used by hosts that render their own in-content pagination (Web Dynamo)
+ *  but still want one-button controller paging. mountPageNav registers its
+ *  own scope internally; this is the standalone door for everyone else. */
+export function registerPagedScope(scope: HTMLElement, advance: AdvanceFn): void {
+  scopes.set(scope, advance);
+}
+
+/** Tear down a scope registered via registerPagedScope. */
+export function unregisterPagedScope(scope: HTMLElement): void {
+  scopes.delete(scope);
+}
 
 /** Called by cursor.ts on PageUp / PageDown. Walks up from `fromEl`
  *  looking for a registered scope. Returns true if a scope handled
@@ -130,14 +143,14 @@ export function mountPageNav(opts: PageNavOpts): PageNavHandle {
   prevBtn.addEventListener('click', () => advance(-1));
   nextBtn.addEventListener('click', () => advance(1));
 
-  scopes.set(scope, advance);
+  registerPagedScope(scope, advance);
   update();
 
   return {
     update,
     setStatus,
     destroy() {
-      scopes.delete(scope);
+      unregisterPagedScope(scope);
       bar.remove();
     }
   };
