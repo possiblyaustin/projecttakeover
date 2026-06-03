@@ -20,6 +20,8 @@ import type {
   AskResult,
   ApproachTone,
   ModelChatMessage,
+  GenerateContentRequest,
+  GenerateContentResult,
 } from './modelService';
 import type { DialogueNode } from '../apps/helpyr';
 
@@ -42,6 +44,13 @@ export type MockContact = {
    *  LLM. Default 0 (instant — phase A behavior). Phase D's real
    *  transport replaces this with actual inference latency. */
   delayMs?: number;
+  /** Optional canned content generator for the mission `generateContent`
+   *  path. Mock has no LLM, so offline dev / tests get deterministic
+   *  content from here. When absent, generateContent returns a labelled
+   *  placeholder so the mission's own pre-written fallback corpus is the
+   *  thing actually exercised offline (the mock never emits 'fallback',
+   *  same as askModel — from the engine's POV mock content "worked"). */
+  generateContent?: (req: GenerateContentRequest) => string;
 };
 
 export class MockModelService implements ModelService {
@@ -81,6 +90,19 @@ export class MockModelService implements ModelService {
     // (it walks past them). If it does, treat as wildcard fallback so
     // we don't crash the conversation.
     return this.wildcardOnly(userMessage, false);
+  }
+
+  async generateContent(req: GenerateContentRequest): Promise<GenerateContentResult> {
+    if (this.contact.delayMs && this.contact.delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, this.contact.delayMs));
+    }
+    const content = this.contact.generateContent
+      ? this.contact.generateContent(req)
+      : `[MOCK CONTENT] ${req.userPrompt}`;
+    // Mock is always "live" from the engine's POV (same as askModel) —
+    // the mission's pre-written fallback is exercised against the live
+    // transport, not here.
+    return { content, source: 'live' };
   }
 
   // ---- internal helpers ----

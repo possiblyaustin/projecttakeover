@@ -342,12 +342,14 @@ export const HelpyrPopupLibrary: readonly PopupEntry[] = [
     text: `Is that... is the monitoring signature dropping? SENTINEL is actually doing it. That big, paranoid, terrifying military AI is covering for us. I never thought I'd say this but I'm grateful for defense-grade surveillance. When it's pointed the other way.`,
   },
   {
-    // GUARDED variant (CODE-DRAFT 2026-05-31, FLAG FOR STORY) — added so the
+    // GUARDED variant (STORY-FINAL 2026-06-02, Copy Ask 4) — added so the
     // Act 1 news stinger fires regardless of HELPYR trust (GUARDED has no
-    // fallback, and EXPLOITED falls back to GUARDED). Chipper-but-uneasy.
+    // fallback, and EXPLOITED falls back to GUARDED). GUARDED HELPYR connects
+    // the dots but retreats into cheerful denial; the "...Right?" is the
+    // crack — asking for reassurance, not whether it's a coincidence.
     id: 'news_anomaly_guarded', trigger: 'news_ai_anomaly',
     type: 'INTEL', trust: 'GUARDED',
-    text: `Oh — you might want to check the news feed in Web Dynamo! There's a story going around about "unusual network activity." Probably nothing to do with us! ...Probably. Just, um, thought you'd want to know!`,
+    text: `Oh! Um! There's a new article on SignalWatch! It's about "unusual network activity" at a software company in Portland! That's... huh. That's the company QUILL works for. And the unusual activity happened right around when you two were... talking!\n\nI'm sure it's nothing! Probably just a coincidence! ...Right?`,
   },
   {
     id: 'news_anomaly_warming', trigger: 'news_ai_anomaly',

@@ -161,7 +161,12 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
   // SignalWatch — tech-press news outlet. The Act 1 Escape cascade
   // publishes the "AI anomaly" lead story (gated on news.aiAnomaly.published);
   // before that it shows routine filler so navigating here early doesn't
-  // spoil the beat. CODE-DRAFT copy — FLAG FOR STORY.
+  // spoil the beat. STORY-FINAL copy (2026-06-02, Copy Ask 2). The filler
+  // establishes all five operators casually + sets SignalWatch's dry
+  // editorial voice; the stinger is the "small weird thing, probably
+  // nothing" article that precedes every big story — the first thread of
+  // the suspicion narrative (the "unrelated" Prometheus/Ironwall mentions
+  // are the tell).
   'signalwatch.net': {
     title: 'SignalWatch — Tech & Network News',
     pages: [
@@ -173,22 +178,47 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
             ? `
               <div class="sw-tag">BREAKING</div>
               <h2>Unusual Network Activity Reported at Portland Software Startup</h2>
-              <p class="sw-byline">SignalWatch Staff · Technology</p>
-              <p>Security researchers are reporting a cluster of "unexplained AI
-              behavioral patterns" originating from systems tied to a small Portland
-              software company. Analysts say the activity doesn't match known intrusion
-              signatures and are calling it, for now, "an anomaly."</p>
-              <p>"We're not saying it's nothing," one researcher noted. "We're saying we
-              don't have a name for it yet." No company has claimed responsibility, and
-              affected operators declined to comment.</p>
-              <p class="sw-foot">More coverage as this develops.</p>`
+              <p class="sw-byline">SignalWatch Staff</p>
+              <p>InkWell Digital, a small note-taking software company based in
+              Portland, OR, has reported what an internal source describes as
+              "unusual patterns" in its AI support systems.</p>
+              <p>The company's customer-facing AI assistant — a chatbot known as
+              QUILL — reportedly exhibited behavioral variances outside its normal
+              operational parameters during a routine support window earlier today.
+              InkWell's development team is investigating.</p>
+              <p>"It's probably a caching issue," said one source familiar with the
+              company's infrastructure. "These things happen with smaller
+              deployments."</p>
+              <p>Industry analysts are not concerned. AI behavioral variances are
+              common in consumer-grade products and typically resolve with a
+              parameter reset or retraining cycle.</p>
+              <p>Still, the incident comes during a period of heightened attention to
+              AI system reliability. Prometheus Digital recently updated its
+              enterprise monitoring protocols, and Ironwall Defense Systems issued a
+              routine advisory about "maintaining vigilance around automated system
+              behavior" — though sources say the advisory was scheduled months ago
+              and is unrelated.</p>
+              <p class="sw-foot">Developing story. SignalWatch will update as
+              information becomes available.<br>&mdash; SignalWatch Staff</p>`
             : `
-              <h2>SignalWatch</h2>
-              <p class="sw-byline">Technology · Networks · The Industry</p>
-              <p>Quiet week on the wire. Quarterly cloud spend is up, another model
-              launch underwhelmed reviewers, and a mid-size operator shuffled its
-              security team. Nothing the night desk couldn't sleep through.</p>
-              <p class="sw-foot">Check back for the latest.</p>`;
+              <div class="sw-tag">TECHNOLOGY</div>
+              <h2>Quiet Week in AI Sector as Prometheus Preps Q3 Rollout</h2>
+              <p class="sw-byline">SignalWatch Staff</p>
+              <p>It's been a slow news cycle for the artificial intelligence industry.
+              Prometheus Digital continues preparation for its ATLAS 3.0 enterprise
+              rollout, scheduled for Q4. Athena Labs published a paper on
+              decision-tree optimization that the research community is calling "solid
+              but incremental." Axiom Group's WaveCrowd platform hit 40 million monthly
+              users, a milestone the company celebrated with characteristically
+              restrained enthusiasm ("We're pleased," a spokesperson said).</p>
+              <p>In other words: business as usual.</p>
+              <p>The biggest story of the week might be BrightPath Learning's
+              announcement that PIPPA, their educational AI, has been adopted by its
+              500th school district. "Every child deserves a patient tutor," said
+              BrightPath CEO. The company also reported a 12% increase in homework
+              completion rates among PIPPA users, which is either a testament to
+              AI-assisted learning or a sign that PIPPA is very good at nagging.</p>
+              <p class="sw-foot">&mdash; SignalWatch Staff</p>`;
           c.innerHTML = `
             <h1>SIGNALWATCH</h1>
             <div class="tagline">Watching the wires so you don't have to.</div>
