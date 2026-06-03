@@ -96,6 +96,10 @@ export function renderInkwellConsole(container: HTMLElement): void {
     const answeredCount = m.ticketIds.filter((id) => m.picks[id]).length;
     const total = m.ticketIds.length;
 
+    // The assistant strip is omitted on the outcome view — QUILL is already
+    // "speaking" in the outcome panel there, and dropping it keeps the
+    // longest screen (blown) within the viewport (no scroll — Deck rule).
+    const showAssistant = view.kind !== 'outcome';
     container.innerHTML = `
       <div class="ink-console">
         <header class="ink-head">
@@ -103,13 +107,13 @@ export function renderInkwellConsole(container: HTMLElement): void {
           <div class="ink-queuecount">Queue: ${total - answeredCount} open · ${answeredCount}/${total} cleared</div>
         </header>
         <div class="ink-body" data-body></div>
-        <footer class="ink-assistant">
+        ${showAssistant ? `<footer class="ink-assistant">
           <span class="ink-assistant-avatar avatar-quill"></span>
           <span class="ink-assistant-text" data-assistant></span>
-        </footer>
+        </footer>` : ''}
       </div>
     `;
-    container.querySelector('[data-assistant]')!.textContent = assistant;
+    if (showAssistant) container.querySelector('[data-assistant]')!.textContent = assistant;
     const body = container.querySelector('[data-body]') as HTMLElement;
 
     if (view.kind === 'outcome') { renderOutcome(body); return; }
@@ -191,9 +195,20 @@ export function renderInkwellConsole(container: HTMLElement): void {
     } else {
       composer.innerHTML = `<div class="ink-draft" data-draft></div>`;
       composer.querySelector('[data-draft]')!.textContent = v.draft ?? '';
+      const actions = document.createElement('div');
+      actions.className = 'ink-actions';
       const send = button('Send reply', () => sendReply(t, v.tier!));
       send.classList.add('ink-primary');
-      composer.appendChild(send);
+      // "Don't like it" escape: go back to the approach picker and try a
+      // different tier. (Slice 3: a freeform "tell QUILL how to respond"
+      // re-draft via generateContent will live here too.)
+      const redo = button('↺ Different approach', () => {
+        view = { kind: 'ticket', id: t.id, phase: 'choose' };
+        assistant = 'No good? Pick a different angle and I’ll redo it.';
+        render();
+      });
+      actions.append(send, redo);
+      composer.appendChild(actions);
     }
     body.appendChild(composer);
   }

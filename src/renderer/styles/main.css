@@ -824,12 +824,12 @@
   }
 
   /* Outcome */
-  .ink-outcome { padding: 0.625rem; border-radius: 0.25rem; }
+  .ink-outcome { padding: 0.5rem 0.625rem; border-radius: 0.25rem; }
   .ink-outcome-intact { background: #e6f4e6; border: 1px solid #8cc88c; }
   .ink-outcome-stressed { background: #fff3da; border: 1px solid #e0b066; }
   .ink-outcome-blown { background: #fae4e4; border: 1px solid #d98a8a; }
-  .ink-outcome-title { margin: 0 0 0.375rem; font-size: 0.9375rem; }
-  .ink-outcome-body { margin: 0; font-size: 0.8125rem; line-height: 1.45; white-space: pre-wrap; color: #2a2f3a; }
+  .ink-outcome-title { margin: 0 0 0.25rem; font-size: 0.9375rem; }
+  .ink-outcome-body { margin: 0; font-size: 0.8125rem; line-height: 1.35; white-space: pre-wrap; color: #2a2f3a; }
   .ink-intel-recap { margin-top: 0.5rem; padding: 0.5rem; background: #e2f4f8; border: 1px solid #9fc8d2; border-radius: 0.1875rem; }
   .ink-intel-head { font-size: 0.6875rem; font-weight: bold; letter-spacing: 0.0312rem; color: #0a4a52; margin-bottom: 0.25rem; }
   .ink-intel-item { font-size: 0.6875rem; line-height: 1.35; color: #0a4a52; margin-bottom: 0.1875rem; }
@@ -845,6 +845,7 @@
     background: linear-gradient(to bottom, #3a6cc0, #244a85); border-color: #14305a;
   }
   .ink-btn.ink-primary:active, .ink-btn.ink-primary.cursor-hover { background: linear-gradient(to bottom, #4a7cd0, #2a5499); }
+  .ink-actions { display: flex; gap: 0.4375rem; flex-wrap: wrap; }
 
   /* Nexus home portal — the browser's landing page */
   .site-home h1 {

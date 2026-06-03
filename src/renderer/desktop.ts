@@ -121,6 +121,13 @@ const NexusMenu: NexusEntry[] = [
     action: () => GameState.dispatch({ type: 'model/applyExchange', contactId: 'quill', rapport: 100, tone: 'empathetic' }) },
   { type: 'item', label: '[DEV] Flip QUILL → controlled',
     action: () => GameState.dispatch({ type: 'model/applyExchange', contactId: 'quill', intrusion: 100, tone: 'aggressive' }) },
+  // Cover Duty mission (post-flip slice 2): flips QUILL allied, arms a fresh
+  // batch, and opens the InkWell admin console in Web Dynamo. Re-runnable.
+  { type: 'item', label: '[DEV] Start Cover Duty',
+    action: () => (window as any).PT.devStartCoverDuty() },
+  // Wipe the save + reload — quick fresh start for re-testing on Deck.
+  { type: 'item', label: '[DEV] Reset game',
+    action: () => GameState.dispatch({ type: 'debug/reset' }) },
   // Drives suspicion to 100 → latches gameOver → loss screen.
   { type: 'item', label: '[DEV] Trigger loss screen',
     action: () => GameState.dispatch({ type: 'debug/setSuspicion', value: 100 }) },
