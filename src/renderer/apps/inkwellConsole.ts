@@ -30,6 +30,8 @@ import {
   isValidDraft,
   COVER_DUTY_OUTCOME_MESSAGE,
   COVER_DUTY_DANA_BLOWN,
+  QUILL_CONSOLE_REACTIONS,
+  QUILL_DETECTION_SPIKE_LINES,
   type CoverTicket,
   type CoverApproach,
 } from '../game/missions/coverDuty';
@@ -70,13 +72,16 @@ const APPROACH_BLURB: Record<CoverApproach, string> = {
   subtle_probe: 'Answer, but slip in a question. Small risk, maybe intel.',
   off_script: 'Chase the interesting thread. High risk, high reward.',
 };
-// QUILL's reaction in the assistant strip after a reply sends. CODE-DRAFT.
-const QUILL_REACTIONS: Record<CoverApproach, string> = {
-  by_the_book: 'Clean. Sounds just like me-before. Dana won’t blink at that one.',
-  subtle_probe: 'Ooh — slipped a question in there. Risky, but we might learn something.',
-  off_script: '…okay, that one was bold. If Dana reads it closely we’re going to feel it.',
-};
 const QUILL_GREETING = 'Okay — queue’s a mess. Pick how I should answer each ticket and I’ll write it up. Just… keep us covered, yeah?';
+
+// Cover Integrity at/below this (i.e. detection in 'stressed' territory)
+// hands the assistant strip over to a tension line instead of the per-
+// approach quip — the player feels the cover slipping at the moment it does.
+const SPIKE_INTEGRITY_THRESHOLD = 60;
+
+function pick<T>(pool: readonly T[]): T {
+  return pool[Math.floor(Math.random() * pool.length)]!;
+}
 
 type View =
   | { kind: 'queue' }
@@ -317,7 +322,13 @@ export function renderInkwellConsole(container: HTMLElement): void {
       detectionCost: cost,
       intelId: surfaced && ticket.intel ? ticket.intel.id : undefined,
     });
-    assistant = QUILL_REACTIONS[tier] + (surfaced && ticket.intel ? `  (Logged: ${ticket.intel.summary})` : '');
+    // Once the cover is visibly slipping (integrity in stressed territory),
+    // QUILL's nerves take over the strip; otherwise react to the approach.
+    const integ = coverIntegrity(mission()?.detection ?? 0);
+    const reaction = integ <= SPIKE_INTEGRITY_THRESHOLD
+      ? pick(QUILL_DETECTION_SPIKE_LINES)
+      : pick(QUILL_CONSOLE_REACTIONS[tier]);
+    assistant = reaction + (surfaced && ticket.intel ? `  (Logged: ${ticket.intel.summary})` : '');
     busy = false;
     view = allAnswered() ? { kind: 'outcome' } : { kind: 'queue' };
     if (view.kind === 'outcome') finish(); else render();
