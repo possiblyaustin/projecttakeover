@@ -77,7 +77,7 @@ initFirstContactWatcher();
 // 6. Library-trigger watchers (slice 3). Suspicion-crossing fires on
 //    25/50/75/90 boundaries; idle fires after 3min of no activity.
 //    Both flow through fireLibraryTrigger which applies the
-//    Quiet/EXPLOITED/Uplink-active filters before HelpyrBubble.spawn.
+//    Quiet/WITHDRAWN/Uplink-active filters before HelpyrBubble.spawn.
 initSuspicionWatcher();
 initIdleWatcher();
 
@@ -208,7 +208,7 @@ setTimeout(() => {
     testRepinNudge: (id: string = 'quill') => devFireRepinNudge(id),
     // Fire any library trigger by id, exercising the full
     // fireLibraryTrigger pipeline (Uplink-active guard, trust
-    // fallback, Quiet filter, EXPLOITED suppression). Bypasses
+    // fallback, Quiet filter, WITHDRAWN suppression). Bypasses
     // cooldown so back-to-back dev calls work; real auto-triggers
     // leave the cooldown intact so the player gets breathing room.
     testTrigger: (triggerId: string) => fireLibraryTrigger(triggerId, { bypassCooldown: true }),

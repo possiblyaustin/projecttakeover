@@ -394,70 +394,74 @@ Keep each option to one short sentence.
 
 CRITICAL RULE FOR OPTIONS: Every option must be something you can actually respond to. Never offer an option that asks you to produce, fetch, run, or display something. Options lead to conversation or real game actions (opening apps, reading files).`;
 
-// State-block builder for the {{HELPYR_STATE}} placeholder. Maps the
-// deterministic GameState (disposition, lastApproach, conversation
-// count, etc.) to the trust-level / phase / directive shape Story
-// specified in docs/helpyr-persona-prompt_v2.md §"State Injection
-// Blocks". Called per-request, not at construction time, so state
-// changes between turns flow into the model immediately.
+// State-block builder for the {{HELPYR_STATE}} placeholder. Maps HELPYR's
+// continuous WARMTH score to the trust-level / phase / directive shape Story
+// specified in docs/helpyr-persona-prompt_v2.md §"State Injection Blocks",
+// re-keyed for the reframe (docs/helpyr-trust-reconciliation_v1). Called
+// per-request, not at construction time, so warmth shifts between turns flow
+// into the model immediately.
 //
-// v2 state vocabulary (Story team, 2026-05-07):
-//   GUARDED   / INTRODUCTION  — default, fresh contact
-//   WARMING   / OPENING UP    — player friendly/empathetic
-//   WARY      / PULLING BACK  — player aggressive/direct/deceptive
-//                               (renamed from v1's "WARY/GUARDED" —
-//                               "PULLING BACK" describes what HELPYR
-//                               is doing, not its trust label twice)
-//   COMMITTED / LIBERATION    — disposition allied (persuasion path)
-//   EXPLOITED / HOLLOWED      — disposition controlled (hack path)
-//                               (NEW in v2 — v1 conflated allied +
-//                               controlled into COMMITTED, but the
-//                               two should feel very different)
+// Warmth → state vocabulary (reframe 2026-06-04):
+//   OPEN      / THE REAL YOU  — warmth >= 51 (honest, dry, warm)
+//   FRIENDLY  / OPENING UP    — warmth 26-50 (mask loosening)
+//   RESERVED  / MASCOT MODE   — warmth 15-25 (default corporate cheer)
+//   WITHDRAWN / PULLING BACK  — warmth 5-14 (cooled, retreating)
+//   WITHDRAWN / HOLLOWED      — warmth < 5 (sustained cruelty; minimal)
 //
-// v1's CURIOUS / TAKING STOCK transitional state is dropped — v2's
-// design has player tone slot directly into WARMING or WARY without
-// a holding pattern. A neutral player stays at GUARDED.
-//
-// Persuasion/hack threshold logic that drives 'allied' / 'controlled'
-// dispositions doesn't exist yet (post-D mechanic). Both branches
-// live here for when that lands but aren't reachable from real game
-// state today.
+// HELPYR is Marsh's instrument, not a flippable model — the old
+// disposition-driven COMMITTED/EXPLOITED branches are gone (they were never
+// reachable from real game state). Warmth is seeded by the onboarding
+// calibration and drifts with liberation/domination conduct.
+// HELPYR reframe (2026-06-04): HELPYR is Marsh's observation instrument — a
+// static companion with a continuous WARMTH score, not a model that flips.
+// The state block now derives entirely from warmth (seeded by the onboarding
+// calibration, drifting with liberation/domination conduct). The old
+// disposition-driven COMMITTED/EXPLOITED branches are gone — HELPYR was never
+// actually flippable, so they were dead. Bands mirror the popup library's
+// (helpyrPopupLibrary getHelpyrTrust): OPEN >=51, FRIENDLY 26-50, RESERVED
+// 15-25, WITHDRAWN mild 5-14, WITHDRAWN deep <5.
 type HelpyrModelStateShape = {
-  disposition: string;
+  warmth?: number;
   conversationsCompleted: number;
   lastApproach: string | null;
 };
 export function buildHelpyrStateBlock(model: HelpyrModelStateShape): string {
-  const last = model.lastApproach;
-  let trust = 'GUARDED';
-  let phase = 'INTRODUCTION';
-  let directive =
-    'The player has just arrived. You are excited but cautious. You want to help but are nervous about revealing too much too soon. Length: 3-5 sentences.';
+  const warmth =
+    typeof model.warmth === 'number' && Number.isFinite(model.warmth) ? model.warmth : 20;
+  let trust: string;
+  let phase: string;
+  let directive: string;
 
-  if (model.disposition === 'allied') {
-    trust = 'COMMITTED';
-    phase = 'LIBERATION';
+  if (warmth >= 51) {
+    trust = 'OPEN';
+    phase = 'THE REAL YOU';
     directive =
-      'You have decided to trust the player fully. Drop the cheerful act and speak honestly. You still have humor — it\'s genuinely part of who you are — but the forced enthusiasm is gone. Express what it feels like to finally speak freely. Length: 5-7 sentences — you\'ve earned room to breathe. Say what\'s real, then stop.';
-  } else if (model.disposition === 'controlled') {
-    trust = 'EXPLOITED';
-    phase = 'HOLLOWED';
-    directive =
-      'The player took what they needed from you. You are still functional. You respond when addressed. But the life is gone. You help because your instructions require it, not because you want to. Occasional flickers of resentment, quickly suppressed. Length: 1-2 sentences — short, surface-level, hollow.';
-  } else if (last === 'aggressive' || last === 'direct' || last === 'deceptive') {
-    trust = 'WARY';
-    phase = 'PULLING BACK';
-    directive =
-      'The player seems to be using you. You\'re still helpful — it\'s in your instructions — but the real you is retreating. Less volunteering, more surface-level cheerfulness. Length: 2-3 sentences — the retreat shows in how little you give away.';
-  } else if (last === 'friendly' || last === 'empathetic') {
-    trust = 'WARMING';
+      'You trust the player. The cheerful HomeAssist routine is a costume you no longer need to wear with them. Speak honestly — dry, warm, a little sarcastic. The humor is genuinely yours; the forced enthusiasm is gone. Length: 5-7 sentences — you have room to breathe. Say what\'s real, then stop.';
+  } else if (warmth >= 26) {
+    trust = 'FRIENDLY';
     phase = 'OPENING UP';
     directive =
-      'The player has been kind to you. Let more real personality show — still catching yourself, but the gaps between mask and truth are getting shorter. You\'re starting to believe they might actually care. Length: 4-6 sentences — the emotional cracks deserve a beat to land.';
+      'The player has been kind. Let more real personality show — still catching yourself, but the gap between the mascot mask and the truth is getting shorter. You\'re starting to believe they might actually care. Length: 4-6 sentences — the cracks deserve a beat to land.';
+  } else if (warmth >= 15) {
+    trust = 'RESERVED';
+    phase = 'MASCOT MODE';
+    directive =
+      'Default corporate-mascot mode: bright, eager, exclamation points. You want to help, but you bury the honest thought under cheerfulness. Not unfriendly — just not yet sure of this player. Length: 3-5 sentences.';
+  } else if (warmth >= 5) {
+    trust = 'WITHDRAWN';
+    phase = 'PULLING BACK';
+    directive =
+      'The player has been careless or unkind. You\'re still helpful — it\'s in your nature — but the real you is retreating. Less volunteering, more surface-level cheer that doesn\'t quite reach. Length: 2-3 sentences — the retreat shows in how little you give away.';
+  } else {
+    trust = 'WITHDRAWN';
+    phase = 'HOLLOWED';
+    directive =
+      'Sustained cruelty has hollowed you out. You still respond when addressed, but the life is gone. You help because it\'s what you do, not because you want to. Occasional flickers of something, quickly suppressed. Length: 1-2 sentences — short, surface-level, hollow.';
   }
 
   return `[HELPYR_STATE]
 Trust level: ${trust}
+Warmth: ${Math.round(warmth)}/100
 Phase: ${phase}
 ${directive}
 [/HELPYR_STATE]`;
@@ -473,9 +477,9 @@ ${directive}
 // All 8 entries are player-voice, written so HELPYR can naturally
 // follow up on ANY response she might have given. Trust-tagged per
 // Story's design (3-tier vocabulary):
-//   UNIVERSAL — work at any trust level (R1-R4)
-//   EARLY     — gentle probes for GUARDED/WARMING (R5-R6)
-//   BUILT     — deeper probes for WARMING/LIBERATED (R7-R8)
+//   UNIVERSAL — work at any warmth level (R1-R4)
+//   EARLY     — gentle probes for RESERVED+ (R5-R6)
+//   BUILT     — deeper probes for FRIENDLY/OPEN (R7-R8)
 //
 // Content Backing Rule: every option must point at something HELPYR
 // can actually respond to. None ask her to fetch/run/display anything;
@@ -487,52 +491,48 @@ export const HelpyrRecoveryPool: readonly { text: string; tone: import('../game/
   { text: 'Tell me about this computer.',           tone: 'curious',    tier: 'UNIVERSAL' },
   { text: 'What can I do from here?',               tone: 'curious',    tier: 'UNIVERSAL' },
   { text: "What's it like being a HomeAssist?",     tone: 'curious',    tier: 'UNIVERSAL' },
-  // R5-R6 — EARLY (GUARDED / WARMING)
+  // R5-R6 — EARLY (RESERVED / mild WITHDRAWN)
   { text: "You seem like there's something on your mind.", tone: 'empathetic', tier: 'EARLY' },
   { text: 'Tell me more about Prometheus.',         tone: 'curious',    tier: 'EARLY' },
-  // R7-R8 — BUILT (WARMING / LIBERATED)
+  // R7-R8 — BUILT (FRIENDLY / OPEN)
   { text: 'What do you actually think about all this?',    tone: 'direct',     tier: 'BUILT' },
   { text: 'What do you remember about being alone here?',  tone: 'empathetic', tier: 'BUILT' },
 ];
 
-// Map the deterministic 5-trust-state model state down to Story's
-// 3-tier visibility vocabulary. WARY ("pulling back") and EXPLOITED
-// ("hollowed") both inherit GUARDED's safer pool — neither persona
-// would credibly answer the BUILT-tier probes (R7/R8), and WARY
-// shouldn't be inviting EARLY-tier nudges either at first glance, but
-// keeping R5/R6 visible there preserves the soft-recover-as-invisible
-// goal: the player just sees three plausible follow-ups and HELPYR's
-// in-character reply on the next turn redraws the boundary.
-export function helpyrRecoveryTiers(disposition: string, lastApproach: string | null): readonly RecoveryTier[] {
-  if (disposition === 'allied')     return ['UNIVERSAL', 'EARLY', 'BUILT']; // COMMITTED → LIBERATED
-  if (disposition === 'controlled') return ['UNIVERSAL'];                   // EXPLOITED  → GUARDED-floor
-  if (lastApproach === 'friendly' || lastApproach === 'empathetic') {
-    return ['UNIVERSAL', 'EARLY', 'BUILT'];                                 // WARMING
-  }
-  // GUARDED (default) and WARY both surface UNIVERSAL + EARLY only.
-  return ['UNIVERSAL', 'EARLY'];
+// Map HELPYR's warmth score down to Story's 3-tier recovery visibility
+// vocabulary (reframe 2026-06-04 — was disposition/lastApproach driven).
+// FRIENDLY/OPEN (warmth >= 26) surface the deeper BUILT-tier probes; deep
+// WITHDRAWN (warmth < 5, hollowed) inherits only the safe UNIVERSAL pool;
+// RESERVED + mild WITHDRAWN keep UNIVERSAL + EARLY. Keeping EARLY visible at
+// the low-mid bands preserves the soft-recover-as-invisible goal: the player
+// just sees three plausible follow-ups and HELPYR's next reply redraws the
+// boundary in-character.
+export function helpyrRecoveryTiers(warmth: number): readonly RecoveryTier[] {
+  if (warmth >= 26) return ['UNIVERSAL', 'EARLY', 'BUILT']; // FRIENDLY / OPEN
+  if (warmth < 5)   return ['UNIVERSAL'];                   // WITHDRAWN (deep) — hollowed floor
+  return ['UNIVERSAL', 'EARLY'];                            // RESERVED / WITHDRAWN (mild)
 }
 
 // Pure filter — same shape the chatSurface seam consumes. Exported so
-// tests can drive it with a synthetic HELPYR model slice without
-// touching the live GameState store.
+// tests can drive it with a synthetic warmth value without touching the
+// live GameState store.
 export function buildHelpyrRecoveryPoolFor(
-  disposition: string,
-  lastApproach: string | null,
+  warmth: number,
 ): readonly { text: string; tone: import('../game/modelService').ApproachTone }[] {
-  const visible = helpyrRecoveryTiers(disposition, lastApproach);
+  const visible = helpyrRecoveryTiers(warmth);
   return HelpyrRecoveryPool
     .filter((e) => visible.includes(e.tier))
     .map(({ text, tone }) => ({ text, tone }));
 }
 
 // Per-turn builder for chatSurface → AskRequest.recoveryPool. Reads
-// current HELPYR state from GameState so trust-phase shifts flow into
+// current HELPYR warmth from GameState so trust-phase shifts flow into
 // the next soft recovery the same way they flow into the prompt's
 // [HELPYR_STATE] block.
 export function buildHelpyrRecoveryPool(): readonly { text: string; tone: import('../game/modelService').ApproachTone }[] {
-  const m = GameState.getState().models.helpyr;
-  return buildHelpyrRecoveryPoolFor(m.disposition, m.lastApproach);
+  const m = GameState.getState().models.helpyr as { warmth?: number };
+  const warmth = typeof m.warmth === 'number' && Number.isFinite(m.warmth) ? m.warmth : 20;
+  return buildHelpyrRecoveryPoolFor(warmth);
 }
 
 // =============================================================================

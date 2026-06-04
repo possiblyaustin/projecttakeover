@@ -38,6 +38,10 @@ Start-here map for the `docs/` folder. **New thread?** Read the root [`CLAUDE.md
 | [conversation-telemetry-and-variety_v1.md](conversation-telemetry-and-variety_v1.md) | **[LIVING]** | Signal Monitor telemetry widget (live Trust/Control meters + delta flash) and the tonal-variety/anti-spam mechanic. Widget core + variety mechanic shipped (v0.2.10–v0.2.11); see its Build status block for open items. |
 | [scripted-flip-moments_v1.md](scripted-flip-moments_v1.md) | **[REFERENCE]** | The pattern for scripting a model's terminal flip line (game logic replaces the LLM for that one turn) + QUILL's allied/controlled flip scripts. Realized v0.2.12. Required for every future model's content package. |
 | [cover-duty-followup_v1.md](cover-duty-followup_v1.md) | **[REFERENCE]** | Story's Cover Duty follow-up: intel→cascade payoff, per-tier composer voice (ALLIED), ticket/fallback corpus, console reaction lines, blown-cover bridge, SignalWatch/DM small fixes, InkWell page consolidation. Integrated v0.2.27. |
+| [helpyr-trust-reconciliation_v1.md](helpyr-trust-reconciliation_v1.md) | **[REFERENCE]** | The HELPYR reframe's tier→warmth rename map (GUARDED/WARMING/LIBERATED/EXPLOITED → RESERVED/FRIENDLY/OPEN/WITHDRAWN), 5 text edits, flip removal. Reconciliation foundation integrated v0.2.28. |
+| [onboarding-flow-design_v1.md](onboarding-flow-design_v1.md) | **[DRAFT]** | First-five-minutes flow proposal: boot → oversized HELPYR calibration → 3 live-escalation scenarios → desktop → QUILL → hook close. Beats build pending (after the reframe foundation). |
+| [onboarding-content-package_v1.md](onboarding-content-package_v1.md) | **[DRAFT]** | Authored onboarding copy (boot text, calibration premises/quips/stalling, hook close) for the flow above. Wiring pending. |
+| [inference-acceleration-assessment_v2.md](inference-acceleration-assessment_v2.md) | **[REFERENCE]** | Platform-tiering + inference research: Deck is the bandwidth-walled floor; GPU/drafting/LiteRT all HELD; token-tightening folds into onboarding. Drove the 2026-06-04 tiering decision. |
 
 ## Historical (context only — not current truth)
 | Doc | Status | What it is |

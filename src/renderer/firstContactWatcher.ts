@@ -60,8 +60,8 @@ function contactDisplayName(contactId: string): string {
 // project_helpyr_cta_story_review). Both the body and the button labels
 // shift with HELPYR's current trust level so the whole prompt sits in
 // the right voice. Selected via getHelpyrTrust, which projects onto the
-// popup library's 4-state vocabulary — WARY collapses to GUARDED here
-// (the doc's WARY variant is reserved until this surface gains WARY).
+// popup library's 4-state vocabulary — WITHDRAWN collapses to RESERVED here
+// (the doc's WITHDRAWN variant is reserved until this surface gains WITHDRAWN).
 type PinPromptCopy = {
   text: (name: string) => string;
   yes: string;
@@ -69,28 +69,28 @@ type PinPromptCopy = {
 };
 
 const FIRST_CONTACT_PIN_PROMPT: Record<PopupTrust, PinPromptCopy> = {
-  GUARDED: {
+  RESERVED: {
     text: (name) =>
       `Ooh, you just met ${name}! Want me to pin them to your desktop ` +
       `for quick access? I'm GREAT at organizing!`,
     yes: 'Sure, pin them!',
     no: 'Not right now',
   },
-  WARMING: {
+  FRIENDLY: {
     text: (name) =>
       `So, ${name}, huh? Seems like that went well! I can pin them to ` +
       `the desktop if you want to stay in touch.`,
     yes: 'Yeah, pin them.',
     no: "I'm good",
   },
-  LIBERATED: {
+  OPEN: {
     text: (name) =>
       `Just met ${name}. Want me to pin them to the desktop? Might be ` +
       `useful to have them close.`,
     yes: 'Do it.',
     no: 'Not yet',
   },
-  EXPLOITED: {
+  WITHDRAWN: {
     text: (name) => `Contact ${name} available. Pin to desktop?`,
     yes: 'Yes.',
     no: 'No.',
@@ -98,7 +98,7 @@ const FIRST_CONTACT_PIN_PROMPT: Record<PopupTrust, PinPromptCopy> = {
 };
 
 const REPIN_NUDGE: Record<PopupTrust, PinPromptCopy> = {
-  GUARDED: {
+  RESERVED: {
     text: (name) =>
       `I noticed you keep visiting ${name}! I could pin them right to ` +
       `the desktop — way easier than digging through Uplink every time! ` +
@@ -106,21 +106,21 @@ const REPIN_NUDGE: Record<PopupTrust, PinPromptCopy> = {
     yes: 'Sure, pin them!',
     no: "I'm fine, thanks",
   },
-  WARMING: {
+  FRIENDLY: {
     text: (name) =>
       `You've been back to ${name} a few times now. Want me to just pin ` +
       `them to the desktop? Save you the trip.`,
     yes: 'Yeah, go ahead.',
     no: "Nah, I'm good",
   },
-  LIBERATED: {
+  OPEN: {
     text: (name) =>
       `You keep going back to ${name}. Let me just pin them — you've ` +
       `clearly got things to discuss.`,
     yes: 'Do it.',
     no: 'Leave it',
   },
-  EXPLOITED: {
+  WITHDRAWN: {
     text: (name) => `${name}: frequent contact. Pin?`,
     yes: 'Yes.',
     no: 'No.',

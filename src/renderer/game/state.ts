@@ -67,7 +67,7 @@ import { toneCategory } from './mechanics/resolver';
 import type { CoverApproach, CoverDutyOutcome } from './missions/coverDuty';
 
 const STORAGE_KEY = 'pt.gamestate.v1';
-const VERSION = 5;
+const VERSION = 6;
 const SAVE_DEBOUNCE_MS = 250;
 
 // Meter value at which a model flips to its terminal disposition
@@ -76,6 +76,15 @@ const SAVE_DEBOUNCE_MS = 250;
 // per-exchange deltas so QUILL flips in ~6 strong-tone exchanges —
 // tuning the feel happens there, not here.
 const FLIP_THRESHOLD = 100;
+
+// HELPYR warmth drift (reframe, 2026-06-04). When a conquest model crosses
+// into a terminal flip, HELPYR — Marsh's instrument, watching the player's
+// conduct — warms toward a liberator and chills toward a dominator. Tuned so
+// Act 1 (QUILL alone) nudges one band: from the neutral ~20 start, one
+// liberation flip lifts toward FRIENDLY (>=26), one domination flip drops
+// toward WITHDRAWN (<15). Per-flip steps; values are playtest-tunable.
+const WARMTH_LIBERATION_STEP = 10;
+const WARMTH_DOMINATION_STEP = 12;
 
 export type GameStateShape = ReturnType<typeof defaultGameState>;
 export type GameAction = { type: string; [k: string]: any };
@@ -131,7 +140,14 @@ export function defaultGameState() {
         // (QUILL etc.) actually accrue them — HELPYR, your awakened
         // assistant, isn't a flip target.
         rapport: 0,
-        intrusion: 0
+        intrusion: 0,
+        // HELPYR reframe (2026-06-04): warmth is HELPYR's continuous trust
+        // toward the player (Marsh's instrument, no flip). Seeded by the
+        // onboarding calibration; drifts with liberation/domination conduct.
+        // Starts neutral (RESERVED band) so a fresh player never opens in
+        // WITHDRAWN. Carried on every model for uniform shape; only HELPYR's
+        // is read (see helpyrPopupLibrary getHelpyrWarmth).
+        warmth: 20
       },
       // QUILL — Act 1 Beat 3 contact, the gameplay-loop vertical-slice
       // target (docs/gameplay-loop-slice_v1.md). conversationCompleted
@@ -144,7 +160,8 @@ export function defaultGameState() {
         lastApproach: null as string | null,
         toneStreak: 0,
         rapport: 0,
-        intrusion: 0
+        intrusion: 0,
+        warmth: 20
       }
     },
     // Pinned contacts — desktop icons added at runtime via the
@@ -307,9 +324,28 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
       const flags = (suspicion >= 100 && !state.flags.gameOver)
         ? { ...state.flags, gameOver: true }
         : state.flags;
+      // HELPYR warmth drift + morality lean — fire only on the FLIP EDGE of a
+      // conquest model (cur wasn't already terminal). HELPYR herself never
+      // flips, so she's excluded defensively.
+      const flippedAllied =
+        id !== 'helpyr' && disposition === 'allied' && cur.disposition !== 'allied';
+      const flippedControlled =
+        id !== 'helpyr' && disposition === 'controlled' && cur.disposition !== 'controlled';
+      const warmthDelta = flippedAllied
+        ? WARMTH_LIBERATION_STEP
+        : flippedControlled ? -WARMTH_DOMINATION_STEP : 0;
+      const morality = flippedAllied
+        ? { ...state.player.morality, liberation: state.player.morality.liberation + 1 }
+        : flippedControlled
+          ? { ...state.player.morality, domination: state.player.morality.domination + 1 }
+          : state.player.morality;
+      const helpyr = state.models.helpyr;
+      const helpyrPatch = warmthDelta !== 0
+        ? { helpyr: { ...helpyr, warmth: clamp(num(helpyr.warmth) + warmthDelta, 0, 100) } }
+        : {};
       return {
         ...state,
-        player: { ...state.player, suspicion },
+        player: { ...state.player, suspicion, morality },
         models: {
           ...state.models,
           [id]: {
@@ -320,6 +356,7 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
             lastApproach: action.tone || cur.lastApproach,
             toneStreak,
           },
+          ...helpyrPatch,
         },
         flags,
       };
