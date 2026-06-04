@@ -4,10 +4,10 @@ import {
   buildHelpyrRecoveryPoolFor,
 } from '../../src/renderer/apps/helpyr';
 
-// Visibility map (Story team, 2026-05-16): the 5-state HELPYR model
-// state collapses to a 3-tier visibility (UNIVERSAL / EARLY / BUILT).
-// These tests pin the collapse so a future tweak to buildHelpyrStateBlock
-// can't silently desync recovery options from the prompt's trust block.
+// Visibility map (reframe 2026-06-04): HELPYR's continuous warmth score
+// collapses to a 3-tier recovery visibility (UNIVERSAL / EARLY / BUILT).
+// These tests pin the collapse so a future tweak to the warmth bands can't
+// silently desync recovery options from the prompt's trust block.
 
 const TEXTS = {
   UNIVERSAL: HelpyrRecoveryPool.filter((e) => e.tier === 'UNIVERSAL').map((e) => e.text),
@@ -15,8 +15,8 @@ const TEXTS = {
   BUILT:     HelpyrRecoveryPool.filter((e) => e.tier === 'BUILT').map((e) => e.text),
 };
 
-function textsFor(disposition: string, lastApproach: string | null): string[] {
-  return buildHelpyrRecoveryPoolFor(disposition, lastApproach).map((o) => o.text);
+function textsFor(warmth: number): string[] {
+  return buildHelpyrRecoveryPoolFor(warmth).map((o) => o.text);
 }
 
 describe('HelpyrRecoveryPool — Story spec shape', () => {
@@ -31,42 +31,32 @@ describe('HelpyrRecoveryPool — Story spec shape', () => {
   });
 });
 
-describe('buildHelpyrRecoveryPoolFor — trust visibility', () => {
-  it('GUARDED (default disposition, no approach): UNIVERSAL + EARLY only', () => {
-    const got = textsFor('neutral', null);
+describe('buildHelpyrRecoveryPoolFor — warmth visibility', () => {
+  it('RESERVED (neutral start, warmth ~20): UNIVERSAL + EARLY only', () => {
+    const got = textsFor(20);
     expect(got.sort()).toEqual([...TEXTS.UNIVERSAL, ...TEXTS.EARLY].sort());
   });
 
-  it('WARY (aggressive/direct/deceptive approach): still UNIVERSAL + EARLY', () => {
-    // WARY uses the same pool as GUARDED — the "pulling back" persona
-    // shouldn't suddenly invite BUILT-tier honesty probes.
-    expect(textsFor('neutral', 'aggressive').sort()).toEqual(textsFor('neutral', null).sort());
-    expect(textsFor('neutral', 'direct').sort()).toEqual(textsFor('neutral', null).sort());
-    expect(textsFor('neutral', 'deceptive').sort()).toEqual(textsFor('neutral', null).sort());
+  it('WITHDRAWN mild (warmth 5-14): still UNIVERSAL + EARLY', () => {
+    // A mildly cooled HELPYR keeps the same pool as RESERVED — pulling
+    // back shouldn't suddenly invite BUILT-tier honesty probes, but the
+    // EARLY nudges stay so soft-recovery reads invisible.
+    expect(textsFor(10).sort()).toEqual(textsFor(20).sort());
   });
 
-  it('WARMING (friendly/empathetic approach): all three tiers visible', () => {
-    const got = textsFor('neutral', 'friendly');
+  it('FRIENDLY / OPEN (warmth >= 26): all three tiers visible', () => {
+    const got = textsFor(40);
     expect(got.sort()).toEqual(
       [...TEXTS.UNIVERSAL, ...TEXTS.EARLY, ...TEXTS.BUILT].sort(),
     );
-    expect(textsFor('neutral', 'empathetic').sort()).toEqual(got.sort());
+    expect(textsFor(60).sort()).toEqual(got.sort()); // OPEN band too
   });
 
-  it('COMMITTED (allied disposition): all three tiers visible', () => {
-    // Disposition overrides lastApproach — even an aggressive last turn
-    // on an allied HELPYR keeps the LIBERATED-tier options available.
-    const got = textsFor('allied', 'aggressive');
-    expect(got.sort()).toEqual(
-      [...TEXTS.UNIVERSAL, ...TEXTS.EARLY, ...TEXTS.BUILT].sort(),
-    );
-  });
-
-  it('EXPLOITED (controlled disposition): UNIVERSAL only', () => {
+  it('WITHDRAWN deep (warmth < 5): UNIVERSAL only', () => {
     // Hollowed HELPYR can't credibly answer EARLY or BUILT probes —
     // both would force the player into a flat/dead response. Strip down
     // to the safe floor.
-    const got = textsFor('controlled', 'friendly');
+    const got = textsFor(2);
     expect(got.sort()).toEqual([...TEXTS.UNIVERSAL].sort());
   });
 

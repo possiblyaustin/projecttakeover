@@ -7,7 +7,7 @@
 // trust-level entry, and routes to HelpyrBubble.spawn.
 //
 // Centralizing here means watchers stay tiny ("did event X happen?
-// fire the trigger") and all filter rules — Quiet toggle, EXPLOITED
+// fire the trigger") and all filter rules — Quiet toggle, WITHDRAWN
 // suppression, don't-during-uplink, trust fallback — live in one
 // place. Adding a new trigger source = call fireLibraryTrigger from
 // the new watcher; no changes to bubble code.
@@ -20,12 +20,12 @@
 //      queue — queueing across an unbounded gap risks stale-feeling
 //      pops; can revisit if playtest shows real value lost to skip.
 //   2. Trust-level entry lookup with library fallback rules
-//      (WARMING / EXPLOITED → GUARDED).
+//      (FRIENDLY / WITHDRAWN → RESERVED).
 //   3. Quiet HELPYR — `state.settings.helpyrQuiet` suppresses non-
 //      ALERT entries entirely. ALERT (suspicion crossings) always
 //      fires.
-//   4. EXPLOITED 40% non-ALERT suppression — per the library doc,
-//      EXPLOITED HELPYR is withdrawing; about 40% of her flavor
+//   4. WITHDRAWN 40% non-ALERT suppression — per the library doc,
+//      WITHDRAWN HELPYR is withdrawing; about 40% of her flavor
 //      bubbles get swallowed. ALERTs still fire so the player
 //      doesn't miss critical signal.
 
@@ -34,18 +34,22 @@ import { HelpyrBubble } from './helpyrBubble';
 import {
   pickEntryForTrigger,
   getHelpyrTrust,
+  isHelpyrDeepWithdrawn,
 } from './apps/helpyrPopupLibrary';
 
-const EXPLOITED_NON_ALERT_SUPPRESS_RATE = 0.4;
+// Deep-WITHDRAWN HELPYR (warmth < 5) is hollowed and literally talks less —
+// about 40% of her non-ALERT flavor bubbles get swallowed. (Was the old
+// WITHDRAWN tier's rule; the reframe re-homes it on the warmth floor.)
+const WITHDRAWN_NON_ALERT_SUPPRESS_RATE = 0.4;
 
 export type FireOptions = {
   // Bypass the don't-during-uplink filter. Used by dev triggers and
   // any future trigger that should always fire regardless of player
   // context.
   bypassUplinkGuard?: boolean;
-  // Bypass the EXPLOITED 40% random suppression. Dev triggers use
+  // Bypass the deep-WITHDRAWN 40% random suppression. Dev triggers use
   // this so test fires are deterministic.
-  bypassExploitedSuppress?: boolean;
+  bypassWithdrawnSuppress?: boolean;
   // Bypass the Quiet HELPYR filter. Dev triggers use this so the
   // tester can exercise the surface even with quiet on. Real game
   // events leave this off so the toggle actually works.
@@ -77,10 +81,10 @@ export function fireLibraryTrigger(
   if (!opts.bypassQuiet && state.settings.helpyrQuiet && !isAlert) return;
 
   if (
-    !opts.bypassExploitedSuppress
-    && trust === 'EXPLOITED'
+    !opts.bypassWithdrawnSuppress
+    && isHelpyrDeepWithdrawn(state)
     && !isAlert
-    && (opts.rng || Math.random)() < EXPLOITED_NON_ALERT_SUPPRESS_RATE
+    && (opts.rng || Math.random)() < WITHDRAWN_NON_ALERT_SUPPRESS_RATE
   ) {
     return;
   }

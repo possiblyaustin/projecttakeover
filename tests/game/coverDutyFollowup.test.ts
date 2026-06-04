@@ -72,7 +72,7 @@ describe('QUILL console reaction pools (Story-final)', () => {
 describe('new HELPYR library entries', () => {
   // Both trust levels authored; WARMING/EXPLOITED fall back to GUARDED.
   it('resolves the blown-cover bridge at every trust', () => {
-    for (const trust of ['GUARDED', 'WARMING', 'LIBERATED', 'EXPLOITED'] as const) {
+    for (const trust of ['RESERVED', 'FRIENDLY', 'OPEN', 'WITHDRAWN'] as const) {
       const e = pickEntryForTrigger('cover_duty_blown', trust);
       expect(e?.trigger).toBe('cover_duty_blown');
     }
@@ -80,7 +80,7 @@ describe('new HELPYR library entries', () => {
 
   it('resolves both intel-lead pop-ups at every trust', () => {
     for (const trigger of ['cover_intel_prometheus', 'cover_intel_axiom'] as const) {
-      for (const trust of ['GUARDED', 'WARMING', 'LIBERATED', 'EXPLOITED'] as const) {
+      for (const trust of ['RESERVED', 'FRIENDLY', 'OPEN', 'WITHDRAWN'] as const) {
         const e = pickEntryForTrigger(trigger, trust);
         expect(e?.trigger).toBe(trigger);
         expect(e?.type).toBe('INTEL');

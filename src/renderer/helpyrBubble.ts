@@ -26,7 +26,7 @@
 //     app opens, recruits, idle 3min)
 //   - "Quiet HELPYR" toggle (project_helpyr_bubble_optout — type-filter
 //     so non-ALERT entries can be muted while ALERTs still fire)
-//   - EXPLOITED 40% non-ALERT suppression
+//   - WITHDRAWN 40% non-ALERT suppression
 //   - Don't-fire-during-active-Uplink-conversation rule
 //
 // Display rules wired here (per docs/helpyr-popup-library_v1.md):
