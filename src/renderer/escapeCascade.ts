@@ -55,9 +55,32 @@ const BEAT_ALLY_DM_MS = 4200; // ally DM lands in Uplink (unread badge)
 const BEAT_STINGER_MS = 6800; // Act 1 news stinger (no-mission contacts)
 
 // Post-mission pacing (ms from fireCoverDutyComplete): bridge pop-up lands
-// first, then the news stinger breathes after it.
-const POST_BRIDGE_MS = 600;   // "…the world just got bigger" HELPYR pop-up
-const POST_STINGER_MS = 5200; // then the SignalWatch article + news nudge
+// first, then the news stinger breathes after it, then any intel leads —
+// "world got bigger" → "world noticed" → "here's where to look next". The
+// bubble surface QUEUES, so firing the intel pops just after the stinger
+// enqueues them behind it; they drain in order as each auto-dismisses.
+const POST_BRIDGE_MS = 600;    // "…the world just got bigger" HELPYR pop-up
+const POST_STINGER_MS = 5200;  // then the SignalWatch article + news nudge
+const POST_INTEL_MS = 5600;    // intel leads enqueue right behind the stinger
+
+// Cover Duty intel id → the Act 2 lead it points at. Drives both the durable
+// GameState flag (for the future ScanGrid pre-identification) and which
+// HELPYR intel pop-up fires in the cascade.
+const INTEL_LEADS: { match: string; flag: string; trigger: string }[] = [
+  { match: 'prometheus', flag: 'intel.prometheusLicensing', trigger: 'cover_intel_prometheus' },
+  { match: 'axiom', flag: 'intel.axiomPortland', trigger: 'cover_intel_axiom' },
+];
+
+/** Pure: map the intel ids the player extracted during Cover Duty to the Act 2
+ *  leads they unlock (durable flag + HELPYR pop-up trigger). A lead counts if
+ *  ANY of its intel ids was extracted; order is stable (Prometheus, Axiom).
+ *  Exported for unit testing the cascade's payoff selection. */
+export function intelLeadsFor(
+  extractedIntel: readonly string[],
+): { flag: string; trigger: string }[] {
+  return INTEL_LEADS.filter((lead) => extractedIntel.some((id) => id.includes(lead.match)))
+    .map(({ flag, trigger }) => ({ flag, trigger }));
+}
 
 type CascadeDeps = {
   /** Beat 5 — inject the post-flip ally message into the contact's Uplink
@@ -66,8 +89,12 @@ type CascadeDeps = {
   /** Beat 6 — fire HELPYR's "check the news" nudge (news_ai_anomaly). */
   fireNewsStinger: () => void;
   /** Bridge — fire HELPYR's "the world just got bigger" pop-up after Cover
-   *  Duty completes, before the news stinger (cover_duty_complete trigger). */
-  fireBridgePopup: () => void;
+   *  Duty completes, before the news stinger. `blown` selects the setback-
+   *  aware variant (cover_duty_blown) over the cover-held one. */
+  fireBridgePopup: (blown: boolean) => void;
+  /** Intel lead — fire one HELPYR intel pop-up (cover_intel_* trigger) for a
+   *  lead the player extracted during Cover Duty. */
+  fireIntelPopup: (triggerId: string) => void;
 };
 
 let deps: CascadeDeps | null = null;
@@ -136,10 +163,31 @@ function fireStinger(contactId: string): void {
 
 /** Post-flip ordering payoff: called when a contact's Cover Duty mission
  *  resolves. Fires Story's bridge HELPYR pop-up ("…the world just got
- *  bigger"), then — after it breathes — the deferred world stinger. Safe to
- *  call more than once (both beats are once-guarded). */
+ *  bigger" — or the blown-cover variant on a flagged run), then the deferred
+ *  world stinger, then one intel-lead pop-up per lead the player extracted by
+ *  probing. Also latches the durable intel flags the future ScanGrid reads to
+ *  pre-identify those Act 2 targets. Safe to call more than once (the stinger
+ *  is once-guarded; the flag dispatches are idempotent). */
 export function fireCoverDutyComplete(contactId: string): void {
   if (stingerFired.has(contactId)) return; // already ran (e.g. reopened view)
-  window.setTimeout(() => deps?.fireBridgePopup(), POST_BRIDGE_MS);
+
+  const mission = GameState.getState().missions.coverDuty[contactId];
+  const blown = mission?.lastOutcome === 'blown';
+  const extracted = mission?.extractedIntel ?? [];
+
+  // Which Act 2 leads did the player surface? Latch a durable flag per lead
+  // (consumed later by ScanGrid) and collect the intel pop-up triggers to fire.
+  const leadsFound = intelLeadsFor(extracted);
+  for (const lead of leadsFound) {
+    GameState.dispatch({ type: 'flags/set', key: lead.flag, value: true });
+  }
+
+  window.setTimeout(() => deps?.fireBridgePopup(blown), POST_BRIDGE_MS);
   window.setTimeout(() => fireStinger(contactId), POST_STINGER_MS);
+  // Intel leads enqueue behind the stinger (the bubble surface queues), so
+  // they land last — the forward hook into Act 2. Staggered fires keep their
+  // enqueue order stable (Prometheus before Axiom).
+  leadsFound.forEach((lead, i) => {
+    window.setTimeout(() => deps?.fireIntelPopup(lead.trigger), POST_INTEL_MS + i * 300);
+  });
 }

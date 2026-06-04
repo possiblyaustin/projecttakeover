@@ -37,6 +37,7 @@ Start-here map for the `docs/` folder. **New thread?** Read the root [`CLAUDE.md
 | [title-screen-boot-flow_v1.md](title-screen-boot-flow_v1.md) | **[DRAFT]** | Title/boot-flow design; implementation deferred. |
 | [conversation-telemetry-and-variety_v1.md](conversation-telemetry-and-variety_v1.md) | **[LIVING]** | Signal Monitor telemetry widget (live Trust/Control meters + delta flash) and the tonal-variety/anti-spam mechanic. Widget core + variety mechanic shipped (v0.2.10–v0.2.11); see its Build status block for open items. |
 | [scripted-flip-moments_v1.md](scripted-flip-moments_v1.md) | **[REFERENCE]** | The pattern for scripting a model's terminal flip line (game logic replaces the LLM for that one turn) + QUILL's allied/controlled flip scripts. Realized v0.2.12. Required for every future model's content package. |
+| [cover-duty-followup_v1.md](cover-duty-followup_v1.md) | **[REFERENCE]** | Story's Cover Duty follow-up: intel→cascade payoff, per-tier composer voice (ALLIED), ticket/fallback corpus, console reaction lines, blown-cover bridge, SignalWatch/DM small fixes, InkWell page consolidation. Integrated v0.2.27. |
 
 ## Historical (context only — not current truth)
 | Doc | Status | What it is |

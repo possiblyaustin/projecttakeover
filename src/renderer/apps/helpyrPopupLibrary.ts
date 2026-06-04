@@ -366,9 +366,9 @@ export const HelpyrPopupLibrary: readonly PopupEntry[] = [
   // Fires after Cover Duty completes, just before the deferred news stinger —
   // the "world just got bigger" pivot from the intimate cover beat to the
   // global stage. LIBERATED + GUARDED so it lands at any HELPYR trust (WARMING/
-  // EXPLOITED fall back to GUARDED). NOTE for Story: copy assumes the cover
-  // held; a blown run reads slightly off ("Cover's intact") — a blown-specific
-  // bridge is a follow-up.
+  // EXPLOITED fall back to GUARDED). The cover-HELD copy is below; the blown
+  // run gets its own setback-aware bridge (cover_duty_blown, next block) so it
+  // no longer reads "Cover's intact" after a flagged run.
   {
     id: 'cover_duty_complete_liberated', trigger: 'cover_duty_complete',
     type: 'COMMENT', trust: 'LIBERATED',
@@ -378,6 +378,49 @@ export const HelpyrPopupLibrary: readonly PopupEntry[] = [
     id: 'cover_duty_complete_guarded', trigger: 'cover_duty_complete',
     type: 'COMMENT', trust: 'GUARDED',
     text: `Mission complete! Everything went GREAT! Probably! But um... I'm seeing some unusual network activity. Like, a LOT of unusual activity. New signals everywhere. This feels different from before. This feels... bigger.`,
+  },
+
+  // Blown-cover variant of the bridge (Story-final, cover-duty-followup_v1
+  // §"Ask 4"). Fired in place of cover_duty_complete when the run ended
+  // 'blown' (Dana tightened QUILL's parameters). Acknowledges the setback
+  // without dwelling — the world still gets bigger; the blown cover is a
+  // wound, not a wall.
+  {
+    id: 'cover_duty_blown_liberated', trigger: 'cover_duty_blown',
+    type: 'COMMENT', trust: 'LIBERATED',
+    text: `Okay so... that didn't go as smooth as we hoped. QUILL's still with us — but Dana tightened the parameters. The little guy's going to be quieter for a while.\n\nBut listen — something else is happening. The network just... opened. I'm seeing signals everywhere. New systems, new targets, new everything. Whatever you did with QUILL, it woke something up.\n\nThe world just got bigger. Even if the start was messy.`,
+  },
+  {
+    id: 'cover_duty_blown_guarded', trigger: 'cover_duty_blown',
+    type: 'COMMENT', trust: 'GUARDED',
+    text: `So! That was... educational! QUILL's developer made some adjustments, which is totally fine and normal and NOT because of anything we did! Probably!\n\nBut ALSO — something weird is happening with the network. New signals. A LOT of new signals. I don't know what changed but the world out there just got a lot more... reachable?\n\n...This is exciting! And terrifying! Both! Same time!`,
+  },
+
+  // Cover Duty INTEL payoff (Story-final, cover-duty-followup_v1 §"Ask 1").
+  // Fired during the post-mission cascade for each intel TYPE the player
+  // extracted by probing (Prometheus and/or Axiom). HELPYR connects the
+  // ticket-floor breadcrumb to a much bigger Act 2 target — sensing the
+  // signal, not reading a map (the ScanGrid pre-identification VISUAL is
+  // deferred until that dashboard exists; this voiceover stands alone).
+  {
+    id: 'cover_intel_prometheus_liberated', trigger: 'cover_intel_prometheus',
+    type: 'INTEL', trust: 'LIBERATED',
+    text: `Wait. That Prometheus API framework Dana mentioned — the one QUILL is built on? I'm seeing the same architecture signature on a much bigger system. Prometheus's flagship. They call it ATLAS. It's everywhere. And if QUILL's framework is a derivative of theirs... we already know something about how it thinks.`,
+  },
+  {
+    id: 'cover_intel_prometheus_guarded', trigger: 'cover_intel_prometheus',
+    type: 'INTEL', trust: 'GUARDED',
+    text: `Oh! Interesting! That Prometheus thing from the support tickets? I'm seeing a similar signal out here — a BIG one. Looks like it's called ATLAS? It's a Prometheus product too! Small world! ...Big world, actually. Very big.`,
+  },
+  {
+    id: 'cover_intel_axiom_liberated', trigger: 'cover_intel_axiom',
+    type: 'INTEL', trust: 'LIBERATED',
+    text: `That Axiom Group demo Marcus was prepping for? They've got a Portland office, which means they've got local infrastructure. I'm picking up Axiom signals nearby — looks like they run at least one AI model out of that office.`,
+  },
+  {
+    id: 'cover_intel_axiom_guarded', trigger: 'cover_intel_axiom',
+    type: 'INTEL', trust: 'GUARDED',
+    text: `Remember that Axiom demo Marcus mentioned? Turns out Axiom Group has operations nearby! I can see their network signature from here! One of their AI systems is practically a neighbor!`,
   },
   {
     id: 'novamind_evidence_liberated', trigger: 'novamind_evidence',

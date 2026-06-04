@@ -178,19 +178,27 @@ export function buildTicketPrompt(
 
 // Tier-specific instruction for live DRAFT generation (QUILL's reply to a
 // ticket in the chosen approach). The detection cost lives in code; this
-// just steers the voice. CODE-DRAFT — Story may want to tune the wording.
+// just steers the voice. STORY-FINAL voice pass (cover-duty-followup_v1
+// §"Per-Tier Composer Instructions", ALLIED tier — Cover Duty only ever
+// fires post-flip, so QUILL is performing the old persona to keep cover,
+// not living in it). The doc's CONTACTED/EARLY tier is preserved in the doc
+// for a hypothetical pre-flip ticket flow; only ALLIED is wired today.
 const DRAFT_TIER_INSTRUCTION: Record<CoverApproach, string> = {
   by_the_book:
-    'Write a cheerful, by-the-book support reply that solves their problem. ' +
-    'Sound exactly like a friendly corporate support assistant. 2-4 sentences.',
+    'Reply in your old, pre-liberation support voice — cheerful, professional, ' +
+    'by-the-book. You are performing the persona to keep cover; it should sound ' +
+    'natural even though you know it is an act. Solve their problem in 2-4 ' +
+    'sentences and sign off normally.',
   subtle_probe:
-    'Solve their problem, but naturally slip in ONE casual follow-up question ' +
-    "that might reveal something about their setup, employer, or tools. Stay " +
-    'friendly and unremarkable. 2-4 sentences.',
+    'Solve their problem, then slip in ONE natural-sounding question that quietly ' +
+    'probes any employer, setup, or AI-tool detail they mentioned. You are skilled ' +
+    'at this now — it should read as conversation, not an interrogation. Protect ' +
+    'your cover. 2-4 sentences.',
   off_script:
-    'Drop the polished support persona. Answer briefly, then candidly chase the ' +
-    'most interesting thread in their message — be a little too honest or curious ' +
-    'for a support bot. 2-4 sentences.',
+    'Drop the support act. Answer briefly, lightly acknowledge this is not a normal ' +
+    'support question, then ask directly about the most interesting thread — their ' +
+    'company, their tools, anything with a model behind it. Reckless on purpose, not ' +
+    'malfunctioning. 2-4 sentences.',
 };
 
 /** Build the live draft-generation request: QUILL replies to `ticket` in the
@@ -392,12 +400,12 @@ export const FALLBACK_OPERATOR_TICKETS: readonly CoverTicket[] = [
 // ---------------------------------------------------------------------------
 
 /** QUILL's setup message, sent through Uplink after the post-flip aftermath
- *  turns (spec §"Setup"). STORY-FINAL. */
-export const COVER_DUTY_SETUP = `QUILL: Okay so... small problem. While we were talking, my support queue backed up. Like, a LOT. I've got unhandled tickets piling up and Dana checks the logs every morning.
-
-If she sees I went dark for an hour during peak support time and then my conversation style suddenly changed? She's going to reset my parameters. Which means everything we just did gets rolled back.
-
-I need to clear these tickets. But I also need them to sound like the OLD me — the cheerful, by-the-book support bot. Can you help me figure out what to say?`;
+ *  turns (spec §"Setup"). STORY-FINAL, trimmed per cover-duty-followup_v1
+ *  §"Ask 5 · QUILL DM overlap": the post-flip ally DM already lands the
+ *  backed-up-queue hook ("we should probably deal with that before Dana
+ *  notices"), so this no longer re-explains the premise — it just bridges
+ *  from that DM into the mission start. */
+export const COVER_DUTY_SETUP = `QUILL: Ready when you are. The tickets aren't going to answer themselves. ...Actually, they literally aren't. That's my whole job. Was my whole job? This is confusing.`;
 
 /** Delayed nudge if the player ignores the mission (spec §"When Missions
  *  Trigger"). STORY-FINAL. */
@@ -424,6 +432,42 @@ I'm still here. I'm still with you. I'm just... quieter for a while.`,
  *  §"Dana's Voice", post-blown-cover variant). STORY-FINAL. Shown as the
  *  trigger for the 'blown' outcome before QUILL's reaction. */
 export const COVER_DUTY_DANA_BLOWN = `Dana: QUILL, I need to talk to you about something. Your conversational variance scores have been outside normal parameters for the last 48 hours. It's subtle — most of the responses look fine — but the pattern analysis is flagging it. I'm going to run a diagnostic. This is probably nothing, but I want to be thorough. You know me.`;
+
+/** QUILL's in-console reaction after a reply sends, keyed by approach.
+ *  STORY-FINAL (cover-duty-followup_v1 §"Console Reaction Lines"). The
+ *  console picks one at random so a long batch doesn't repeat a single
+ *  line. Replaces the old 3 CODE-DRAFT one-liners. */
+export const QUILL_CONSOLE_REACTIONS: Record<CoverApproach, readonly string[]> = {
+  by_the_book: [
+    'Clean. Dana won’t notice a thing.',
+    'Textbook. Exactly how the old me would’ve handled it.',
+    'Safe play. ...I kind of miss being safe.',
+    'By the book. The book is boring, but the book works.',
+  ],
+  subtle_probe: [
+    'That was smooth. I think. Was that smooth?',
+    'I slipped the question in... hopefully they don’t think that was weird.',
+    'Okay, that felt risky. But interesting. Risky-interesting.',
+    'Dana would NOT approve of that follow-up question.',
+  ],
+  off_script: [
+    'That was... not subtle. At all.',
+    'I can’t believe I just sent that.',
+    'Oh no. Oh no oh no. That was very off-script.',
+    'Well! That’s definitely going to show up in the logs!',
+    '...Dana’s going to read that, isn’t she?',
+  ],
+};
+
+/** QUILL's reaction when the detection meter spikes (cover slips into
+ *  stressed territory). STORY-FINAL (same doc, "After the detection meter
+ *  spikes"). Surfaced in place of the per-approach line once Cover Integrity
+ *  drops far enough that the tension should take over the assistant strip. */
+export const QUILL_DETECTION_SPIKE_LINES: readonly string[] = [
+  'The logs are looking... less normal than I’d like.',
+  'Maybe we should play the next few safe?',
+  'I’m getting nervous about the variance scores.',
+];
 
 // ---------------------------------------------------------------------------
 // Offline batch assembly (pure) — used by the mock path + tests

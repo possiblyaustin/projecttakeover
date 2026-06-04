@@ -111,9 +111,17 @@ setCascadeDeps({
   // gap), so without this the stinger would be swallowed by the cooldown.
   fireNewsStinger: () => fireLibraryTrigger('news_ai_anomaly', { bypassUplinkGuard: true, bypassCooldown: true }),
   // Bridge pop-up after Cover Duty completes ("…the world just got bigger"),
-  // just before the deferred news stinger. bypassCooldown so it isn't eaten
-  // by an earlier mission-completion bubble.
-  fireBridgePopup: () => fireLibraryTrigger('cover_duty_complete', { bypassUplinkGuard: true, bypassCooldown: true }),
+  // just before the deferred news stinger. The blown variant acknowledges the
+  // setback. bypassCooldown so it isn't eaten by an earlier mission bubble.
+  fireBridgePopup: (blown) =>
+    fireLibraryTrigger(blown ? 'cover_duty_blown' : 'cover_duty_complete', {
+      bypassUplinkGuard: true,
+      bypassCooldown: true,
+    }),
+  // Intel-lead pop-ups (cover_intel_*) — fire last in the cascade, the forward
+  // hook into Act 2. bypassCooldown so they queue + drain behind the stinger.
+  fireIntelPopup: (triggerId) =>
+    fireLibraryTrigger(triggerId, { bypassUplinkGuard: true, bypassCooldown: true }),
 });
 
 // 8. Launch README on startup so the player has a welcome surface.

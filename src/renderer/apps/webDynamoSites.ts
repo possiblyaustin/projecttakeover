@@ -115,44 +115,12 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
             <div class="hr-bar"></div>
             <p style="font-size:11px;color:#777;">
               <span style="font-size:10px;">* Sync requires InkWell Pro ($4.99/mo).</span><br>
-              <a href="#" data-href="inkwell-digital.com/support">Support</a> &middot;
+              Need a hand? <strong>QUILL</strong> is online 24/7 and handles 94% of
+              requests instantly — or email <strong>support@inkwell-digital.com</strong>
+              (1&ndash;2 business days).<br>
+              &ldquo;Finally a notes app that just works.&rdquo; — Mike R., Austin &middot;
               Careers <em>(we're hiring!)</em> &middot;
               &copy; 2007 InkWell Digital, Portland, OR
-            </p>
-          `;
-        }
-      },
-      {
-        label: 'Support',
-        path: 'support',
-        render(c: HTMLElement) {
-          c.classList.add('site-inkwell');
-          c.innerHTML = `
-            <h1>InkWell Support</h1>
-            <div class="tagline">We're here to help.</div>
-            <div class="hr-bar"></div>
-            <p>Having trouble with InkWell Notes? Our AI support assistant
-            <strong>QUILL</strong> can help with common issues:</p>
-            <ul>
-              <li>Password resets</li>
-              <li>Sync troubleshooting</li>
-              <li>Feature questions</li>
-              <li>Account management</li>
-            </ul>
-            <p>QUILL is available <strong>24/7</strong> and resolves most issues instantly.</p>
-            <div class="inkwell-support">
-              <span class="inkwell-support-status" aria-hidden="true"></span>
-              <div class="inkwell-support-text">
-                <strong>QUILL is online.</strong><br>
-                Give it a try first — QUILL handles 94% of requests without escalation.
-              </div>
-              <button class="inkwell-support-btn" data-action="contact:quill">Start Chat with QUILL &rsaquo;</button>
-            </div>
-            <div class="hr-bar"></div>
-            <p style="font-size:11px;color:#777;">
-              Can't find what you need? Email <strong>support@inkwell-digital.com</strong>
-              &mdash; response time 1&ndash;2 business days.<br>
-              &ldquo;Finally a notes app that just works.&rdquo; — Mike R., Austin
             </p>
           `;
         }
@@ -237,7 +205,7 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
               information becomes available.<br>&mdash; SignalWatch Staff</p>`
             : `
               <div class="sw-tag">TECHNOLOGY</div>
-              <h2>Quiet Week in AI Sector as Prometheus Preps Q3 Rollout</h2>
+              <h2>Quiet Week in AI Sector as Prometheus Preps Q4 Rollout</h2>
               <p class="sw-byline">SignalWatch Staff</p>
               <p>It's been a slow news cycle for the artificial intelligence industry.
               Prometheus Digital continues preparation for its ATLAS 3.0 enterprise

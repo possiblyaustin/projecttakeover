@@ -186,7 +186,7 @@ describe('buildDraftPrompt (live generation)', () => {
     const { systemPrompt, userPrompt } = buildDraftPrompt(t, 'subtle_probe');
     expect(systemPrompt).toMatch(/QUILL/);
     expect(userPrompt).toContain(t.body);
-    expect(userPrompt).toMatch(/follow-up question/i); // subtle-probe instruction
+    expect(userPrompt).toMatch(/probe|question/i); // subtle-probe instruction (ALLIED voice)
   });
 
   it('differs per tier', () => {
