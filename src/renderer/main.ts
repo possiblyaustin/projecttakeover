@@ -17,6 +17,7 @@
 // in desktop.ts.
 
 import './styles/main.css';
+import './styles/onboarding.css';
 
 import { Cursor } from './cursor';
 import { WindowManager } from './windows';
@@ -47,6 +48,7 @@ import { UplinkContacts } from './apps/uplink';
 import { QuillAllyDM } from './apps/quill';
 import { initCoverDutyWatcher } from './coverDutyWatcher';
 import { selectBatchIds } from './game/missions/coverDuty';
+import { devRunOnboarding } from './onboarding/onboardingScene';
 
 // ---- Boot order ----
 // 1. Register every app the system knows about.
@@ -150,6 +152,10 @@ setTimeout(() => {
   clearScale,
   UI_SCALE,
   mountPageNav,
+  // Replay the onboarding "Marsh layer" (boot + HELPYR entrance) over the live
+  // desktop — the desktop is revealed when the overlay tears down. Also wired
+  // to a [DEV] Nexus menu entry for Deck testing.
+  devRunOnboarding,
   // Convenience wrappers — quicker to type from devtools than
   // PT.GameState.dispatch({type:'debug/setSuspicion', value:60}).
   setSuspicion(value: number) {

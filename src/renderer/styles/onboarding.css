@@ -1,0 +1,250 @@
+/* Onboarding scene — the "Marsh layer" (2026-06-04).
+   A pre-OS BIOS/terminal that sits beneath the desktop. Phosphor green CRT for
+   the cold boot; Prometheus-blue warmth bursts in with HELPYR. All motion is
+   GPU-cheap (transform/opacity) and honors prefers-reduced-motion. */
+
+.ob-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100000; /* above windows, taskbar, bubbles — it's the layer below the OS */
+  background:
+    radial-gradient(120% 90% at 50% 40%, #0a1410 0%, #05080a 70%, #020303 100%);
+  color: #86f6a0;
+  font-family: 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', 'Courier New', monospace;
+  font-size: clamp(15px, 1.55vw, 22px);
+  line-height: 1.5;
+  overflow: hidden;
+  cursor: default;
+  --ob-glow: 0 0 6px rgba(110, 255, 150, 0.45);
+  text-shadow: var(--ob-glow);
+  animation: ob-flicker 5.5s steps(60) infinite;
+}
+
+/* The terminal text column. */
+.ob-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 1; /* above the CRT dressing's lower layers, below scanlines/vignette */
+  padding: clamp(28px, 7vh, 70px) clamp(24px, 6vw, 96px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* boot log reads top-down, like a real POST */
+  gap: 0.18em;
+  overflow: hidden;
+}
+
+.ob-line { white-space: pre-wrap; word-break: break-word; }
+.ob-line.ob-dim { color: #4f9d6a; text-shadow: 0 0 5px rgba(80, 200, 120, 0.3); }
+
+.ob-cursor {
+  display: inline-block;
+  width: 0.6em; height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: #86f6a0;
+  box-shadow: var(--ob-glow);
+  animation: ob-blink 1s steps(1) infinite;
+}
+
+/* "press any key" hint — only while awaiting acknowledgement of a held beat. */
+.ob-root.ob-awaiting::after {
+  content: '▸ press any key';
+  position: absolute;
+  bottom: clamp(14px, 4vh, 40px);
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 0.8em;
+  color: #4f9d6a;
+  letter-spacing: 0.12em;
+  animation: ob-pulse 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ---- CRT dressing ---- */
+.ob-scanlines {
+  position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.22) 3px,
+    rgba(0, 0, 0, 0.22) 4px
+  );
+  mix-blend-mode: multiply;
+  animation: ob-scan-drift 9s linear infinite;
+}
+.ob-vignette {
+  position: absolute; inset: 0; pointer-events: none; z-index: 3;
+  /* Moody edge falloff — kept light so it never crushes text near the edges. */
+  box-shadow: inset 0 0 10vmin 1vmin rgba(0, 0, 0, 0.5);
+  background: radial-gradient(135% 130% at 50% 45%, transparent 68%, rgba(0,0,0,0.28) 100%);
+}
+.ob-flash {
+  position: absolute; inset: 0; pointer-events: none; z-index: 4;
+  background: #d8ffe6; opacity: 0;
+}
+
+/* Power-on: classic CRT "thin line snaps to full screen" + a flash. */
+.ob-root.ob-powering .ob-screen { opacity: 0; }
+.ob-root.ob-powering { animation: ob-poweron 0.9s ease-out 1; }
+.ob-root.ob-powering .ob-flash { animation: ob-flash 0.9s ease-out 1; }
+
+/* A quick full-screen blink as the boot hands off to HELPYR. */
+.ob-root.ob-blink .ob-screen { animation: ob-blinkout 0.36s ease-in-out 1; }
+
+/* Scene exit — fade the whole layer to reveal the desktop "VM" underneath. */
+.ob-root.ob-exiting { animation: ob-exit 0.5s ease-in forwards; }
+
+/* Glitch line (architecture mismatch). */
+.ob-line.ob-glitch { animation: ob-glitch 0.5s steps(2) 1; color: #c8ffd8; }
+
+/* ---- Skip ---- */
+.ob-skip {
+  position: absolute; top: clamp(12px, 3vh, 26px); right: clamp(14px, 3vw, 34px);
+  z-index: 6;
+  background: transparent;
+  color: #4f9d6a;
+  border: 1px solid rgba(110, 255, 150, 0.3);
+  border-radius: 3px;
+  font: inherit; font-size: 0.72em; letter-spacing: 0.1em;
+  padding: 5px 12px;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+}
+.ob-skip:hover, .ob-skip:focus-visible {
+  opacity: 1; color: #86f6a0; border-color: rgba(110, 255, 150, 0.7); outline: none;
+}
+
+/* ---------------------------------------------------------------------------
+   HELPYR's entrance — warmth bursts into the monochrome. The Prometheus blue
+   is deliberately wrong for a BIOS layer: her cover persona, foreshadowed.
+   --------------------------------------------------------------------------- */
+.ob-helpyr {
+  align-self: center;
+  width: min(760px, 92%);
+  margin: auto 0;
+}
+.ob-helpyr-boot {
+  color: #6fd0ff;
+  text-shadow: 0 0 8px rgba(78, 161, 255, 0.6);
+  letter-spacing: 0.14em;
+  text-align: center;
+  animation: ob-pulse 0.5s ease-in-out infinite;
+}
+.ob-helpyr-body {
+  display: flex;
+  gap: clamp(14px, 2vw, 26px);
+  align-items: flex-start;
+  background: linear-gradient(160deg, rgba(30, 86, 158, 0.30), rgba(12, 28, 54, 0.55));
+  border: 1px solid rgba(108, 181, 255, 0.55);
+  border-radius: 8px;
+  padding: clamp(16px, 2.4vw, 28px);
+  box-shadow:
+    0 0 0 1px rgba(108, 181, 255, 0.15),
+    0 0 40px rgba(46, 108, 176, 0.35),
+    inset 0 0 30px rgba(46, 108, 176, 0.12);
+  color: #dcefff;
+  text-shadow: 0 0 4px rgba(108, 181, 255, 0.35);
+}
+.ob-helpyr.ob-helpyr-in .ob-helpyr-body { animation: ob-helpyr-in 0.45s cubic-bezier(0.2, 0.9, 0.25, 1.2) 1; }
+
+.ob-helpyr-avatar {
+  flex: 0 0 auto;
+  width: clamp(54px, 6vw, 84px); height: clamp(54px, 6vw, 84px);
+  display: grid; place-items: center;
+  background: radial-gradient(circle at 40% 35%, #5fa8ff, #1d4f8c);
+  border: 2px solid rgba(160, 210, 255, 0.8);
+  border-radius: 10px;
+  box-shadow: 0 0 22px rgba(95, 168, 255, 0.55);
+  animation: ob-avatar-glow 2.4s ease-in-out infinite;
+}
+.ob-helpyr-avatar .glyph { transform: scale(2.1); filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+
+.ob-helpyr-speech { flex: 1 1 auto; min-width: 0; }
+.ob-helpyr-name {
+  font-weight: 700; letter-spacing: 0.18em; font-size: 0.78em;
+  color: #8fc6ff; margin-bottom: 0.5em;
+}
+.ob-helpyr-text { white-space: normal; line-height: 1.55; min-height: 1.5em; }
+
+/* ---- big snap-friendly reply buttons (teaches Deck input) ---- */
+.ob-choices { margin-top: clamp(14px, 2vh, 22px); display: flex; flex-direction: column; gap: 10px; }
+.ob-choice {
+  display: flex; align-items: center; gap: 14px;
+  width: 100%;
+  min-height: 52px; /* comfortable cursor/touch target on Deck */
+  padding: 10px 16px;
+  background: rgba(13, 33, 62, 0.6);
+  border: 1px solid rgba(108, 181, 255, 0.4);
+  border-radius: 6px;
+  color: #dcefff;
+  font: inherit; text-align: left;
+  cursor: pointer;
+  opacity: 0; transform: translateY(8px);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s, opacity 0.25s;
+}
+.ob-choice.ob-choice-in { opacity: 1; transform: translateY(0); }
+.ob-choice:hover, .ob-choice:focus-visible {
+  background: rgba(34, 74, 130, 0.75);
+  border-color: rgba(150, 205, 255, 0.9);
+  outline: none;
+}
+.ob-choice-num {
+  flex: 0 0 auto;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  background: rgba(108, 181, 255, 0.18);
+  border: 1px solid rgba(108, 181, 255, 0.5);
+  border-radius: 5px;
+  font-size: 0.85em; color: #8fc6ff;
+}
+
+/* =================== keyframes =================== */
+@keyframes ob-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes ob-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+@keyframes ob-scan-drift { from { background-position-y: 0; } to { background-position-y: 100px; } }
+@keyframes ob-flicker {
+  0%, 96%, 100% { opacity: 1; }
+  97% { opacity: 0.86; }
+  98% { opacity: 0.97; }
+  99% { opacity: 0.9; }
+}
+@keyframes ob-poweron {
+  0%   { transform: scaleY(0.004) scaleX(0.9); filter: brightness(3); }
+  35%  { transform: scaleY(0.02) scaleX(1); filter: brightness(2.4); }
+  60%  { transform: scaleY(1) scaleX(1); filter: brightness(1.6); }
+  100% { transform: scaleY(1); filter: brightness(1); }
+}
+@keyframes ob-flash { 0% { opacity: 0.9; } 30% { opacity: 0.5; } 100% { opacity: 0; } }
+@keyframes ob-blinkout { 0% { opacity: 1; } 40% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes ob-exit { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+@keyframes ob-glitch {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-3px); letter-spacing: 1px; }
+  50% { transform: translateX(2px); }
+  75% { transform: translateX(-1px); letter-spacing: 0; }
+  100% { transform: translateX(0); }
+}
+@keyframes ob-helpyr-in {
+  0% { transform: scale(0.86); opacity: 0; }
+  60% { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes ob-avatar-glow {
+  0%, 100% { box-shadow: 0 0 18px rgba(95, 168, 255, 0.45); }
+  50% { box-shadow: 0 0 30px rgba(95, 168, 255, 0.75); }
+}
+
+/* Respect reduced-motion: keep the staging, drop the heavy/looping motion. */
+@media (prefers-reduced-motion: reduce) {
+  .ob-root,
+  .ob-scanlines,
+  .ob-helpyr-boot,
+  .ob-helpyr-avatar,
+  .ob-root.ob-awaiting::after { animation: none !important; }
+  .ob-root.ob-powering { animation: ob-exit 0.01s reverse; }
+  .ob-line.ob-glitch { animation: none; }
+  .ob-helpyr.ob-helpyr-in .ob-helpyr-body { animation: none; }
+  .ob-cursor { animation: ob-blink 1s steps(1) infinite; } /* keep the cursor legible */
+}

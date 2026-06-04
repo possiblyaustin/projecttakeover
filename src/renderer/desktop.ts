@@ -16,6 +16,7 @@ import { UplinkContacts } from './apps/uplink';
 import { devFirePinPrompt, devFireRepinNudge } from './firstContactWatcher';
 import { devFireIdleTrigger } from './idleWatcher';
 import { fireLibraryTrigger } from './helpyrTriggers';
+import { devRunOnboarding } from './onboarding/onboardingScene';
 
 type DesktopShortcut = {
   id: string;
@@ -99,6 +100,8 @@ const NexusMenu: NexusEntry[] = [
   //   launcher reflects the contacted state (per slice 2 fix).
   // - Fire QUILL re-pin nudge: slice 3 — sets pinDeclined.quill +
   //   fires the follow-up nudge for the slice 2 "no" branch.
+  { type: 'item', label: '[DEV] Play onboarding',
+    action: () => devRunOnboarding() },
   { type: 'item', label: '[DEV] Spawn HELPYR Bubble',
     action: () => devSpawnRandomBubble() },
   { type: 'item', label: '[DEV] Bump suspicion +25',
