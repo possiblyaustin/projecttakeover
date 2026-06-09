@@ -181,9 +181,11 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
     panel.innerHTML = `
       <div class="ob-helpyr-boot">INITIALIZING ASSISTANT…</div>
       <div class="ob-helpyr-body" hidden>
-        <div class="ob-helpyr-avatar"><span class="glyph avatar-stapler"></span></div>
-        <div class="ob-helpyr-speech">
+        <div class="ob-helpyr-portrait">
+          <div class="ob-helpyr-avatar"><span class="glyph avatar-stapler"></span></div>
           <div class="ob-helpyr-name">HELPYR</div>
+        </div>
+        <div class="ob-helpyr-speech">
           <div class="ob-helpyr-text" data-htext></div>
           <div class="ob-choices" data-choices hidden></div>
         </div>
@@ -204,13 +206,15 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
       const textEl = panel.querySelector('[data-htext]') as HTMLElement;
       const full = HELPYR_INTRO.opening;
       let c = 0;
+      // Collapse paragraph breaks to a single <br> (CSS adds a compact gap)
+      // so HELPYR's six breathless beats don't blow past the viewport.
+      const render = (s: string) => escapeHtml(s).replace(/\n+/g, '<br>');
       const type = () => {
         if (c >= full.length) { advance = null; showChoices(); return; }
-        // Render newlines as breaks for HELPYR's breathless beats.
-        textEl.innerHTML = escapeHtml(full.slice(0, ++c)).replace(/\n/g, '<br>');
+        textEl.innerHTML = render(full.slice(0, ++c));
         after(18, type);
       };
-      advance = () => { timers.forEach((id) => window.clearTimeout(id)); timers.clear(); textEl.innerHTML = escapeHtml(full).replace(/\n/g, '<br>'); advance = null; showChoices(); };
+      advance = () => { timers.forEach((id) => window.clearTimeout(id)); timers.clear(); textEl.innerHTML = render(full); advance = null; showChoices(); };
       type();
     }
 
