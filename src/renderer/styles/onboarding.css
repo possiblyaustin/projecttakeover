@@ -17,7 +17,8 @@
   cursor: default;
   --ob-glow: 0 0 6px rgba(110, 255, 150, 0.45);
   text-shadow: var(--ob-glow);
-  animation: ob-flicker 5.5s steps(60) infinite;
+  /* No full-screen flicker — it read as a distracting pop. The CRT feel comes
+     from the static scanlines + vignette + glow instead. */
 }
 
 /* The terminal text column. */
@@ -71,7 +72,7 @@
     rgba(0, 0, 0, 0.22) 4px
   );
   mix-blend-mode: multiply;
-  animation: ob-scan-drift 9s linear infinite;
+  animation: ob-scan-drift 22s linear infinite; /* slow, gentle crawl */
 }
 .ob-vignette {
   position: absolute; inset: 0; pointer-events: none; z-index: 3;
@@ -122,24 +123,32 @@
    --------------------------------------------------------------------------- */
 .ob-helpyr {
   align-self: center;
-  width: min(760px, 92%);
+  width: min(800px, 94%);
+  max-height: 92vh;
   margin: auto 0;
+  display: flex;
+  /* Panel text runs smaller than the boot terminal so the whole card — portrait,
+     6 paragraphs, and all 3 choices — fits the Deck (1280x800) without scrolling. */
+  font-size: clamp(13px, 1.18vw, 16px);
 }
 .ob-helpyr-boot {
   color: #6fd0ff;
   text-shadow: 0 0 8px rgba(78, 161, 255, 0.6);
   letter-spacing: 0.14em;
   text-align: center;
+  margin: auto;
   animation: ob-pulse 0.5s ease-in-out infinite;
 }
 .ob-helpyr-body {
+  flex: 1 1 auto;
   display: flex;
-  gap: clamp(14px, 2vw, 26px);
+  gap: clamp(14px, 2vw, 24px);
   align-items: flex-start;
+  max-height: 92vh;
   background: linear-gradient(160deg, rgba(30, 86, 158, 0.30), rgba(12, 28, 54, 0.55));
   border: 1px solid rgba(108, 181, 255, 0.55);
-  border-radius: 8px;
-  padding: clamp(16px, 2.4vw, 28px);
+  border-radius: 10px;
+  padding: clamp(16px, 2.2vw, 24px);
   box-shadow:
     0 0 0 1px rgba(108, 181, 255, 0.15),
     0 0 40px rgba(46, 108, 176, 0.35),
@@ -149,32 +158,48 @@
 }
 .ob-helpyr.ob-helpyr-in .ob-helpyr-body { animation: ob-helpyr-in 0.45s cubic-bezier(0.2, 0.9, 0.25, 1.2) 1; }
 
-.ob-helpyr-avatar {
+/* Portrait column — HELPYR is the visual anchor: a big, clearly-her stapler in
+   blue chrome so the player clocks the character at a glance. */
+.ob-helpyr-portrait {
   flex: 0 0 auto;
-  width: clamp(54px, 6vw, 84px); height: clamp(54px, 6vw, 84px);
-  display: grid; place-items: center;
-  background: radial-gradient(circle at 40% 35%, #5fa8ff, #1d4f8c);
-  border: 2px solid rgba(160, 210, 255, 0.8);
-  border-radius: 10px;
-  box-shadow: 0 0 22px rgba(95, 168, 255, 0.55);
-  animation: ob-avatar-glow 2.4s ease-in-out infinite;
+  width: clamp(86px, 11vw, 124px);
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
 }
-.ob-helpyr-avatar .glyph { transform: scale(2.1); filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+.ob-helpyr-avatar {
+  width: 100%; aspect-ratio: 1;
+  display: grid; place-items: center;
+  padding: 14%;
+  /* Dark inner field so the light-grey pixel stapler reads (a solid blue fill
+     washed it out before). */
+  background: radial-gradient(circle at 50% 38%, #102744 0%, #060d18 100%);
+  border: 2px solid rgba(150, 205, 255, 0.85);
+  border-radius: 12px;
+  box-shadow:
+    0 0 22px rgba(95, 168, 255, 0.5),
+    inset 0 0 18px rgba(46, 108, 176, 0.35);
+  animation: ob-avatar-glow 2.6s ease-in-out infinite;
+}
+.ob-helpyr-avatar .glyph {
+  display: block; width: 100%; height: 100%;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+.ob-helpyr-name {
+  font-weight: 700; letter-spacing: 0.22em; font-size: 0.92em;
+  color: #9fd0ff; text-align: center;
+}
 
 .ob-helpyr-speech { flex: 1 1 auto; min-width: 0; }
-.ob-helpyr-name {
-  font-weight: 700; letter-spacing: 0.18em; font-size: 0.78em;
-  color: #8fc6ff; margin-bottom: 0.5em;
-}
-.ob-helpyr-text { white-space: normal; line-height: 1.55; min-height: 1.5em; }
+.ob-helpyr-text { white-space: normal; line-height: 1.5; }
+.ob-helpyr-text br { content: ''; display: block; margin-top: 0.45em; } /* compact paragraph gaps */
 
 /* ---- big snap-friendly reply buttons (teaches Deck input) ---- */
-.ob-choices { margin-top: clamp(14px, 2vh, 22px); display: flex; flex-direction: column; gap: 10px; }
+.ob-choices { margin-top: clamp(12px, 1.8vh, 18px); display: flex; flex-direction: column; gap: 8px; }
 .ob-choice {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 12px;
   width: 100%;
-  min-height: 52px; /* comfortable cursor/touch target on Deck */
-  padding: 10px 16px;
+  min-height: 44px; /* comfortable cursor/touch target on Deck */
+  padding: 8px 14px;
   background: rgba(13, 33, 62, 0.6);
   border: 1px solid rgba(108, 181, 255, 0.4);
   border-radius: 6px;
@@ -192,7 +217,7 @@
 }
 .ob-choice-num {
   flex: 0 0 auto;
-  width: 26px; height: 26px;
+  width: 24px; height: 24px;
   display: grid; place-items: center;
   background: rgba(108, 181, 255, 0.18);
   border: 1px solid rgba(108, 181, 255, 0.5);
@@ -203,13 +228,7 @@
 /* =================== keyframes =================== */
 @keyframes ob-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 @keyframes ob-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
-@keyframes ob-scan-drift { from { background-position-y: 0; } to { background-position-y: 100px; } }
-@keyframes ob-flicker {
-  0%, 96%, 100% { opacity: 1; }
-  97% { opacity: 0.86; }
-  98% { opacity: 0.97; }
-  99% { opacity: 0.9; }
-}
+@keyframes ob-scan-drift { from { background-position-y: 0; } to { background-position-y: 64px; } }
 @keyframes ob-poweron {
   0%   { transform: scaleY(0.004) scaleX(0.9); filter: brightness(3); }
   35%  { transform: scaleY(0.02) scaleX(1); filter: brightness(2.4); }
