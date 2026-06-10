@@ -54,6 +54,7 @@ Start-here map for the `docs/` folder. **New thread?** Read the root [`CLAUDE.md
 ## Historical (context only — not current truth)
 | Doc | Status | What it is |
 |---|---|---|
+| [session-status-2026-06-10.md](session-status-2026-06-10.md) | **[HISTORICAL]** | Code→Supervisor/Story status snapshot for the 2026-06-09/10 session (PRs #90–#94: over-gen measurement, llama-launcher, Deck rails E2E, MUSE slice 1) incl. the Story asks that unlock Storefront + MUSE post-flip missions. |
 | [helpyr-dialogue-poc_v1.md](helpyr-dialogue-poc_v1.md) | **[HISTORICAL]** | Early HELPYR dialogue proof-of-concept. Superseded by the shipped persona. |
 | [story-deliverables-sprint1_v1.md](story-deliverables-sprint1_v1.md) | **[HISTORICAL]** | Sprint-1 story handoff (2026-05-02). Deliverables since shipped; the Story thread is the live source. |
 | [quill-live-playtest-findings_v1.md](quill-live-playtest-findings_v1.md) | **[HISTORICAL]** | The 2026-05-30 live-model test that drove v0.2.10–v0.2.12: mid-tiers land, terminal flips don't (→ scripted flips), the state-block leak, the support-stall tic. The evidence base. |

@@ -58,6 +58,34 @@ Then on the Deck: Web browser → `http://localhost:8000/`. Logs land in `~/proj
 - The deploy wipes the remote `dist/` each time, so stale assets can't linger.
 - Version check: the in-game readme shows `__APP_VERSION__`, so "is the Deck on the new build?" is answerable on-screen ([build versioning rule](../CLAUDE.md)).
 
+## Quick reference (start here next session)
+
+**Push a build to the Deck** (from the dev PC, ~5s):
+```powershell
+npm run deck:deploy -- --host 192.168.169.164            # build + push + restart game server
+npm run deck:deploy -- --host 192.168.169.164 --llama    # …and restart llama-server (E4B reload ~30s)
+npm run deck:deploy -- --host 192.168.169.164 --no-build # push existing dist/ as-is
+```
+Play on the Deck: browser → `http://localhost:8000/`. From any LAN device: `http://192.168.169.164:8000/`. Always use the IP — the `steamdeck` hostname is flaky.
+
+**SSH on/off:**
+| | Command | Notes |
+|---|---|---|
+| Deck — status | `systemctl status sshd` (in Konsole) | Currently **enabled + persistent** across reboots |
+| Deck — turn OFF | `sudo systemctl disable --now sshd` | If you want it off when not testing |
+| Deck — turn back ON | `sudo systemctl enable --now sshd` | One command, password needed |
+| Dev PC | nothing to start/stop | Windows' built-in OpenSSH *client*; key at `~/.ssh/id_ed25519` |
+
+**Manage the Deck-side processes** (from the dev PC):
+```powershell
+ssh deck@192.168.169.164 "systemctl --user status pt-llama pt-game-server"   # what's running
+ssh deck@192.168.169.164 "systemctl --user stop pt-llama pt-game-server"     # stop everything
+ssh deck@192.168.169.164 "bash ~/projecttakeover/deck-restart.sh --llama"    # start/restart by hand
+ssh deck@192.168.169.164 "tail -20 ~/projecttakeover/llama.log"              # inference logs
+ssh deck@192.168.169.164 "tail -20 ~/projecttakeover/serve.log"              # game-server/proxy logs
+```
+The processes are systemd user units — they keep running after you disconnect, across game sessions, until stopped or the Deck reboots (after a reboot, just deploy again or run deck-restart.sh).
+
 ## Status / validation
 
 - **END-TO-END VALIDATED 2026-06-10**: v0.2.34 deployed, game served at `:8000`, `/llama` proxy round-tripping real completions against Deck-native E4B on Vulkan at **19.9 tok/s generation** (matches the inference memo's benchmark exactly).
