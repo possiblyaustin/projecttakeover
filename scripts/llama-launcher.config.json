@@ -1,0 +1,31 @@
+{
+  "host": "127.0.0.1",
+  "port": 8080,
+  "ctxSize": 8192,
+  "probe": {
+    "maxTokens": 48,
+    "minTokensPerSecond": 12,
+    "healthTimeoutMs": 120000
+  },
+  "candidates": [
+    {
+      "name": "adreno-e4b",
+      "serverDir": "C:/llm/b9585-adreno",
+      "model": "C:/llm/models/gemma-4-E4B_q4_0-it.gguf",
+      "args": ["-ngl", "99"],
+      "threads": "auto"
+    },
+    {
+      "name": "cpu-e4b",
+      "serverDir": "C:/llm/b9585-cpu",
+      "model": "C:/llm/models/gemma-4-E4B_q4_0-it.gguf",
+      "threads": "auto"
+    },
+    {
+      "name": "cpu-e2b",
+      "serverDir": "C:/llm/b9585-cpu",
+      "model": "C:/llm/models/gemma-4-E2B-it-Q4_K_M.gguf",
+      "threads": "auto"
+    }
+  ]
+}
