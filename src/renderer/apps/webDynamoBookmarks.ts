@@ -34,6 +34,9 @@ export const Bookmarks: readonly Bookmark[] = [
   // mission is armed (the coverDuty.quill record exists). The diegetic entry
   // point to the helpdesk; QUILL's setup DM also points here.
   { id: 'inkwell-admin', label: 'InkWell Admin', address: 'inkwell-digital.com/admin', unlock: (s) => !!s.missions.coverDuty['quill'] },
+  // Act 2 discovery surface — unlocks when QUILL's bridge DM points the
+  // player at WaveCrowd (museBridgeWatcher sets the flag post-Cover-Duty).
+  { id: 'wavecrowd', label: 'WaveCrowd', address: 'wavecrowd.net', unlock: (s) => flag(s, 'muse.bridge.sent') },
 ];
 
 /** Bookmarks currently unlocked, in registry order. */

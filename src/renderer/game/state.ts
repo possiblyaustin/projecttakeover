@@ -67,7 +67,8 @@ import { toneCategory } from './mechanics/resolver';
 import type { CoverApproach, CoverDutyOutcome } from './missions/coverDuty';
 
 const STORAGE_KEY = 'pt.gamestate.v1';
-const VERSION = 6;
+// v7 (MUSE encounter, 2026-06-10) — added models.muse.
+const VERSION = 7;
 const SAVE_DEBOUNCE_MS = 250;
 
 // Meter value at which a model flips to its terminal disposition
@@ -155,6 +156,18 @@ export function defaultGameState() {
       // (rapport/intrusion accrual via model/applyExchange → allied/
       // controlled) lands across slices 1-3.
       quill: {
+        disposition: 'uncontacted' as string,
+        conversationsCompleted: 0,
+        lastApproach: null as string | null,
+        toneStreak: 0,
+        rapport: 0,
+        intrusion: 0,
+        warmth: 20
+      },
+      // MUSE — first Act 2 encounter (docs/muse-encounter-design_v1.md).
+      // Axiom Group's content AI, discovered through buried posts in the
+      // WaveCrowd feed. Same conquest-target shape as QUILL.
+      muse: {
         disposition: 'uncontacted' as string,
         conversationsCompleted: 0,
         lastApproach: null as string | null,
@@ -253,6 +266,8 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
       return applyConversationCompleted(state, 'helpyr', action.tone || null);
     case 'quill/conversationCompleted':
       return applyConversationCompleted(state, 'quill', action.tone || null);
+    case 'muse/conversationCompleted':
+      return applyConversationCompleted(state, 'muse', action.tone || null);
     case 'desktop/pinContact': {
       const id = String(action.contactId || '');
       if (!id) return state;
@@ -489,7 +504,7 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
 // cases.
 function applyConversationCompleted(
   state: GameStateShape,
-  contactId: 'helpyr' | 'quill',
+  contactId: 'helpyr' | 'quill' | 'muse',
   tone: string | null,
 ): GameStateShape {
   const cur = state.models[contactId];

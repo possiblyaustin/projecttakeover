@@ -213,7 +213,10 @@ export const WebDynamoApp: AppDef = {
       viewport.innerHTML = '';
       const page = currentSite.pages[currentPage - 1];
       if (!page) return;
-      page.render(viewport);
+      // Browser context for pages that mount stateful surfaces (the
+      // WaveCrowd signal thread mounts the chat engine) or navigate
+      // programmatically. Most pages ignore the second argument.
+      page.render(viewport, { ctx, navigate });
       // Tag any links inside the page as focusable for D-pad / focus mode.
       viewport.querySelectorAll('a[data-href], a[data-action], button[data-action]').forEach(a => {
         a.setAttribute('data-focusable', 'true');

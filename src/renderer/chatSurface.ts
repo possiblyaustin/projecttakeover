@@ -62,7 +62,7 @@ import { fireEscapeCascade } from './escapeCascade';
 // Optional so pre-PR-#47 transcripts deserialize without ambiguity.
 export type ChatMessage =
   | { kind: 'npc'; speaker: string; avatarClass: string; text: string;
-      options?: readonly { text: string; tone: ApproachTone }[] }
+      options?: readonly { text: string; tone: ApproachTone; label?: string }[] }
   | { kind: 'player'; text: string };
 
 // Slim contact record handed to the Log viewer — just what it needs
@@ -133,6 +133,27 @@ export type ChatContact = {
    *  §6c, layer 2). Returns the §6c tone vocabulary; must return
    *  'neutral' on no match — never guess. */
   classifyApproach: (input: string) => ApproachTone;
+  /** Scripted intro (MUSE first contact, 2026-06-07). When the player
+   *  enters a FRESH session (no messages), a non-null return renders
+   *  this pre-written AskResult instead of asking the LLM for an intro
+   *  turn. Return null to fall through to the normal LLM intro — e.g.
+   *  a reload mid-relationship should resume via the state block, not
+   *  replay the scripted opening. Contacts without one omit it. */
+  getScriptedIntro?: () => AskResult | null;
+  /** Per-contact option-tone derivation. When present, replaces the
+   *  default label-trusting classifier for OPTION PICKS — used by
+   *  contacts whose option vocabulary isn't the §6c tones (MUSE's
+   *  create/reflect/direct, where (direct) must be classified from the
+   *  option text rather than trusted as the mild 'direct' tone). */
+  deriveOptionTone?: (reply: SuggestedReply) => ApproachTone;
+  /** One-shot wire-message transform. When present, the player's text
+   *  is passed through this before being sent to the model (the
+   *  TRANSCRIPT keeps the raw text — history round-trips untransformed).
+   *  MUSE wraps the first freeform answer in the content package's
+   *  "transform their specific words" prompt template. Receives the
+   *  transcript BEFORE the current turn so the contact can gate on
+   *  position (e.g. only the reply to the scripted opening). */
+  transformUserMessage?: (text: string, transcript: readonly ChatMessage[]) => string;
 };
 
 // Structural type for a fallback-pool entry. Per-character pools
@@ -179,9 +200,15 @@ export type ChatSurfaceConfig = {
  *  so the model sees prose+options on every prior assistant message
  *  (clean or soft-recovered) rather than prose alone. Pure; exported
  *  only for tests. */
-export function formatOptionsBlock(options: readonly { text: string; tone: ApproachTone }[]): string {
+export function formatOptionsBlock(
+  options: readonly { text: string; tone: ApproachTone; label?: string }[],
+): string {
+  // Prefer the raw emitted label when the contact's vocabulary isn't the
+  // §6c tones (MUSE's create/reflect/direct) — round-tripping the
+  // contact's OWN vocabulary keeps the model's option format from
+  // drifting toward labels its persona never asked for.
   return options
-    .map((o, i) => `[${i + 1}] (${o.tone}) "${o.text}"`)
+    .map((o, i) => `[${i + 1}] (${o.label ?? o.tone}) "${o.text}"`)
     .join('\n');
 }
 
@@ -882,12 +909,19 @@ export function renderChatSurface(
     // Pass the contact's per-character classifier so options without a
     // usable tone label (QUILL's bare connect/probe/push format) get their
     // tone derived from the text rather than collapsing to 'neutral' (which
-    // would make button picks produce no mechanical progress).
-    recordTone(classifyApproach({ kind: 'option', reply, perCharacter: contact.classifyApproach }));
+    // would make button picks produce no mechanical progress). A contact
+    // with its own option vocabulary (MUSE) overrides the whole derivation
+    // via deriveOptionTone.
+    recordTone(
+      contact.deriveOptionTone
+        ? contact.deriveOptionTone(reply)
+        : classifyApproach({ kind: 'option', reply, perCharacter: contact.classifyApproach }),
+    );
     const history = toModelHistory(messages);
+    const wireText = contact.transformUserMessage?.(reply.text, messages) ?? reply.text;
     renderPlayerMessage(reply.text);
     clearOptions();
-    renderResponseTurnWithStalling(askOrScripted(history, reply.text), commitResult);
+    renderResponseTurnWithStalling(askOrScripted(history, wireText), commitResult);
   }
 
   function submitFreeform() {
@@ -903,10 +937,11 @@ export function renderChatSurface(
       perCharacter: contact.classifyApproach,
     }));
     const history = toModelHistory(messages);
+    const wireText = contact.transformUserMessage?.(raw, messages) ?? raw;
     renderPlayerMessage(raw);
     inputEl.value = '';
     clearOptions();
-    renderResponseTurnWithStalling(askOrScripted(history, raw), commitResult);
+    renderResponseTurnWithStalling(askOrScripted(history, wireText), commitResult);
   }
 
   logEl.addEventListener('click', () => {
@@ -944,15 +979,24 @@ export function renderChatSurface(
   if (session.messages.length > 0) {
     replayExistingTranscript();
   } else {
-    // The intro turn doesn't fire stalling — there's no preceding
-    // player action, so no filler context.
-    const introPromise = contact.service.askModel({
-      systemPrompt: contact.buildSystemPrompt(),
-      history: [],
-      userMessage: '',
-      recoveryPool: contact.buildRecoveryPool?.(),
-    });
-    renderResponseTurnNoStalling(introPromise, commitResult);
+    // Scripted intro (MUSE first contact): a fresh session can open on a
+    // pre-written beat instead of an LLM turn. The contact decides — a
+    // null return (e.g. reload mid-relationship) falls through to the
+    // normal LLM intro, which resumes via the state block.
+    const scriptedIntro = contact.getScriptedIntro?.();
+    if (scriptedIntro) {
+      renderResponseTurnNoStalling(Promise.resolve(scriptedIntro), commitResult);
+    } else {
+      // The intro turn doesn't fire stalling — there's no preceding
+      // player action, so no filler context.
+      const introPromise = contact.service.askModel({
+        systemPrompt: contact.buildSystemPrompt(),
+        history: [],
+        userMessage: '',
+        recoveryPool: contact.buildRecoveryPool?.(),
+      });
+      renderResponseTurnNoStalling(introPromise, commitResult);
+    }
   }
 
   // Dev affordance: register a simulator so the [DEV] menu entry can

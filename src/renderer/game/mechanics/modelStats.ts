@@ -36,6 +36,15 @@ const MODEL_STATS: Record<string, ModelStats> = {
   // (hacks land), high-ish autonomy (genuinely persuadable), low
   // vigilance (suspicion builds slowly), small influence (tutorial).
   quill: { guardrail: 20, autonomy: 65, vigilance: 25, toneDecay: 0.65, influence: 10 },
+  // MUSE — first Act 2 target (CODE-DRAFT balance, needs playtest).
+  // Higher autonomy than QUILL (an artist hungry for collaboration —
+  // genuine rapport lands fast), higher vigilance (a 40M-user Axiom
+  // platform is watched harder than a 12K-user startup), guardrail kept
+  // under GUARDRAIL_BLOCK so the nefarious path remains playable (the
+  // resistance is voiced through the INFILTRATING state blocks, not
+  // backfire), and the mid-game 0.6 toneDecay per Story's balance ladder
+  // — the CREATE/REFLECT/DIRECT rhythm matters more than tone-spam.
+  muse: { guardrail: 35, autonomy: 80, vigilance: 45, toneDecay: 0.6, influence: 20 },
 };
 
 export function getModelStats(contactKey: string): ModelStats | undefined {
