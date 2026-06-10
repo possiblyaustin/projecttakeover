@@ -60,5 +60,8 @@ Then on the Deck: Web browser → `http://localhost:8000/`. Logs land in `~/proj
 
 ## Status / validation
 
-- **Built + dev-PC-side validated 2026-06-09** (build works, scripts lint clean). **End-to-end pending the one-time sshd enable on the Deck** — the dev PC's port-22 probe shows SSH off (SteamOS default). After Austin runs the two Deck-side commands, the first `npm run deck:deploy -- --llama` validates the rest, and this doc's status line should be updated.
-- The Deck resolves as `steamdeck` / `steamdeck.local` → `192.168.169.164` on this LAN (DHCP — the scripts take `--host` if it moves).
+- **END-TO-END VALIDATED 2026-06-10**: v0.2.34 deployed, game served at `:8000`, `/llama` proxy round-tripping real completions against Deck-native E4B on Vulkan at **19.9 tok/s generation** (matches the inference memo's benchmark exactly).
+- **Server processes are transient systemd user units** (`pt-game-server` / `pt-llama`, started by `deck-restart.sh` via `systemd-run --user`): SteamOS kills an ssh session's children on disconnect — nohup did NOT survive (llama died 2.2s into its cold load on the first attempt). Units persist because the Deck is always logged into its graphical session. Manage with `systemctl --user status|stop pt-llama`; logs still land in `~/projecttakeover/{serve,llama}.log`.
+- **`deck-llama.sh` pins `--parallel 1`**: build 9586 defaults to four 8192-ctx slots, which quadruples KV memory on the 9 GiB iGPU and cost ~20% generation speed (15.7 → 19.9 tok/s).
+- **Prefer `--host 192.168.169.164` over the `steamdeck` hostname** — name resolution drops out intermittently (WiFi power-save + mDNS); the IP has been stable. DHCP may move it eventually.
+- Deck-side reality: llama build 9586 (Vulkan, RADV VANGOGH) at `~/llama.cpp/build/bin/llama-server`, E4B QAT at `~/llama.cpp/models/gemma-4-E4B_q4_0-it.gguf` (deck-llama.sh defaults match). `~/projecttakeover/` also contains an old repo clone from the benchmark era — harmless; our deploy only touches `dist/`, the three scripts, and the logs.

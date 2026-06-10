@@ -37,7 +37,15 @@ const port = flagValue('--port', '8000');
 const doBuild = !argv.includes('--no-build');
 const doLlama = argv.includes('--llama');
 const target = `${user}@${host}`;
-const SSH_OPTS = ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=10'];
+// BatchMode: any auth/hostkey prompt FAILS instead of hanging the deploy
+// waiting on stdin that will never answer (first live run hung exactly
+// this way). If a run fails with "Permission denied", redo the key
+// install step in docs/deck-remote-testing_v1.md.
+const SSH_OPTS = [
+  '-o', 'BatchMode=yes',
+  '-o', 'StrictHostKeyChecking=accept-new',
+  '-o', 'ConnectTimeout=10',
+];
 
 function run(cmd, args, opts = {}) {
   const pretty = `${cmd} ${args.join(' ')}`;
@@ -70,27 +78,15 @@ run('scp', [
   ...SSH_OPTS, '-q',
   join(here, 'deck', 'deckServe.py'),
   join(here, 'deck', 'deck-llama.sh'),
+  join(here, 'deck', 'deck-restart.sh'),
   `${target}:projecttakeover/`,
 ]);
 
-// 3. (Re)start the game server. pkill -f is precise enough: the
-// pattern only matches our own serve process.
-ssh(
-  `pkill -f 'deckServe.py' || true; cd ~/projecttakeover && ` +
-    `nohup python3 deckServe.py --dir ~/projecttakeover/dist --port ${port} ` +
-    `> serve.log 2>&1 & sleep 1; pgrep -f deckServe.py > /dev/null && echo 'game server up' || ` +
-    `{ echo 'game server FAILED — serve.log:'; tail -5 serve.log; exit 1; }`,
-);
-
-// 4. Optionally (re)start llama-server.
-if (doLlama) {
-  ssh(
-    `pkill -f 'llama-server' || true; cd ~/projecttakeover && chmod +x deck-llama.sh && ` +
-      `nohup ./deck-llama.sh > llama.log 2>&1 & sleep 2; pgrep -f llama-server > /dev/null && ` +
-      `echo 'llama-server starting (E4B cold load ~30s — watch llama.log)' || ` +
-      `{ echo 'llama-server FAILED — llama.log:'; tail -5 llama.log; exit 1; }`,
-  );
-}
+// 3. (Re)start everything via the on-Deck script. Inline ssh one-liners
+// for this proved fragile across the PowerShell→ssh→bash quoting layers
+// (see deck-restart.sh's header for the post-mortem); a real script has
+// one quoting layer and can be run by hand on the Deck when debugging.
+ssh(`bash ~/projecttakeover/deck-restart.sh ${doLlama ? '--llama ' : ''}${port}`);
 
 console.log(`\ndeck-deploy: v${version} live at http://${host}:${port}/`);
 if (!doLlama) {
