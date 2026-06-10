@@ -65,6 +65,9 @@ These are used during development but don't end up in the final build. No attrib
 | Claude Code | Anthropic ToS | AI coding assistant — the star of the video |
 | Vitest | MIT | Test runner. Pure-function game logic + mocked-LLM integration tests |
 | happy-dom | MIT | DOM/window/localStorage shim for the Vitest environment |
+| @playwright/test | Apache 2.0 | Browser-level layout audit + flow tests (Deck testing harness, `npm run deck-check`). Downloads its own Chromium — dev-only, never ships |
+| @anthropic-ai/claude-agent-sdk | Anthropic ToS (same as Claude Code) | Tier 3 agent playtester (`npm run playtest`) — spawns a Sonnet agent via the local Claude Code login. Dev-only, never ships |
+| @playwright/mcp | Apache 2.0 | Browser MCP server the playtest agent drives. Dev-only, never ships |
 
 ---
 

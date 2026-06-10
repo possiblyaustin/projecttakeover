@@ -5,3 +5,11 @@ dist/
 # OS noise
 .DS_Store
 Thumbs.db
+
+# Playwright artifacts (Deck testing harness)
+test-results/
+playwright-report/
+playtest-reports/
+
+# Claude worktrees
+.claude/worktrees/

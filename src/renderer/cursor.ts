@@ -59,7 +59,14 @@ export const SNAP_SELECTOR = [
   '.helpyr-bubble-dismiss',
   '.helpyr-quiet-toggle',
   '.loss-screen-btn',
-  'a[data-href]'
+  'a[data-href]',
+  // Generic safety net: anything an app tags data-focusable IS a snap
+  // target, no per-class entry needed. Added after the layout audit
+  // found the Cover Duty console + onboarding choices tagged it while
+  // being unreachable in focus mode (the attribute previously did
+  // nothing for snap/D-pad nav). querySelectorAll dedupes elements
+  // that also match a class entry above.
+  '[data-focusable="true"]'
 ].join(', ');
 
 // When the loss screen's full-viewport blackout is mounted, snap nav
@@ -70,7 +77,13 @@ export const SNAP_SELECTOR = [
 // Matches `.loss-screen` (not `.loss-screen.visible`) so the scope is
 // active the instant the overlay mounts, before the fade-in frame.
 export function snapScopeRoot(): ParentNode {
-  return document.querySelector('.loss-screen') ?? document;
+  // Onboarding gets the same treatment: while its full-screen overlay
+  // is mounted, the only snap targets are its own (Skip, the calibration
+  // choices) — not the desktop rendered underneath. Loss screen wins if
+  // both are somehow up.
+  return document.querySelector('.loss-screen')
+    ?? document.getElementById('onboarding-root')
+    ?? document;
 }
 
 let x = window.innerWidth / 2;

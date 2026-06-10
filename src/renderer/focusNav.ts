@@ -190,6 +190,43 @@ function clearRing(): void {
   document.querySelectorAll('.' + RING_CLASS).forEach(el => el.classList.remove(RING_CLASS));
 }
 
+// Dev/audit-only: compute which snap targets are reachable by directional
+// moves alone. Builds the move graph with the SAME nearestInDirection
+// scoring the D-pad uses (one edge per direction per node), then walks
+// the closure from the seed nearest to the viewport center. Targets in
+// the viable set but outside the closure are focus-mode islands — a
+// controller player can see them but never land on them. Used by the
+// Playwright layout audit (docs/deck-testing-harness_v1.md); not called
+// by gameplay code.
+function auditReachability(): {
+  total: number;
+  reachable: HTMLElement[];
+  unreachable: HTMLElement[];
+} {
+  const targets = allTargets();
+  if (targets.length === 0) return { total: 0, reachable: [], unreachable: [] };
+
+  const seed = nearestToPoint(window.innerWidth / 2, window.innerHeight / 2)!;
+  const seen = new Set<HTMLElement>([seed]);
+  const queue: HTMLElement[] = [seed];
+  const DIRS: Direction[] = ['up', 'down', 'left', 'right'];
+  while (queue.length) {
+    const cur = queue.pop()!;
+    for (const dir of DIRS) {
+      const next = nearestInDirection(cur, dir);
+      if (next && !seen.has(next)) {
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+  }
+  return {
+    total: targets.length,
+    reachable: [...seen],
+    unreachable: targets.filter(t => !seen.has(t))
+  };
+}
+
 export const FocusNav = {
-  getMode, enter, leave, move, activate
+  getMode, enter, leave, move, activate, auditReachability
 };
