@@ -24,6 +24,7 @@ Start-here map for the `docs/` folder. **New thread?** Read the root [`CLAUDE.md
 | [dev-startup_v1.md](dev-startup_v1.md) | **[LIVING]** | Per-session "fire everything up" quick reference. |
 | [dependency-tracker.md](dependency-tracker.md) | **[LIVING]** | Dependency + licensing log. Update it when adding any dependency. |
 | [steam-deck-benchmark-report.md](steam-deck-benchmark-report.md) | **[REFERENCE]** | The Gemma E2B / llama.cpp benchmark that set the dev config (Q4_K_M, 8192 ctx). *Uses the old "ClosedAI" persona name — pre-canon artifact.* |
+| [deck-testing-harness_v1.md](deck-testing-harness_v1.md) | **[LIVING]** (Phases A+B built v0.2.33) | Tiered Deck testing harness: routine check rolls a flow smoke into Tier 1; milestone `deck-check` = full flows + registry-driven layout audit; milestone Sonnet agent playtests; real-Deck residue deferred. Key insight: the controller is Steam Input keyboard/mouse emulation, so Deck testing runs on the dev PC. Nothing scheduled — all runs are invoked. |
 
 ## Feature / content design
 | Doc | Status | What it is |

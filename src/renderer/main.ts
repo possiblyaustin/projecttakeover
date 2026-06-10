@@ -19,7 +19,8 @@
 import './styles/main.css';
 import './styles/onboarding.css';
 
-import { Cursor } from './cursor';
+import { Cursor, SNAP_SELECTOR } from './cursor';
+import { FocusNav } from './focusNav';
 import { WindowManager } from './windows';
 import { GameState } from './game/state';
 import { registerApp, allApps } from './appRegistry';
@@ -146,6 +147,11 @@ setTimeout(() => {
   AppRegistry: allApps(),
   WebDynamoSites,
   Cursor,
+  // Focus-mode internals + the snap-target selector, exposed for the
+  // Playwright layout audit (tests/audit/ — docs/deck-testing-harness_v1.md).
+  // FocusNav.auditReachability() walks the real D-pad move graph.
+  FocusNav,
+  SNAP_SELECTOR,
   GameState,
   getUiScale,
   setScale,

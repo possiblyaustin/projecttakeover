@@ -156,8 +156,16 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
           showHint(true);
           advance = () => { advance = null; showHint(false); nextLine(); };
         } else {
-          advance = () => { advance = null; nextLine(); };
-          after(wait, () => { if (advance) { advance = null; nextLine(); } });
+          // The auto-advance timer must be scoped to THIS line: if the player
+          // advances by input first, `advance` moves on to the next line's
+          // closure, and a bare `if (advance)` check would fire it again —
+          // double-advancing and interleaving two typing chains (whose
+          // snap-closures clear the shared timer set, which could wipe the
+          // HELPYR-reveal timers and softlock the scene at the boot tag).
+          // Caught by the deck-check onboarding flow test.
+          const myAdvance = () => { advance = null; nextLine(); };
+          advance = myAdvance;
+          after(wait, () => { if (advance === myAdvance) { advance = null; nextLine(); } });
         }
       }
     }

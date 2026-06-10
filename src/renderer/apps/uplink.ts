@@ -403,8 +403,11 @@ export const UplinkApp: AppDef = {
   // the world-is-bigger feel at a glance. h=500 covers the logo
   // header + section labels + 7 rows + breathing room with content
   // to spare for the chat surface (controls panel adapts via
-  // max-height: 60%).
-  defaultSize: { w: 460, h: 500 },
+  // max-height: 60%). h must stay ≤ 498: the Deck desktop offers
+  // 800 − taskbar − 8px spawn margin = 747px ÷ 1.5 scale, and anything
+  // taller gets silently clamped by WindowManager.open (the old h=500
+  // lost 3px — caught by the layout audit).
+  defaultSize: { w: 460, h: 496 },
   contentBevel: false,
   noContentPad: true,
   render(container: HTMLElement, params: WinParams, ctx: AppContext) {
