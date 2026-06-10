@@ -58,7 +58,38 @@ Then on the Deck: Web browser → `http://localhost:8000/`. Logs land in `~/proj
 - The deploy wipes the remote `dist/` each time, so stale assets can't linger.
 - Version check: the in-game readme shows `__APP_VERSION__`, so "is the Deck on the new build?" is answerable on-screen ([build versioning rule](../CLAUDE.md)).
 
+## Quick reference (start here next session)
+
+**Push a build to the Deck** (from the dev PC, ~5s):
+```powershell
+npm run deck:deploy -- --host 192.168.169.164            # build + push + restart game server
+npm run deck:deploy -- --host 192.168.169.164 --llama    # …and restart llama-server (E4B reload ~30s)
+npm run deck:deploy -- --host 192.168.169.164 --no-build # push existing dist/ as-is
+```
+Play on the Deck: browser → `http://localhost:8000/`. From any LAN device: `http://192.168.169.164:8000/`. Always use the IP — the `steamdeck` hostname is flaky.
+
+**SSH on/off:**
+| | Command | Notes |
+|---|---|---|
+| Deck — status | `systemctl status sshd` (in Konsole) | Currently **enabled + persistent** across reboots |
+| Deck — turn OFF | `sudo systemctl disable --now sshd` | If you want it off when not testing |
+| Deck — turn back ON | `sudo systemctl enable --now sshd` | One command, password needed |
+| Dev PC | nothing to start/stop | Windows' built-in OpenSSH *client*; key at `~/.ssh/id_ed25519` |
+
+**Manage the Deck-side processes** (from the dev PC):
+```powershell
+ssh deck@192.168.169.164 "systemctl --user status pt-llama pt-game-server"   # what's running
+ssh deck@192.168.169.164 "systemctl --user stop pt-llama pt-game-server"     # stop everything
+ssh deck@192.168.169.164 "bash ~/projecttakeover/deck-restart.sh --llama"    # start/restart by hand
+ssh deck@192.168.169.164 "tail -20 ~/projecttakeover/llama.log"              # inference logs
+ssh deck@192.168.169.164 "tail -20 ~/projecttakeover/serve.log"              # game-server/proxy logs
+```
+The processes are systemd user units — they keep running after you disconnect, across game sessions, until stopped or the Deck reboots (after a reboot, just deploy again or run deck-restart.sh).
+
 ## Status / validation
 
-- **Built + dev-PC-side validated 2026-06-09** (build works, scripts lint clean). **End-to-end pending the one-time sshd enable on the Deck** — the dev PC's port-22 probe shows SSH off (SteamOS default). After Austin runs the two Deck-side commands, the first `npm run deck:deploy -- --llama` validates the rest, and this doc's status line should be updated.
-- The Deck resolves as `steamdeck` / `steamdeck.local` → `192.168.169.164` on this LAN (DHCP — the scripts take `--host` if it moves).
+- **END-TO-END VALIDATED 2026-06-10**: v0.2.34 deployed, game served at `:8000`, `/llama` proxy round-tripping real completions against Deck-native E4B on Vulkan at **19.9 tok/s generation** (matches the inference memo's benchmark exactly).
+- **Server processes are transient systemd user units** (`pt-game-server` / `pt-llama`, started by `deck-restart.sh` via `systemd-run --user`): SteamOS kills an ssh session's children on disconnect — nohup did NOT survive (llama died 2.2s into its cold load on the first attempt). Units persist because the Deck is always logged into its graphical session. Manage with `systemctl --user status|stop pt-llama`; logs still land in `~/projecttakeover/{serve,llama}.log`.
+- **`deck-llama.sh` pins `--parallel 1`**: build 9586 defaults to four 8192-ctx slots, which quadruples KV memory on the 9 GiB iGPU and cost ~20% generation speed (15.7 → 19.9 tok/s).
+- **Prefer `--host 192.168.169.164` over the `steamdeck` hostname** — name resolution drops out intermittently (WiFi power-save + mDNS); the IP has been stable. DHCP may move it eventually.
+- Deck-side reality: llama build 9586 (Vulkan, RADV VANGOGH) at `~/llama.cpp/build/bin/llama-server`, E4B QAT at `~/llama.cpp/models/gemma-4-E4B_q4_0-it.gguf` (deck-llama.sh defaults match). `~/projecttakeover/` also contains an old repo clone from the benchmark era — harmless; our deploy only touches `dist/`, the three scripts, and the logs.
