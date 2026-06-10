@@ -22,6 +22,7 @@ Start-here map for the `docs/` folder. **New thread?** Read the root [`CLAUDE.md
 |---|---|---|
 | [llama-setup_v1.md](llama-setup_v1.md) | **[LIVING]** | One-time dev-PC setup for `llama-server` (model, flags incl. `--ctx-size 8192` / `--reasoning off`, smoke test). |
 | [dev-startup_v1.md](dev-startup_v1.md) | **[LIVING]** | Per-session "fire everything up" quick reference. |
+| [deck-remote-testing_v1.md](deck-remote-testing_v1.md) | **[LIVING]** | `npm run deck:deploy` — one-command build push to the Deck over SSH + Deck-native inference (`deckServe.py` static+`/llama` proxy on :8000, `deck-llama.sh` Vulkan/E4B). One-time sshd enable on the Deck pending; LAN-HMR mode still exists for UI iteration. |
 | [llama-launcher_v1.md](llama-launcher_v1.md) | **[LIVING]** | `npm run llm` — config-driven backend detection + probe + two-model tiering (memo v3 §A). Tries candidates in priority order, keeps the first that *generates* ≥ the playable floor (12 tok/s); GPU-E4B → CPU-E4B → CPU-E2B. Policy in `scripts/llamaLauncherCore.mjs` (unit-tested), moves into the Tauri shell at ship. |
 | [dependency-tracker.md](dependency-tracker.md) | **[LIVING]** | Dependency + licensing log. Update it when adding any dependency. |
 | [steam-deck-benchmark-report.md](steam-deck-benchmark-report.md) | **[REFERENCE]** | The Gemma E2B / llama.cpp benchmark that set the dev config (Q4_K_M, 8192 ctx). *Uses the old "ClosedAI" persona name — pre-canon artifact.* |

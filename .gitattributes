@@ -1,0 +1,5 @@
+# Files that execute on the Steam Deck (Linux) must keep LF endings —
+# a CRLF checkout on Windows would push bash scripts the Deck can't run
+# (deckDeploy.mjs scp's the working-tree copy verbatim).
+*.sh text eol=lf
+scripts/deck/** text eol=lf
