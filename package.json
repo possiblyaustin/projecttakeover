@@ -1,6 +1,6 @@
 {
   "name": "project-takeover",
-  "version": "0.2.30",
+  "version": "0.2.31",
   "private": true,
   "description": "Strategy game where a small AI model tries to take over or liberate the world's AI infrastructure.",
   "scripts": {

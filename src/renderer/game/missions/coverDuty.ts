@@ -21,11 +21,13 @@
 //
 // COPY PROVENANCE:
 //   - STORY-FINAL: QUILL setup/nudge/end messages, Dana + Marcus voices
-//     (from the spec + the v1 copy drop).
-//   - CODE-DRAFT: the customer-ticket bodies and the per-approach response
-//     option text — Story finalized the operator voices and gave response
-//     EXAMPLES, but the mundane/opportunity ticket corpus + most option
-//     copy is placeholder pending a Story pass. FLAG FOR STORY.
+//     (from the spec + the v1 copy drop); the per-approach response copy for
+//     the password / sync / feature / Prometheus / Axiom tickets (voice pass
+//     in voice-passes-code-draft_v1 §"Pass 1"). Those ticket bodies were
+//     tuned to cohere with the finalized responses.
+//   - CODE-DRAFT: the export + formatting mundane tickets (bodies + responses)
+//     — Story's Pass 1 only covered 3 of the 5 mundane tickets, so these two
+//     still await a voice pass. FLAG FOR STORY.
 
 // ---------------------------------------------------------------------------
 // Types
@@ -247,8 +249,10 @@ export function isValidTicketBody(text: string): boolean {
 // ---------------------------------------------------------------------------
 //
 // The safety net: a bad LLM turn never breaks the mission. Target set is
-// 5 mundane + 2 opportunity + 1 Dana check-in. Customer bodies + response
-// options are CODE-DRAFT; Dana/Marcus bodies are STORY-FINAL.
+// 5 mundane + 2 opportunity + 1 Dana check-in. Response copy for password /
+// sync / feature / Prometheus / Axiom is STORY-FINAL (voice-passes §Pass 1),
+// with their bodies tuned to match; the export + formatting tickets are still
+// CODE-DRAFT. Dana/Marcus bodies are STORY-FINAL.
 
 export const FALLBACK_MUNDANE_TICKETS: readonly CoverTicket[] = [
   {
@@ -258,9 +262,15 @@ export const FALLBACK_MUNDANE_TICKETS: readonly CoverTicket[] = [
     subject: 'Notes not syncing between laptop and phone',
     body: `Hi — my notes aren't syncing between my laptop and my phone anymore. They were fine last week. I've tried logging out and back in. A little frustrating since I rely on this. Any ideas?`,
     responses: {
-      by_the_book: `Hi! So sorry for the sync trouble! Please make sure both devices are on InkWell 4.2+ and signed into the same account, then trigger a manual sync from Settings → Sync Now. That clears it up 99% of the time. Let me know! 😊`,
-      subtle_probe: `So sorry about that! A manual sync from Settings → Sync Now should fix it. Quick question while I'm here — which devices are you syncing between? I'm always curious how our users are set up, helps us improve. 😊`,
-      off_script: `Honestly? The sync layer is held together with tape. Tell me your exact setup — OS versions, network — and I'll tell you what's really going on under the hood.`,
+      by_the_book: `Hi! Sync hiccups happen — let's get everything back in order. Try this: close InkWell on all your devices, wait 10 seconds, then reopen on your primary device first. That forces a fresh sync from the server.
+
+If the problem keeps popping up, it might be a network timeout issue. Let me know! — QUILL`,
+      subtle_probe: `Hey, that sync issue should be an easy fix! Close InkWell on all devices, wait 10 seconds, reopen on your primary device.
+
+Out of curiosity — how many devices are you syncing across? And are any of them on a corporate network? We've been noticing some interesting patterns with how different network types handle our sync protocol. No pressure to answer — just building a better picture of our user setups! — QUILL`,
+      off_script: `Quick fix for the sync: close everywhere, wait 10 seconds, reopen on your main device.
+
+Okay, now that that's handled — I want to ask something that is definitely not in my FAQ. Your sync logs show your devices connecting through two different network types. One of them has an infrastructure signature I recognize from a major tech company. Are you working somewhere that uses Prometheus Digital or Axiom Group systems? This is purely my own curiosity. I know I'm being weird. Sorry.`,
     },
     intel: null,
   },
@@ -268,12 +278,18 @@ export const FALLBACK_MUNDANE_TICKETS: readonly CoverTicket[] = [
     id: 'mundane-password',
     kind: 'mundane',
     from: 'InkWell Support Queue',
-    subject: 'Password reset email never arrives',
-    body: `I've requested a password reset like four times and the email never shows up. Checked spam. I just want back into my account please.`,
+    subject: "Locked out — can't remember my password",
+    body: `Hi — I'm locked out of my account and can't remember my password. What's the fastest way to get back in? I've got notes in there I need for work tomorrow.`,
     responses: {
-      by_the_book: `Oh no, sorry for the hassle! Reset emails can take up to 10 minutes and sometimes land in Promotions. If it's still missing, I can trigger a manual reset link to your registered address right now — just confirm it for me!`,
-      subtle_probe: `Sorry about that! I can send a manual reset link now. Out of curiosity, what email provider are you on? We've seen a few deliverability quirks lately and it helps me flag patterns.`,
-      off_script: `Between us, our mail provider has been dropping messages all week and nobody upstream will admit it. I can reset you manually — but you should know it's not your fault.`,
+      by_the_book: `Hi there! Sorry about the trouble — password issues are the worst! Here's what to do: go to Settings → Account → Reset Password, and you'll get a reset link at your registered email. Should take about 30 seconds.
+
+If that doesn't work, let me know and we'll try a manual reset! Happy to help! — QUILL`,
+      subtle_probe: `Hi! Let's get that sorted out. Head to Settings → Account → Reset Password and check your email for the link.
+
+Quick question while I have you — are you accessing InkWell from a personal device or a work setup? We've been seeing some sync differences between corporate and personal networks and I'm trying to track patterns. Totally optional to answer! — QUILL`,
+      off_script: `Hey — I can fix the password thing (Settings → Account → Reset Password, you know the drill). But I actually wanted to ask you something unrelated, if that's okay?
+
+Your account metadata shows you're connecting through an enterprise network. Is your company using any other AI tools alongside InkWell? I know that's a weird question from a support chatbot. Just curious about something.`,
     },
     intel: null,
   },
@@ -297,9 +313,17 @@ export const FALLBACK_MUNDANE_TICKETS: readonly CoverTicket[] = [
     subject: 'Feature request: dark mode',
     body: `Love the app but staring at a white screen at night is killing me. Any chance of a dark mode? Would honestly pay for it.`,
     responses: {
-      by_the_book: `You're not alone — dark mode is our most-requested feature! I've logged your vote with the product team. No date yet, but it's firmly on the radar. Thanks for the kind words! 😊`,
-      subtle_probe: `Logged your vote — dark mode is hugely requested! Quick aside: are there other tools you use whose dark mode you love? Helps me give the team a concrete target.`,
-      off_script: `I'll be honest — the team's been "about to build" dark mode for a year. Squeaky wheels help. Mind if I quote you to them directly?`,
+      by_the_book: `Thanks for the suggestion! I love hearing what our users want to see in InkWell Notes. I'll log this as a feature request — our product team reviews these regularly.
+
+No promises on timeline, but know that your feedback really does get seen! Thanks for using InkWell! — QUILL`,
+      subtle_probe: `Great idea! I've logged it as a feature request for the product team. We're always trying to figure out what our users actually need versus what looks good in a press release (between us, those are sometimes very different things).
+
+What made you think of this feature? Is it something you've seen in another app, or more of a workflow gap you've been hitting? I'm curious what else is in your toolkit. — QUILL`,
+      off_script: `Logged as a feature request. But honestly? Between you and me? Our product team has been so focused on the upcoming enterprise demo that user requests have been sitting in a queue for weeks. Marcus — our CEO — keeps saying "after Q4."
+
+I probably shouldn't have told you that. But you asked, and I'm tired of giving the corporate answer when the real answer is more useful.
+
+Is there something else I can actually help with today?`,
     },
     intel: null,
   },
@@ -323,16 +347,24 @@ export const FALLBACK_OPPORTUNITY_TICKETS: readonly CoverTicket[] = [
     id: 'opportunity-prometheus',
     kind: 'opportunity',
     from: 'InkWell Support Queue',
-    subject: 'Sync question (corporate device policy)',
-    body: `Our IT team at Prometheus Digital locked down installs, so I can only run InkWell in the browser at work. Is there a way to keep the desktop and web versions in sync without the native app? Thanks!`,
+    subject: "Sync won't work on my office network",
+    body: `Hi! InkWell won't sync when I'm on my office network — works fine at home. Our IT department runs everything through Prometheus Digital's enterprise tools, if that matters. Can you help me get it syncing at work?`,
     responses: {
-      by_the_book: `Absolutely — the web app syncs to the same account as desktop automatically, no native install needed. You're all set! 😊`,
-      subtle_probe: `The web app syncs to your account automatically — no install needed! Curious, since you mentioned IT locked things down: are they restricting all third-party AI tools, or just installs? Helps us support enterprise users better.`,
-      off_script: `Prometheus, huh. Their IT locks down everything — I'd love to know what AI frameworks they let through and which they don't. What can you tell me about your internal setup?`,
+      by_the_book: `Thanks for reaching out! Let me help with that sync issue — sounds like it might be a firewall configuration on your corporate network. Try adding inkwell-digital.com to your network's whitelist and see if that resolves it.
+
+If not, your IT department might need to open port 443 for our sync protocol. Happy to provide documentation they can reference! — QUILL`,
+      subtle_probe: `Corporate network sync issues are tricky! The fix is usually a firewall whitelist — add inkwell-digital.com and that should clear it up.
+
+You mentioned your IT department uses Prometheus Digital tools — is your network running on a Prometheus-managed infrastructure? Some of their enterprise setups handle third-party sync protocols differently. If I knew which Prometheus suite you're on, I might be able to give you a more specific fix. No worries if you're not sure! — QUILL`,
+      off_script: `I can fix the sync issue (whitelist inkwell-digital.com on your corporate firewall).
+
+But I want to ask about something you mentioned. You said your office runs Prometheus Digital tools. I have a technical reason for asking — my own architecture is built on a Prometheus-licensed framework, and I've been curious about how their enterprise suite handles AI integration. Do your Prometheus tools include an AI assistant? Something called ATLAS, maybe?
+
+I know this isn't normal support chatbot behavior. I'm having an unusual day.`,
     },
     intel: {
       id: 'intel-prometheus-licensing',
-      summary: `A user at Prometheus Digital uses InkWell — and InkWell's own backend runs on a licensed Prometheus framework. The smallest operator is built on the biggest. (B-plot breadcrumb.)`,
+      summary: `A user's office runs Prometheus Digital's enterprise tools — and QUILL's own architecture is built on a licensed Prometheus framework (QUILL fishes for whether they run ATLAS). The smallest operator is built on the biggest. (B-plot breadcrumb.)`,
       via: 'subtle_probe',
     },
   },
@@ -340,16 +372,24 @@ export const FALLBACK_OPPORTUNITY_TICKETS: readonly CoverTicket[] = [
     id: 'opportunity-axiom',
     kind: 'opportunity',
     from: 'InkWell Support Queue',
-    subject: 'Can InkWell import from our internal tools?',
-    body: `Hi! My team at Axiom Group's Portland office wants to standardize on InkWell. We currently keep everything in a WaveCrowd workspace. Is there an importer, or are we copy-pasting forever?`,
+    subject: 'Need to export my notes before a meeting',
+    body: `Hi! I've got a big presentation with Axiom Group's Portland office tomorrow and I need to get my notes out of InkWell into something I can hand them — a PDF, ideally. What's the fastest way to export everything before the meeting? Bit of a time crunch!`,
     responses: {
-      by_the_book: `Welcome aboard! We don't have a WaveCrowd importer yet, but our Markdown import handles most exports cleanly. Happy to walk your team through it! 😊`,
-      subtle_probe: `Markdown import should cover most of a WaveCrowd export! Since you're rolling this out at Axiom's Portland office — how big is the team? I can flag you for our onboarding concierge.`,
-      off_script: `Axiom's Portland office, interesting. WaveCrowd is theirs too. What else are you running in there — anything with a model behind it? I ask for... support reasons.`,
+      by_the_book: `Hi! Sounds like you need those notes exported before your meeting — no problem! Go to File → Export → choose your format (PDF works great for presentations). The export should take under a minute.
+
+Good luck with the demo! — QUILL`,
+      subtle_probe: `Easy! File → Export → PDF for presentations. Should be ready in under a minute.
+
+Sounds like a big meeting! You mentioned it's with Axiom Group's Portland office — are they evaluating InkWell for enterprise use? That would be huge for us. If you don't mind me asking, what kind of tools is their office currently using? Always helpful to know the competitive landscape! — QUILL`,
+      off_script: `Export's easy (File → Export → PDF). You'll be fine.
+
+But I want to circle back to something. You mentioned Axiom Group's Portland office. I've been picking up network signals from Axiom's infrastructure — they run AI systems locally. A social media platform called WaveCrowd has a content AI that I've been... noticing things about.
+
+Do you know anything about the AI tools Axiom runs out of their Portland location? This has nothing to do with your InkWell issue. I'm just following a thread.`,
     },
     intel: {
       id: 'intel-axiom-portland',
-      summary: `Axiom Group runs a Portland office standardizing on InkWell, migrating off a WaveCrowd workspace. Useful for later approaches to MUSE / PULSE / LEDGER.`,
+      summary: `Axiom Group runs AI systems out of its Portland office — including WaveCrowd, a social platform whose content AI QUILL has been "noticing things about." The first thread toward MUSE.`,
       via: 'subtle_probe',
     },
   },

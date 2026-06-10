@@ -222,7 +222,9 @@ export const WebDynamoApp: AppDef = {
       // In-content pagination for multi-page sites — rendered as a page
       // footer ("← Prev · Page X of Y · Next →"), not browser chrome, so it
       // reads like a real site. LB/RB still page via the registered scope.
-      if (currentSite.pages.length > 1) renderInPageNav();
+      // Sites that ship their own in-fiction nav (selfNav) opt out of the
+      // generic footer — they navigate via their own links instead.
+      if (currentSite.pages.length > 1 && !currentSite.selfNav) renderInPageNav();
     }
 
     function renderInPageNav() {

@@ -27,7 +27,34 @@ export type PageEntry = {
 export type SiteEntry = {
   title: string;
   pages: PageEntry[];
+  /** When true, the browser suppresses its generic in-content
+   *  "← Prev · Page X of Y · Next →" footer for this multi-page site —
+   *  the site renders its OWN in-fiction navigation (e.g. a period nav
+   *  bar) instead. LB/RB controller paging still works via the registered
+   *  paged scope. Used by sites split into no-scroll pages that want to
+   *  read like a real website, not a paginated document. */
+  selfNav?: boolean;
 };
+
+// InkWell's in-fiction top nav bar. The site is split into four no-scroll
+// pages (Deck-first, docs/no-scroll-pages_v1.md) and navigates via these
+// links — a real-website nav, NOT the generic Prev/Next pager (selfNav opts
+// the site out of it). `data-href` routes through the browser; the active
+// tab is a plain span so it reads as "you are here".
+const INK_TABS: { id: string; label: string; href: string }[] = [
+  { id: 'home', label: 'Home', href: 'inkwell-digital.com' },
+  { id: 'reviews', label: 'Reviews', href: 'inkwell-digital.com/reviews' },
+  { id: 'about', label: 'About', href: 'inkwell-digital.com/about' },
+  { id: 'support', label: 'Support', href: 'inkwell-digital.com/support' },
+];
+function inkNav(active: string): string {
+  const links = INK_TABS.map((t) =>
+    t.id === active
+      ? `<span class="ink-nav-link is-active">${t.label}</span>`
+      : `<a class="ink-nav-link" href="#" data-href="${t.href}">${t.label}</a>`,
+  ).join('');
+  return `<nav class="ink-nav"><span class="ink-nav-brand">InkWell Notes</span><span class="ink-nav-links">${links}</span></nav>`;
+}
 
 export const WebDynamoSites: Record<string, SiteEntry> = {
   'ironwall.def': {
@@ -86,41 +113,106 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
   },
   'inkwell-digital.com': {
     title: 'InkWell Digital',
+    // Split into four no-scroll pages, navigated by its own period nav bar
+    // (selfNav suppresses the generic Prev/Next footer). STORY-FINAL copy
+    // (voice-passes-code-draft_v1 §"Pass 2"). The data-ink-field markers map
+    // 1:1 to the Storefront template-injection points named in that doc
+    // (hero_tagline, product_description, cta_text, testimonial_1..3,
+    // about_text, support_intro, footer_company) — a future Storefront slice
+    // (nefarious) rewrites them in place across whichever page they live on.
+    selfNav: true,
     pages: [
       {
         label: 'Home',
         render(c: HTMLElement) {
           c.classList.add('site-inkwell');
           c.innerHTML = `
+            ${inkNav('home')}
             <h1>InkWell Notes — Notes, Refined.</h1>
-            <div class="tagline">The smart way to capture your thoughts.</div>
+            <div class="tagline" data-ink-field="hero_tagline">The smart way to capture, organize, and find your thoughts.</div>
             <div class="hr-bar"></div>
-            <p><strong>InkWell Notes</strong> is the note-taking app for people who
-            think in ink. Organize, search, and sync across all your devices —
-            built by a small team that actually answers its email.</p>
+            <p data-ink-field="product_description"><strong>InkWell Notes</strong> is the
+            note-taking app for people who think faster than they can type. With instant
+            capture, full-text search, and automatic cloud sync, your ideas are always
+            where you need them.</p>
             <ul>
-              <li>Capture ideas instantly</li>
-              <li>Full-text search across all your notes</li>
-              <li>Automatic cloud sync<span style="font-size:10px;color:#999;">*</span></li>
-              <li>Trusted by <strong>12,000+</strong> note-takers worldwide</li>
+              <li>Capture ideas the moment they hit</li>
+              <li>Full-text search across every note you've ever written</li>
+              <li>Automatic cloud sync across all your devices<span style="font-size:10px;color:#999;">*</span></li>
+              <li>Tags, folders, and smart organization</li>
+              <li>Export to PDF, TXT, or HTML</li>
             </ul>
+            <p style="font-size:12px;color:#555;">Trusted by over <strong>12,000</strong> users worldwide.
+            <span style="font-size:10px;color:#999;">&nbsp; * Cloud sync requires InkWell Pro ($4.99/mo).</span></p>
+            <p><button class="inkwell-support-btn" data-ink-field="cta_text" disabled>Download InkWell Notes — Free</button></p>
+          `;
+        }
+      },
+      {
+        label: 'Reviews',
+        path: 'reviews',
+        render(c: HTMLElement) {
+          c.classList.add('site-inkwell');
+          c.innerHTML = `
+            ${inkNav('reviews')}
+            <h1>What People Are Saying</h1>
+            <div class="hr-bar"></div>
+            <blockquote data-ink-field="testimonial_1">&ldquo;InkWell Notes changed how I
+            organize my life. I used to lose half my ideas between my desk and my laptop.
+            Now everything's in one place.&rdquo;<br><span style="color:#777;">— Sarah T., Portland</span></blockquote>
+            <blockquote data-ink-field="testimonial_2">&ldquo;Finally a notes app that just
+            works. No bloat, no learning curve, no subscription required for the
+            basics.&rdquo;<br><span style="color:#777;">— Mike R., Austin</span></blockquote>
+            <blockquote data-ink-field="testimonial_3">&ldquo;I switched from three different
+            note apps to InkWell and haven't looked back. The search alone is worth
+            it.&rdquo;<br><span style="color:#777;">— Priya K., Seattle</span></blockquote>
+          `;
+        }
+      },
+      {
+        label: 'About',
+        path: 'about',
+        render(c: HTMLElement) {
+          c.classList.add('site-inkwell');
+          c.innerHTML = `
+            ${inkNav('about')}
+            <h1>About InkWell Digital</h1>
+            <div class="hr-bar"></div>
+            <p data-ink-field="about_text">InkWell Digital is a small team in Portland, OR
+            with a simple mission: make the best note-taking app in the world. We're 15
+            people who believe your ideas deserve better than a cluttered interface and a
+            monthly fee.</p>
+            <p>We're also hiring! If you love clean code and strong coffee, check our
+            Careers page.</p>
+            <div class="hr-bar"></div>
+            <p style="font-size:11px;color:#777;" data-ink-field="footer_company">&copy; 2007 InkWell Digital, Portland, OR</p>
+          `;
+        }
+      },
+      {
+        label: 'Support',
+        path: 'support',
+        render(c: HTMLElement) {
+          c.classList.add('site-inkwell');
+          c.innerHTML = `
+            ${inkNav('support')}
+            <h1>Support</h1>
+            <div class="hr-bar"></div>
             <div class="inkwell-support">
               <span class="inkwell-support-status" aria-hidden="true"></span>
-              <div class="inkwell-support-text">
-                <strong>Need a hand?</strong><br>
-                Our support assistant <strong>QUILL</strong> is online now.
+              <div class="inkwell-support-text" data-ink-field="support_intro">
+                <strong>Need help?</strong><br>
+                Our AI support assistant <strong>QUILL</strong> is available 24/7 and can
+                handle most issues instantly.
               </div>
               <button class="inkwell-support-btn" data-action="contact:quill">Chat with QUILL &rsaquo;</button>
             </div>
-            <div class="hr-bar"></div>
+            <p style="font-size:12px;color:#444;">
+              QUILL resolves <strong>94%</strong> of support requests without escalation.
+            </p>
             <p style="font-size:11px;color:#777;">
-              <span style="font-size:10px;">* Sync requires InkWell Pro ($4.99/mo).</span><br>
-              Need a hand? <strong>QUILL</strong> is online 24/7 and handles 94% of
-              requests instantly — or email <strong>support@inkwell-digital.com</strong>
-              (1&ndash;2 business days).<br>
-              &ldquo;Finally a notes app that just works.&rdquo; — Mike R., Austin &middot;
-              Careers <em>(we're hiring!)</em> &middot;
-              &copy; 2007 InkWell Digital, Portland, OR
+              For everything else, email <strong>support@inkwell-digital.com</strong>
+              (response time: 1&ndash;2 business days).
             </p>
           `;
         }
