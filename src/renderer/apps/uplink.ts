@@ -23,6 +23,7 @@ import {
   QuillControlledAftermathOptions,
 } from './quill';
 import { HelpyrContact } from './helpyr';
+import { MuseContact } from './muse';
 import { buildReputationContext } from '../game/reputation';
 import {
   renderChatSurface,
@@ -64,6 +65,15 @@ const LauncherMeta: Record<string, LauncherMeta> = {
     operator: 'InkWell Digital',
     caption: 'writing assistant',
   },
+  // MUSE surfaces in Detected until first contact. The relationship's
+  // HOME is the WaveCrowd signal thread (Web Dynamo) — discovery happens
+  // there, per the encounter design — but once contacted, MUSE is
+  // reachable from Uplink too (same contactKey → same session, so the
+  // transcript is shared across both surfaces).
+  muse: {
+    operator: 'Axiom Group',
+    caption: 'creative content AI',
+  },
 };
 
 // Has the player completed at least one conversation with this
@@ -93,10 +103,12 @@ type LockedContact = {
   caption: string;
 };
 
+// MUSE graduated out of this static roster (2026-06-10) — it now has a
+// real UplinkContacts entry + LauncherMeta, so it renders in Detected
+// via detectedFromContacts until first contact.
 const LockedContacts: readonly LockedContact[] = [
   { name: 'ATLAS',    operator: 'Prometheus Digital', caption: 'enterprise platform AI' },
   { name: 'SENTINEL', operator: 'Ironwall Security',  caption: 'security operations AI' },
-  { name: 'MUSE',     operator: '(operator unclear)', caption: 'creative-tools model' },
   { name: 'PULSE',    operator: 'Axiom Group',        caption: 'social-platform AI' },
   { name: 'SPECTER',  operator: '(operator unknown)', caption: 'irregular signal' },
 ];
@@ -182,6 +194,11 @@ export const UplinkContacts: Record<string, ChatContact> = {
     stallingThresholdMs: 13000,
     classifyApproach: classifyQuillApproach,
   },
+
+  // MUSE — first Act 2 encounter. Full spec lives in apps/muse.ts (the
+  // contact is also mounted by the WaveCrowd signal-thread page, so the
+  // spec can't live inline here the way QUILL's does).
+  muse: MuseContact,
 };
 
 // Launcher view (slice 1, locked design 2026-05-07). Default Uplink

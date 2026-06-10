@@ -240,7 +240,9 @@ export const HelpyrStallingPool: readonly string[] = [
 // N+1 — it'll attempt live first as usual.
 export type HelpyrFallbackEntry = {
   reply: string;
-  options: { text: string; tone: import('../game/modelService').ApproachTone }[];
+  // label: optional non-tone option vocabulary (MUSE's create/reflect/
+  // direct) — see SuggestedReply.label in game/modelService.ts.
+  options: { text: string; tone: import('../game/modelService').ApproachTone; label?: string }[];
 };
 
 export const HelpyrFallbackPool: readonly HelpyrFallbackEntry[] = [

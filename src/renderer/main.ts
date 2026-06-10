@@ -48,6 +48,7 @@ import { injectAllyMessage } from './chatSurface';
 import { UplinkContacts } from './apps/uplink';
 import { QuillAllyDM } from './apps/quill';
 import { initCoverDutyWatcher } from './coverDutyWatcher';
+import { initMuseBridgeWatcher } from './museBridgeWatcher';
 import { selectBatchIds } from './game/missions/coverDuty';
 import { devRunOnboarding } from './onboarding/onboardingScene';
 
@@ -95,6 +96,12 @@ initLossScreen();
 //     once it's allied + the aftermath turn is consumed. Init after the flip
 //     watcher so the flip/aftermath beats settle first.
 initCoverDutyWatcher();
+
+// 7a-ii. MUSE bridge (Act 1 → Act 2 connective tissue). When Cover Duty
+//        completes, QUILL's bridge DM points at WaveCrowd and the
+//        bookmark unlocks. After the Cover Duty watcher — it reads that
+//        mission's record.
+initMuseBridgeWatcher();
 
 // 7b. Escape cascade (Act 1 post-flip payoff). The coordinator is a leaf
 //     (chatSurface triggers it from commitResult); here we inject the beats

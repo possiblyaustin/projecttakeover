@@ -168,6 +168,13 @@ function parseOptionLine(line: string): SuggestedReply | null {
   let text = m[2] || '';
   text = text.replace(/^["'](.*)["']$/, '$1').trim();
   if (text.length === 0) return null;
+  // Preserve a non-tone label (e.g. MUSE's create/reflect/direct) so
+  // history rewriting can round-trip the contact's own vocabulary and
+  // per-contact derivation can route by it. A recognized tone needs no
+  // separate label; an absent/empty parenthetical leaves it unset.
+  if (toneRaw.length > 0 && !(toneRaw in KNOWN_TONES)) {
+    return { text, tone, label: toneRaw };
+  }
   return { text, tone };
 }
 

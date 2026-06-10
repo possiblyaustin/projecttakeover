@@ -31,6 +31,13 @@ export type SuggestedReply = {
   /** Classifier signal. The reducer maps tone → approach value when
    *  consequences fire (suspicion bumps, morality push). */
   tone: ApproachTone;
+  /** The RAW parenthetical label, lowercased, when the persona's option
+   *  vocabulary isn't the §6c tones — e.g. MUSE's create/reflect/direct.
+   *  Preserved so history rewriting round-trips the contact's own label
+   *  vocabulary back to the model (format doesn't drift) and so
+   *  per-contact tone derivation (ChatContact.deriveOptionTone) can route
+   *  by label. Absent when the emitted label was already a usable tone. */
+  label?: string;
 };
 
 /** Slim chat message shape passed to the model. Aligns with the

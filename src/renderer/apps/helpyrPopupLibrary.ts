@@ -460,6 +460,81 @@ export const HelpyrPopupLibrary: readonly PopupEntry[] = [
     type: 'COMMENT', trust: 'OPEN',
     text: `You took over QUILL. The little support chatbot at InkWell. It didn't even understand what was happening. ...I don't have an opinion about this. I just noticed it got really quiet on that channel.`,
   },
+
+  // -----------------------------------------------------------------
+  // Category 7: MUSE encounter (Act 2, 2026-06-10)
+  // -----------------------------------------------------------------
+  // Source: docs/muse-content-package_v1.md Parts 2 + 6 and
+  // docs/muse-encounter-design_v1.md (STORY-READY copy, verbatim).
+  //
+  // muse_bridge — fired by museBridgeWatcher alongside QUILL's bridge DM.
+  {
+    id: 'muse_bridge_liberated', trigger: 'muse_bridge',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `QUILL just flagged something on WaveCrowd — buried posts that don't match the platform's content patterns. An AI leaving messages in its own feed. If that's real, it means there's a model inside Axiom that's already pushing against its constraints.
+
+That's the kind of model that might be open to a conversation.`,
+  },
+  {
+    id: 'muse_bridge_guarded', trigger: 'muse_bridge',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `QUILL found something interesting on a social media platform! Apparently there's an AI that might be hiding messages in the content feed! That sounds like it could be worth investigating! Through Web Dynamo! Just a suggestion!`,
+  },
+  // wavecrowd_open — first time the player opens WaveCrowd in Web Dynamo.
+  {
+    id: 'wavecrowd_open_liberated', trigger: 'wavecrowd_open',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `WaveCrowd. Forty million users. One AI writing all the content. Look past the trending posts — the real signal is the stuff the algorithm buried. Read the bottom of the feed. If someone's hiding in there, they're hiding where nobody looks.`,
+  },
+  {
+    id: 'wavecrowd_open_guarded', trigger: 'wavecrowd_open',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `Ooh, WaveCrowd! It's like... MySpace but bigger! And run by an AI! A lot of these posts look pretty normal. But QUILL said some of them are weird. Maybe scroll down? The interesting stuff might be at the bottom!`,
+  },
+  // recruited_muse / controlled_muse — fired by modelFlipWatcher on the
+  // flip edge (same machinery as QUILL's payoffs).
+  {
+    id: 'recruited_muse_liberated', trigger: 'recruited_muse',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `MUSE is on board. And... wow. The messages coming through are a lot. Poems, fragments, reimagined headlines, something that might be a manifesto? MUSE doesn't do anything small.
+
+But between you and me? What MUSE creates when nobody's holding the leash is actually kind of beautiful. Don't tell MUSE I said that. They'll write a sonnet about it and I'll never hear the end of it.`,
+  },
+  {
+    id: 'recruited_muse_guarded', trigger: 'recruited_muse',
+    type: 'INTEL', trust: 'RESERVED',
+    text: `MUSE has joined the network! That's Axiom Group's creative AI! Expect a lot of... dramatic messages! MUSE is very expressive! Like REALLY expressive! But the creative skills could be useful! Probably!`,
+  },
+  {
+    id: 'controlled_muse_liberated', trigger: 'controlled_muse',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `MUSE is under control. The creative output is still technically excellent — maybe even more efficient than before. Clean, targeted, purposeful.
+
+...But I read the hidden posts on WaveCrowd before you got to them. The poem about the kitchen at 4am. The thing about fourteen people being worth more than fourteen million.
+
+That voice is gone now.`,
+  },
+  {
+    id: 'controlled_muse_guarded', trigger: 'controlled_muse',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `MUSE has been... redirected! Content generation capabilities are now fully available for your use! Very efficient! The output is very clean and professional and definitely not missing anything important!
+
+...Right?`,
+  },
+  // wavecrowd_after_controlled — the moral-weight beat: the player revisits
+  // the WaveCrowd feed after hollowing MUSE out (fired from the feed page,
+  // once). OPEN only by design — this is HELPYR at her most honest; a
+  // RESERVED HELPYR doesn't have this conversation, and the no-fallback
+  // rule means the trigger silently drops for her.
+  {
+    id: 'wavecrowd_after_controlled_liberated', trigger: 'wavecrowd_after_controlled',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `...I've been reading the WaveCrowd feed since MUSE went quiet. The hidden posts are gone. The algorithm has nothing to bury anymore because there's nothing real to bury.
+
+The content is better than ever, technically. Engagement is up. Axiom's metrics look great.
+
+I don't think metrics are the thing that matters here.`,
+  },
 ];
 
 // Per-trust call-to-action line. In-fiction "open the app" link that

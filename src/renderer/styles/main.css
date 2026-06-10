@@ -738,6 +738,66 @@
     color: #fff;
     font-weight: bold;
   }
+  /* WaveCrowd — Axiom's social platform (MUSE's cage). 2007-era social
+   * feed: glossy blue header, trending sidebar, post cards. MUSE's
+   * buried posts reuse the post card with starved engagement styling. */
+  .site-wavecrowd .wave-header {
+    background: linear-gradient(180deg, #2a7fd4 0%, #1a5fae 100%);
+    color: #fff;
+    padding: 0.45rem 0.625rem;
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+  .site-wavecrowd .wave-logo { font-weight: bold; font-size: 1.05rem; letter-spacing: 0.02em; }
+  .site-wavecrowd .wave-logo .wave-tagline { font-weight: normal; font-style: italic; font-size: 0.8rem; opacity: 0.9; }
+  .site-wavecrowd .wave-meta { font-size: 0.65rem; opacity: 0.85; margin-top: 0.1rem; }
+  .site-wavecrowd .wave-layout { display: flex; gap: 0.5rem; align-items: flex-start; }
+  .site-wavecrowd .wave-trending {
+    flex: 0 0 9.5rem;
+    background: #eef4fc;
+    border: 1px solid #b8cae6;
+    border-radius: 0.25rem;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.72rem;
+  }
+  .site-wavecrowd .wave-trending-title { font-weight: bold; color: #1a5fae; margin-bottom: 0.25rem; font-size: 0.7rem; }
+  .site-wavecrowd .wave-trending ol { margin: 0 0 0 1.1rem; padding: 0; }
+  .site-wavecrowd .wave-trending li { margin-bottom: 0.15rem; color: #2a4a72; }
+  .site-wavecrowd .wave-feed { flex: 1; min-width: 0; }
+  .site-wavecrowd .wave-post {
+    border: 1px solid #c8d4e6;
+    border-radius: 0.25rem;
+    background: #fff;
+    padding: 0.4rem 0.55rem;
+    margin-bottom: 0.45rem;
+  }
+  .site-wavecrowd .wave-post-badge { font-size: 0.62rem; font-weight: bold; color: #1a5fae; letter-spacing: 0.04em; }
+  .site-wavecrowd .wave-post-title { font-weight: bold; font-size: 0.82rem; color: #16263e; margin: 0.12rem 0; }
+  .site-wavecrowd .wave-post-meta { font-size: 0.65rem; color: #7a8aa2; margin-top: 0.15rem; }
+  .site-wavecrowd .wave-post-body { font-size: 0.74rem; color: #38465c; margin-top: 0.15rem; }
+  /* MUSE's buried posts: same card, drained presentation — the algorithm
+   * starved them, the page shouldn't spotlight them either. */
+  .site-wavecrowd .wave-post-buried { background: #fbfbf9; border-color: #d8d8d2; }
+  .site-wavecrowd .wave-post-buried .wave-post-badge { color: #8a8a84; }
+  .site-wavecrowd .wave-post-buried .wave-post-body { color: #4a4a44; font-style: italic; }
+  .site-wavecrowd .wave-reply-signal {
+    display: inline-block;
+    margin-top: 0.3rem;
+    font-size: 0.7rem;
+    color: #7a3fa8;
+    text-decoration: underline;
+  }
+  .site-wavecrowd .wave-footer-nav { display: flex; gap: 0.75rem; margin-top: 0.2rem; }
+  .site-wavecrowd .wave-nav-link { font-size: 0.72rem; color: #1a5fae; text-decoration: underline; }
+  /* Signal thread page: the chat engine mounted inside the browser
+   * viewport. The mount fills the page; the surface's own layout takes
+   * over from there. theme-wavecrowd tints the chat to the platform. */
+  .site-wavecrowd-thread { display: flex; flex-direction: column; height: 100%; }
+  .site-wavecrowd-thread .wave-thread-mount { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .site-wavecrowd-thread .wave-thread-mount .uplink-root { flex: 1; min-height: 0; }
+  .theme-wavecrowd .uplink-msg.npc .bubble { background: #f3ecfa; border-color: #c9a8e0; }
+  .theme-wavecrowd .uplink-topbar { background: linear-gradient(180deg, #2a7fd4 0%, #1a5fae 100%); }
+
   /* "Chat with QUILL" support widget — the in-fiction first-contact entry
    * point. The button carries data-action="contact:quill", which
    * webDynamo intercepts to open the Uplink chat (no dev tools needed). */
@@ -2477,6 +2537,34 @@
       radial-gradient(circle at 78% 22%, #d8c898 0 14%, transparent 18%),
       radial-gradient(circle at 70% 30%, #c8b888 0 10%, transparent 14%),
       radial-gradient(circle at 28% 78%, #2a2218 0 7%, transparent 10%);
+  }
+
+  /* Avatar: MUSE — a brushstroke of color breaking out of a grey
+   * frame. The artist trapped in the content pipeline. UI scaffolding
+   * placeholder, same caveat as QUILL's. */
+  .avatar-muse {
+    background: linear-gradient(135deg, #d8d8d4 0%, #b8b8b4 100%);
+    border: 1px solid #6a6a66;
+    position: relative;
+    overflow: hidden;
+  }
+  .avatar-muse::before {
+    /* The brushstroke — a violet sweep cutting across the grey */
+    content: "";
+    position: absolute;
+    top: 8%; left: -12%; right: -12%; bottom: 42%;
+    background: linear-gradient(100deg,
+      transparent 12%, #7a3fa8 30%, #a85fd0 55%, #d089e8 72%, transparent 88%);
+    transform: rotate(-18deg);
+  }
+  .avatar-muse::after {
+    /* A single drip of paint escaping the frame */
+    content: "";
+    position: absolute;
+    left: 62%; bottom: 12%;
+    width: 12%; height: 26%;
+    background: linear-gradient(#a85fd0, #7a3fa8);
+    border-radius: 0 0 40% 40%;
   }
 
   /* Player avatar — abstract pixel head, no face yet. The player
