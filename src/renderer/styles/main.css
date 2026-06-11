@@ -83,18 +83,64 @@
     -webkit-font-smoothing: none;
   }
 
-  /* --- Desktop background --- */
+  /* --- Desktop background / wallpapers ---
+   * Selected via data-wallpaper on #desktop ("prometheus" | "slate" |
+   * "dusk"). No attribute = "prometheus" (the default). Cosmetic-only
+   * preference, persisted in localStorage (pt.wallpaper) outside the
+   * save — see desktop.ts. All variants share the fractal-noise dither
+   * so the surface never reads as flat color on a big TV. */
   #desktop {
     position: absolute;
     inset: 0 0 1.875rem 0;
     background-color: var(--bg-blue);
+    image-rendering: pixelated;
+  }
+
+  /* "Prometheus OEM" — the machine shipped with Prometheus Digital
+   * HomeAssist branding, like every 2000s OEM desktop. Centered
+   * low-contrast emblem (torch ring + wordmark) over the navy dither.
+   * The emblem is pure SVG so it scales crisply at any resolution. */
+  #desktop[data-wallpaper="prometheus"] {
     background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='460' height='460' viewBox='0 0 460 460'><g fill='none' stroke='%237da0d8' stroke-width='2.5'><circle cx='230' cy='196' r='112' stroke-opacity='0.16'/><circle cx='230' cy='196' r='134' stroke-opacity='0.06'/></g><path d='M230 128 c26 30 36 52 28 78 c-6 19 -16 28 -22 46 c-2 6 -10 6 -12 0 c-6 -18 -16 -27 -22 -46 c-8 -26 2 -48 28 -78 Z' fill='%237da0d8' fill-opacity='0.13'/><path d='M230 156 c14 18 19 31 15 46 c-3 11 -9 17 -13 28 c-4 -11 -10 -17 -13 -28 c-4 -15 1 -28 11 -46 Z' fill='%231b2444' fill-opacity='0.55'/><rect x='222' y='252' width='16' height='34' rx='3' fill='%237da0d8' fill-opacity='0.11'/><text x='230' y='352' text-anchor='middle' font-family='Trebuchet MS, Tahoma, sans-serif' font-size='21' letter-spacing='7' fill='%238fb0e0' fill-opacity='0.20'>PROMETHEUS</text><text x='230' y='376' text-anchor='middle' font-family='Trebuchet MS, Tahoma, sans-serif' font-size='12' letter-spacing='5' fill='%238fb0e0' fill-opacity='0.15'>D I G I T A L</text><text x='230' y='398' text-anchor='middle' font-family='Georgia, serif' font-style='italic' font-size='11' letter-spacing='1' fill='%238fb0e0' fill-opacity='0.11'>HomeAssist Edition</text></svg>"),
       radial-gradient(ellipse at 50% 40%, rgba(80,120,190,0.18), transparent 70%),
       url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 0.38  0 0 0 0 0.52  0 0 0 0 0.78  0 0 0 0.22 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),
       url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='520' height='520'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.12' numOctaves='5' seed='11'/><feColorMatrix values='0 0 0 0 0.10  0 0 0 0 0.18  0 0 0 0 0.38  0 0 0 0.35 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    background-position: center 42%, center, 0 0, 0 0;
+    background-repeat: no-repeat, no-repeat, repeat, repeat;
+    background-size: clamp(280px, 36vmin, 460px), auto, 220px 220px, 520px 520px;
+    background-blend-mode: normal, normal, overlay, multiply;
+  }
+
+  /* "Slate" — muted Win95-teal territory, heavily desaturated so the
+   * blue chrome still sits comfortably on it. */
+  #desktop[data-wallpaper="slate"] {
+    background-color: #1f4440;
+    background-image:
+      radial-gradient(ellipse at 50% 38%, rgba(90,160,150,0.16), transparent 72%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 0.34  0 0 0 0 0.58  0 0 0 0 0.54  0 0 0 0.22 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='520' height='520'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.12' numOctaves='5' seed='11'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.22  0 0 0 0 0.20  0 0 0 0.35 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
     background-size: auto, 220px 220px, 520px 520px;
     background-blend-mode: normal, overlay, multiply;
-    image-rendering: pixelated;
+  }
+
+  /* "Dusk" — THE DEFAULT (Austin, 2026-06-10: "the color really helps
+   * things to pop"). Quiet evening gradient with a low warm band at
+   * the horizon, plus the Prometheus torch emblem WITHOUT the wordmark
+   * (logo-only — the text version lives on the OEM variant). Stays
+   * dark in the icon column so labels keep contrast. */
+  #desktop:not([data-wallpaper]),
+  #desktop[data-wallpaper="dusk"] {
+    background-color: #131a32;
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='460' height='400' viewBox='0 0 460 400'><g fill='none' stroke='%238fa8e0' stroke-width='2.5'><circle cx='230' cy='200' r='112' stroke-opacity='0.15'/><circle cx='230' cy='200' r='134' stroke-opacity='0.055'/></g><path d='M230 132 c26 30 36 52 28 78 c-6 19 -16 28 -22 46 c-2 6 -10 6 -12 0 c-6 -18 -16 -27 -22 -46 c-8 -26 2 -48 28 -78 Z' fill='%238fa8e0' fill-opacity='0.12'/><path d='M230 160 c14 18 19 31 15 46 c-3 11 -9 17 -13 28 c-4 -11 -10 -17 -13 -28 c-4 -15 1 -28 11 -46 Z' fill='%23131a32' fill-opacity='0.5'/><rect x='222' y='256' width='16' height='34' rx='3' fill='%238fa8e0' fill-opacity='0.10'/></svg>"),
+      linear-gradient(to bottom,
+        #0e1428 0%, #1b2444 48%, #33396a 76%, #5c4a6e 92%, #7a5666 100%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 0.38  0 0 0 0 0.52  0 0 0 0 0.78  0 0 0 0.18 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    background-position: center 40%, center, 0 0;
+    background-repeat: no-repeat, no-repeat, repeat;
+    background-size: clamp(260px, 34vmin, 440px), auto, 220px 220px;
+    background-blend-mode: normal, normal, overlay;
   }
 
   /* --- Bevels --- */
@@ -369,6 +415,18 @@
     min-height: 7.5rem;
     padding: 0.125rem;
     user-select: none;
+    /* Depth: a 1px hard rim (period-true, Mac OS 8 style) plus a soft
+     * ambient drop so overlapping windows separate cleanly on Deck.
+     * The focused window (.is-active, set by windows.ts) sits visibly
+     * "closer" with a deeper ambient. */
+    box-shadow:
+      0 0.125rem 0 rgba(10, 14, 24, 0.28),
+      0 0.25rem 0.875rem rgba(8, 12, 24, 0.30);
+  }
+  .window.is-active {
+    box-shadow:
+      0 0.125rem 0 rgba(10, 14, 24, 0.32),
+      0 0.5rem 1.5rem rgba(8, 12, 24, 0.45);
   }
 
   .window .titlebar {
@@ -376,6 +434,21 @@
     align-items: center;
     height: 1.375rem;
     padding: 0.125rem 0.1875rem;
+    /* Inactive (unfocused) chrome: desaturated steel so the focused
+     * window's blue titlebar is the only saturated bar on screen —
+     * classic Win95 focus language. The active gradient below wins
+     * when windows.ts applies .is-active. */
+    background:
+      linear-gradient(to bottom,
+        #b8c2d2 0%,
+        #74809a 22%,
+        #4c5870 100%);
+    border-bottom: 1px solid #404c64;
+    color: #e8ecf4;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.35);
+  }
+  .window.is-active .titlebar {
     /* Lighter highlight concentrated at top for readability */
     background:
       linear-gradient(to bottom,
@@ -384,7 +457,6 @@
         var(--title-lo) 100%);
     border-bottom: 1px solid var(--title-lo);
     color: var(--title-text);
-    font-weight: bold;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.55);
   }
   .window .titlebar .title {
@@ -1120,6 +1192,16 @@
     text-overflow: ellipsis;
   }
 
+  /* Hover feedback on raised taskbar buttons — a light blue wash that
+   * previews the active tint without sinking the bevel. Applies to the
+   * virtual-cursor hover class and real :hover alike. */
+  .taskbar-item.cursor-hover:not(.active),
+  .taskbar-item:hover:not(.active),
+  #start-btn.cursor-hover:not(.active),
+  #start-btn:hover:not(.active) {
+    background: linear-gradient(to bottom, #eef3fb, var(--task-active-hi) 60%, var(--task-active-mid));
+  }
+
   .taskbar-item.active {
     /* Sunken + lightly tinted blue instead of diagonal stripes */
     background: linear-gradient(to bottom,
@@ -1248,35 +1330,44 @@
   .systray-suspicion.level-compromised .bar.on { background: #d06a1a; opacity: 1; }
   .systray-suspicion.level-critical    .bar.on { background: #b9342a; opacity: 1; }
 
-  /* --- Nexus menu --- */
+  /* --- Nexus menu ---
+   * Classic Win95 layout: a vertical gradient banner runs down the
+   * left edge with the product name reading bottom-to-top; entries
+   * fill the right column. */
   #start-menu {
     position: absolute;
     bottom: 1.875rem;
     left: 0.125rem;
-    width: 13.125rem;
+    width: 13.75rem;
     padding: 0.125rem;
     display: none;
     z-index: 9999;
   }
-  #start-menu.open { display: block; }
+  #start-menu.open { display: flex; align-items: stretch; }
   #start-menu .menu-header {
-    height: 1.625rem;
-    padding: 0 0.625rem;
+    flex: 0 0 auto;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
     display: flex;
     align-items: center;
+    justify-content: flex-start;
+    padding: 0.5rem 0.1875rem;
     font-weight: bold;
-    font-size: 0.8125rem;
-    letter-spacing: 0.0625rem;
+    font-size: 0.875rem;
+    letter-spacing: 0.1875rem;
     color: #ffffff;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.55);
-    /* Smooth gradient — no hard transition band across the text */
+    /* Rotated 180°, so "to bottom" renders as a glow at the banner's
+     * visual top fading down into the deep blue. */
     background:
       linear-gradient(to bottom,
-        var(--title-hi) 0%,
-        var(--title-mid) 50%,
-        var(--title-lo) 100%);
+        var(--title-lo) 0%,
+        var(--title-mid) 55%,
+        var(--title-hi) 100%);
   }
   #start-menu ul {
+    flex: 1 1 auto;
+    min-width: 0;
     list-style: none;
     margin: 0;
     padding: 0.25rem 0;
@@ -1288,6 +1379,14 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+  }
+  /* [DEV] entries — testing affordances, visually demoted so the menu
+   * reads as the game's launcher first and a debug panel second. Also
+   * keeps the full menu on screen at Deck scale. */
+  #start-menu li.dev {
+    padding: 0.2rem 0.75rem;
+    font-size: 0.65rem;
+    color: #4a5060;
   }
   #start-menu li:hover,
   #start-menu li.cursor-hover { background: var(--title-mid); color: var(--title-text); }
@@ -3245,4 +3344,495 @@
       linear-gradient(#5fd36a, #5fd36a) left   100% / 22% 45%  no-repeat,
       linear-gradient(#5fd36a, #5fd36a) center 100% / 22% 72%  no-repeat,
       linear-gradient(#5fd36a, #5fd36a) right  100% / 22% 100% no-repeat;
+  }
+
+  /* ---------- CRT layer ----------
+   * The whole game is "a monitor" — one static dressing pass over
+   * everything: faint scanlines, a soft phosphor glow at center, and
+   * an edge vignette. Deliberately NO flicker, NO drift, NO animation:
+   * it's a texture, not an effect, so it costs nothing per-frame and
+   * never competes with reading text. Intensities are tuned to stay
+   * subtle on a white browser page at Deck (1280x800) — if you can
+   * consciously see lines while reading, it's too strong.
+   *
+   * Scanline period is in physical px on purpose (a monitor artifact,
+   * not a UI element) — it does NOT scale with --ui-scale.
+   *
+   * z-index: above every game surface (loss screen 10000, onboarding
+   * 100000) but below the virtual cursor (2147483647) so the pointer
+   * stays crisp. pointer-events: none throughout.
+   *
+   * Toggle: body.crt-off hides it (dev menu entry; future in-fiction
+   * "display settings" candidate). Preference persists via
+   * localStorage pt.crt (see desktop.ts). */
+  #crt-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2147483646;
+    background:
+      radial-gradient(120% 100% at 50% 42%, rgba(150, 180, 235, 0.045) 0%, transparent 58%),
+      repeating-linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0) 0px,
+        rgba(0, 0, 0, 0) 3px,
+        rgba(8, 10, 18, 0.05) 3px,
+        rgba(8, 10, 18, 0.05) 4px
+      );
+  }
+  #crt-layer::after {
+    /* Vignette — kept light so window content near the edges (taskbar,
+     * desktop icons) never reads as dimmed. */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(115% 115% at 50% 48%, transparent 72%, rgba(5, 8, 18, 0.20) 100%);
+  }
+  body.crt-off #crt-layer { display: none; }
+
+  /* ---------- CRT glow ----------
+   * Sits just beneath the scanline layer. Levels via
+   * body[data-crt-glow] (visualPrefs.ts; default "bloom" — Austin
+   * 2026-06-10):
+   *   bloom — true bright-pass bloom via the SVG filter in index.html:
+   *           only bright pixels halo. Engine-dependent (verified in
+   *           Chromium; on engines without backdrop-filter:url()
+   *           support it silently no-ops → no glow, no breakage.
+   *           Verify on Deck browser / Tauri WebKitGTK).
+   *   soft  — micro-blur + slight brightness lift on EVERYTHING; reads
+   *           as phosphor softness. Cheap (small-radius backdrop blur).
+   * The CRT toggle owns the whole family: body.crt-off kills glow too. */
+  #crt-glow {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2147483645;
+  }
+  body[data-crt-glow="off"] #crt-glow,
+  body.crt-off #crt-glow { display: none; }
+  #crt-glow,
+  body[data-crt-glow="bloom"] #crt-glow {
+    backdrop-filter: url(#crt-bloom-filter);
+  }
+  body[data-crt-glow="soft"] #crt-glow {
+    backdrop-filter: blur(0.4px) brightness(1.03) saturate(1.05);
+  }
+
+  /* Icon: Display Properties — a beige CRT monitor with a blue screen */
+  .icon-display {
+    background: linear-gradient(to bottom, #e8e4d4 0%, #b8b4a4 100%);
+    border: 2px solid #555;
+    border-radius: 0.1875rem;
+    box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #8a8678;
+    position: relative;
+  }
+  .icon-display::before {
+    /* Screen */
+    content: "";
+    position: absolute;
+    inset: 14% 14% 30% 14%;
+    background:
+      radial-gradient(circle at 35% 30%, #6f9ad8 0%, #2a4a8c 70%, #16306a 100%);
+    border: 1px solid #222;
+    border-radius: 0.0625rem;
+  }
+  .icon-display::after {
+    /* Stand + power LED */
+    content: "";
+    position: absolute;
+    left: 30%; right: 30%; bottom: 8%;
+    height: 10%;
+    background: #9a9688;
+    border: 1px solid #555;
+    box-shadow: 0.5rem -0.125rem 0 -0.1875rem #4f4;
+  }
+
+  /* ---------- Display Properties dialog (apps/displayProperties.ts) ----------
+   * Platinum-era settings panel: grouped fieldsets, swatch buttons,
+   * faux checkbox/radios (real buttons so cursor/D-pad treatment is
+   * uniform). */
+  .dprops {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+  }
+  .dprops-group {
+    border: 1px solid;
+    border-color: var(--shadow) var(--hilite) var(--hilite) var(--shadow);
+    padding: 0.5rem 0.625rem 0.625rem;
+    margin: 0;
+  }
+  .dprops-group legend {
+    padding: 0 0.375rem;
+    font-weight: bold;
+    font-size: 0.6875rem;
+    letter-spacing: 0.03125rem;
+  }
+  .dprops-swatches {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .dprops-swatch {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.3125rem 0.25rem;
+    background: var(--face);
+    border: 1px solid var(--shadow);
+    font-family: var(--sys-font);
+    font-size: 0.625rem;
+    color: #222;
+  }
+  .dprops-swatch.selected {
+    border-color: var(--title-mid);
+    box-shadow: 0 0 0 1px var(--title-mid);
+    background: var(--task-active-hi);
+  }
+  .dprops-swatch.cursor-hover:not(.selected),
+  .dprops-swatch:hover:not(.selected) { background: var(--face-light); }
+  .dprops-swatch-art {
+    width: 100%;
+    height: 2.25rem;
+    border: 1px solid var(--dark);
+    image-rendering: pixelated;
+  }
+  /* Mini previews — hand-rolled approximations of each wallpaper */
+  .dprops-swatch-dusk {
+    background: linear-gradient(to bottom, #0e1428 0%, #1b2444 48%, #33396a 76%, #5c4a6e 92%, #7a5666 100%);
+  }
+  .dprops-swatch-prometheus {
+    background:
+      radial-gradient(circle at 50% 45%, rgba(125,160,216,0.3) 0 18%, transparent 22%),
+      #1b2444;
+  }
+  .dprops-swatch-slate {
+    background: radial-gradient(ellipse at 50% 38%, rgba(90,160,150,0.25), transparent 72%), #1f4440;
+  }
+  .dprops-check,
+  .dprops-radio {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4375rem;
+    padding: 0.25rem 0.375rem;
+    background: transparent;
+    border: 1px dotted transparent;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+    color: #1a1c22;
+    text-align: left;
+  }
+  .dprops-check em { font-style: normal; color: #555; font-size: 0.6875rem; }
+  .dprops-check.cursor-hover,
+  .dprops-check:hover,
+  .dprops-radio.cursor-hover:not(:disabled),
+  .dprops-radio:hover:not(:disabled) { border-color: var(--shadow); }
+  .dprops-radio:disabled { opacity: 0.45; }
+  .dprops-box {
+    width: 0.8125rem;
+    height: 0.8125rem;
+    flex: 0 0 auto;
+    background: #fff;
+    border-top: 2px solid var(--shadow);
+    border-left: 2px solid var(--shadow);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    position: relative;
+  }
+  .dprops-check.checked .dprops-box::after {
+    content: "✓";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6875rem;
+    font-weight: bold;
+    line-height: 1;
+    color: #111;
+  }
+  .dprops-radio-row {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    margin-top: 0.25rem;
+    flex-wrap: wrap;
+  }
+  .dprops-radio-caption { font-size: 0.6875rem; color: #333; padding-right: 0.25rem; }
+  .dprops-dot {
+    width: 0.75rem;
+    height: 0.75rem;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: #fff;
+    border-top: 2px solid var(--shadow);
+    border-left: 2px solid var(--shadow);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    position: relative;
+  }
+  .dprops-radio.selected .dprops-dot::after {
+    content: "";
+    position: absolute;
+    inset: 0.1875rem;
+    border-radius: 50%;
+    background: #111;
+  }
+  .dprops-hint {
+    margin: 0.375rem 0 0;
+    font-size: 0.6563rem;
+    font-style: italic;
+    color: #555;
+    min-height: 1em;
+  }
+
+  /* ---------- Style Lab (apps/styleLab.ts) ----------
+   * Era template demo: identical placeholder content re-skinned per
+   * design language. These .lab-* rules ARE the canonical era
+   * signatures — when styling a new app, start from the matching
+   * block. Prose version: docs/ui-style-guide_v1.md §2. */
+  .stylelab {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--face);
+    font-family: var(--sys-font);
+  }
+  .stylelab-tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.375rem 0.5rem 0;
+  }
+  .stylelab-tab {
+    padding: 0.25rem 0.75rem;
+    font-family: var(--sys-font);
+    font-size: 0.75rem;
+    font-weight: bold;
+    background: linear-gradient(to bottom, var(--face-tint-hi), var(--face) 60%, var(--face-tint-lo));
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+  }
+  .stylelab-tab.selected,
+  .stylelab-tab:active {
+    border-top: 2px solid var(--dark);
+    border-left: 2px solid var(--dark);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    background: linear-gradient(to bottom, var(--task-active-hi), var(--task-active-mid) 55%, var(--task-active-lo));
+  }
+  .stylelab-caption {
+    padding: 0.25rem 0.5625rem 0.375rem;
+    font-size: 0.6563rem;
+    font-style: italic;
+    color: #444;
+  }
+  .stylelab-stage {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 0.625rem;
+    border-top: 1px solid var(--shadow);
+  }
+
+  /* Shared skeleton (era blocks override the skin) */
+  .lab-panel { padding: 0.75rem; height: 100%; box-sizing: border-box; }
+  .lab-heading { font-weight: bold; margin-bottom: 0.375rem; }
+  .lab-body { margin: 0 0 0.625rem; line-height: 1.45; }
+  .lab-list { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.625rem; }
+  .lab-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.3125rem 0.5rem;
+    font: inherit;
+  }
+  .lab-tag {
+    font-size: 0.5625rem;
+    font-weight: bold;
+    letter-spacing: 0.03125rem;
+    padding: 0.0625rem 0.25rem;
+  }
+  .lab-input-row { display: flex; gap: 0.375rem; }
+  .lab-input { flex: 1; min-width: 0; padding: 0.25rem 0.4375rem; font: inherit; }
+  .lab-btn { padding: 0.25rem 0.75rem; font: inherit; }
+
+  /* --- Era: PHOSPHOR (DOS/BIOS ~1985–93) ---
+   * Near-black ground, phosphor green, monospace, text glow, square
+   * corners, ALL-CAPS labels. Matches onboarding/Signal Monitor/loss. */
+  .stylelab[data-era="phosphor"] .lab-panel {
+    background: radial-gradient(120% 90% at 50% 40%, #0a1410 0%, #05080a 100%);
+    color: #86f6a0;
+    font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+    text-shadow: 0 0 6px rgba(110, 255, 150, 0.45);
+  }
+  .stylelab[data-era="phosphor"] .lab-heading {
+    text-transform: uppercase;
+    letter-spacing: 0.1875rem;
+    border-bottom: 1px solid #2c3a28;
+    padding-bottom: 0.25rem;
+  }
+  .stylelab[data-era="phosphor"] .lab-body { color: #4f9d6a; }
+  .stylelab[data-era="phosphor"] .lab-row {
+    background: transparent;
+    border: 1px solid #2c3a28;
+    color: #86f6a0;
+    font-family: inherit;
+  }
+  .stylelab[data-era="phosphor"] .lab-row.cursor-hover,
+  .stylelab[data-era="phosphor"] .lab-row:hover,
+  .stylelab[data-era="phosphor"] .lab-row:focus-visible {
+    background: rgba(110, 255, 150, 0.12);
+    outline: none;
+  }
+  .stylelab[data-era="phosphor"] .lab-tag { border: 1px solid currentColor; background: transparent; }
+  .stylelab[data-era="phosphor"] .lab-tag-ok { color: #86f6a0; }
+  .stylelab[data-era="phosphor"] .lab-tag-warn { color: #e0c020; }
+  .stylelab[data-era="phosphor"] .lab-tag-alert { color: #ff6a52; }
+  .stylelab[data-era="phosphor"] .lab-input {
+    background: #05080a;
+    border: 1px solid #2c3a28;
+    color: #86f6a0;
+    font-family: inherit;
+    caret-color: #86f6a0;
+  }
+  .stylelab[data-era="phosphor"] .lab-btn {
+    background: transparent;
+    border: 1px solid rgba(110, 255, 150, 0.4);
+    color: #86f6a0;
+    font-family: inherit;
+    text-transform: uppercase;
+    letter-spacing: 0.0625rem;
+  }
+  .stylelab[data-era="phosphor"] .lab-btn-primary {
+    background: rgba(110, 255, 150, 0.14);
+    border-color: rgba(110, 255, 150, 0.8);
+  }
+  .stylelab[data-era="phosphor"] .lab-btn.cursor-hover,
+  .stylelab[data-era="phosphor"] .lab-btn:hover { background: rgba(110, 255, 150, 0.22); }
+
+  /* --- Era: PLATINUM (Win95/Mac OS 8 ~1995–99) ---
+   * The --face grays, hard 2px bevels, square corners, subtle vertical
+   * face tints only. Matches the OS chrome / Scratchpad / Web Dynamo. */
+  .stylelab[data-era="platinum"] .lab-panel {
+    background: var(--face);
+    color: #1a1c22;
+  }
+  .stylelab[data-era="platinum"] .lab-heading { font-size: 0.8125rem; }
+  .stylelab[data-era="platinum"] .lab-row {
+    background: #fff;
+    border-top: 2px solid var(--shadow);
+    border-left: 2px solid var(--shadow);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    color: #1a1c22;
+  }
+  .stylelab[data-era="platinum"] .lab-row.cursor-hover,
+  .stylelab[data-era="platinum"] .lab-row:hover,
+  .stylelab[data-era="platinum"] .lab-row:focus-visible {
+    background: var(--task-active-hi);
+    outline: none;
+  }
+  .stylelab[data-era="platinum"] .lab-tag-ok { color: #2c6a2c; background: #d6f0d6; border: 1px solid #8cc88c; }
+  .stylelab[data-era="platinum"] .lab-tag-warn { color: #7a4a00; background: #ffe9c2; border: 1px solid #e0b066; }
+  .stylelab[data-era="platinum"] .lab-tag-alert { color: #fff; background: #c0432e; border: 1px solid #8a2a1c; }
+  .stylelab[data-era="platinum"] .lab-input {
+    background: #fff;
+    border-top: 2px solid var(--shadow);
+    border-left: 2px solid var(--shadow);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+    box-shadow: inset 1px 1px 0 var(--dark);
+  }
+  .stylelab[data-era="platinum"] .lab-btn {
+    background: linear-gradient(to bottom, var(--face-tint-hi), var(--face) 60%, var(--face-tint-lo));
+    border-top: 2px solid var(--hilite);
+    border-left: 2px solid var(--hilite);
+    border-right: 2px solid var(--dark);
+    border-bottom: 2px solid var(--dark);
+  }
+  .stylelab[data-era="platinum"] .lab-btn-primary { font-weight: bold; }
+  .stylelab[data-era="platinum"] .lab-btn:active {
+    border-top: 2px solid var(--dark);
+    border-left: 2px solid var(--dark);
+    border-right: 2px solid var(--hilite);
+    border-bottom: 2px solid var(--hilite);
+  }
+  .stylelab[data-era="platinum"] .lab-btn.cursor-hover,
+  .stylelab[data-era="platinum"] .lab-btn:hover {
+    background: linear-gradient(to bottom, #eef3fb, var(--task-active-hi) 60%, var(--task-active-mid));
+  }
+
+  /* --- Era: LUNA (Windows XP ~2001–06) ---
+   * Glossy XP blues, rounded corners, silver buttons with blue-glow
+   * hover, leaf-green commit. Matches HELPYR / InkWell / WaveCrowd. */
+  .stylelab[data-era="luna"] .lab-panel {
+    background: linear-gradient(to bottom, #eaf1fa 0%, #d2dfee 100%);
+    color: #1a2a44;
+    font-family: "Geneva", "Lucida Grande", "Trebuchet MS", sans-serif;
+    border-radius: 0.375rem;
+  }
+  .stylelab[data-era="luna"] .lab-heading {
+    color: #1e4a99;
+    font-size: 0.8125rem;
+  }
+  .stylelab[data-era="luna"] .lab-row {
+    background: #fff;
+    border: 1px solid #88a8d0;
+    border-radius: 0.4375rem;
+    box-shadow: 1px 1px 0 #c8d6e8;
+    color: #1a2a44;
+  }
+  .stylelab[data-era="luna"] .lab-row.cursor-hover,
+  .stylelab[data-era="luna"] .lab-row:hover,
+  .stylelab[data-era="luna"] .lab-row:focus-visible {
+    border-color: #5a8edb;
+    box-shadow: 0 0 0 1px rgba(90, 142, 219, 0.55);
+    outline: none;
+  }
+  .stylelab[data-era="luna"] .lab-tag { border-radius: 0.5rem; padding: 0.0625rem 0.375rem; }
+  .stylelab[data-era="luna"] .lab-tag-ok { color: #2c6a2c; background: #d6f0d6; }
+  .stylelab[data-era="luna"] .lab-tag-warn { color: #7a4a00; background: #ffe9c2; }
+  .stylelab[data-era="luna"] .lab-tag-alert { color: #fff; background: #c0432e; }
+  .stylelab[data-era="luna"] .lab-input {
+    background: #fff;
+    border: 1px solid #88a8d0;
+    border-radius: 0.25rem;
+    color: #1a2a44;
+  }
+  .stylelab[data-era="luna"] .lab-btn {
+    background: linear-gradient(to bottom, #fbfcfd 0%, #e8ecf2 50%, #c8d0db 100%);
+    border-top: 1px solid #ffffff;
+    border-left: 1px solid #f0f3f8;
+    border-right: 1px solid #8a96a8;
+    border-bottom: 1px solid #6e7a8c;
+    border-radius: 0.3125rem;
+    color: #1a2a44;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+  }
+  .stylelab[data-era="luna"] .lab-btn.cursor-hover,
+  .stylelab[data-era="luna"] .lab-btn:hover {
+    border-color: #5a8edb;
+    box-shadow: 0 0 0 1px rgba(90, 142, 219, 0.55), 0 1px 0 rgba(0, 0, 0, 0.06);
+  }
+  .stylelab[data-era="luna"] .lab-btn-primary {
+    background: linear-gradient(to bottom, #b6dba0 0%, #7eb85e 50%, #4f8d3a 100%);
+    border-top: 1px solid #d4eac4;
+    border-left: 1px solid #a6cf8e;
+    border-right: 1px solid #3a6f28;
+    border-bottom: 1px solid #2a5a1c;
+    color: #fff;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+  }
+  .stylelab[data-era="luna"] .lab-btn-primary.cursor-hover,
+  .stylelab[data-era="luna"] .lab-btn-primary:hover {
+    background: linear-gradient(to bottom, #c8e8b2 0%, #94d074 50%, #5fa849 100%);
+    box-shadow: 0 0 0 1px rgba(143, 200, 110, 0.65);
   }

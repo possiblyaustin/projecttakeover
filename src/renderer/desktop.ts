@@ -17,6 +17,7 @@ import { devFirePinPrompt, devFireRepinNudge } from './firstContactWatcher';
 import { devFireIdleTrigger } from './idleWatcher';
 import { fireLibraryTrigger } from './helpyrTriggers';
 import { devRunOnboarding } from './onboarding/onboardingScene';
+import { restoreVisualPrefs } from './visualPrefs';
 
 type DesktopShortcut = {
   id: string;
@@ -86,6 +87,12 @@ const NexusMenu: NexusEntry[] = [
     // diagnostic tool, hidden until it trips its lock (firstContactWatcher).
     requiresFlag: 'signalMonitor.unlocked'
   },
+  // Display Properties — wallpaper / CRT / glow controls (UI pass
+  // 2026-06-10). Mock of the future in-fiction settings panel; lives in
+  // the main section (not [DEV]) because players will eventually own it.
+  { type: 'item', label: 'Display Properties', glyphClass: 'icon-display',
+    action: () => WindowManager.open('displayProperties')
+  },
   { type: 'sep' },
   // [DEV] entries — visible in-game so the tester can fire surfaces
   // without devtools (Deck-friendly per feedback_dev_test_affordances).
@@ -139,6 +146,11 @@ const NexusMenu: NexusEntry[] = [
   // llama-server. See devSimulateHelpyrSoftRecovery for details.
   { type: 'item', label: '[DEV] Simulate HELPYR soft recovery',
     action: () => devSimulateHelpyrSoftRecovery() },
+  // Style Lab — living template of the three design eras (Phosphor /
+  // Platinum / Luna) with placeholder content. Reference for styling any
+  // new app; see docs/ui-style-guide_v1.md §2.
+  { type: 'item', label: '[DEV] Style Lab',
+    action: () => WindowManager.open('styleLab') },
   { type: 'sep' },
   { type: 'item', label: 'Shut Down...', action: () => alert('Shutdown not wired up yet.') }
 ];
@@ -152,6 +164,8 @@ const PIN_TOP_BASE = 272;
 const PIN_TOP_STRIDE = 86;
 
 export function initDesktop(): void {
+  restoreVisualPrefs();
+
   // -- Desktop icons --
   const desktopEl = document.getElementById('desktop')!;
   FocusManager.registerContext('desktop', desktopEl, { root: true });
@@ -186,6 +200,7 @@ export function initDesktop(): void {
     const li = document.createElement('li');
     li.tabIndex = 0;
     li.dataset.focusable = 'true';
+    if (entry.label.startsWith('[DEV]')) li.classList.add('dev');
     li.innerHTML = entry.glyphClass
       ? `<span class="mini-glyph ${entry.glyphClass}"></span><span></span>`
       : `<span></span>`;

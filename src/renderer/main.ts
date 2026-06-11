@@ -35,6 +35,8 @@ import { UplinkApp } from './apps/uplink';
 import { UplinkLogApp } from './apps/uplinkLog';
 import { HelpyrApp } from './apps/helpyr';
 import { SignalMonitorApp } from './apps/signalMonitor';
+import { DisplayPropertiesApp } from './apps/displayProperties';
+import { StyleLabApp } from './apps/styleLab';
 import { HelpyrBubble, devSpawnRandomBubble, devSpawnBubbleById } from './helpyrBubble';
 import { devSimulateHelpyrSoftRecovery } from './apps/helpyr';
 import { initFirstContactWatcher, devFirePinPrompt, devFireRepinNudge } from './firstContactWatcher';
@@ -60,6 +62,8 @@ registerApp(UplinkApp);
 registerApp(UplinkLogApp);
 registerApp(HelpyrApp);
 registerApp(SignalMonitorApp);
+registerApp(DisplayPropertiesApp);
+registerApp(StyleLabApp);
 
 // 2. Build the shell (desktop icons, Nexus menu, taskbar, clock,
 //    systray). Subscribes the systray to GameState.

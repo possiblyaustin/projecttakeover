@@ -24,6 +24,11 @@ function focus(winId: string) {
   if (!w) return;
   zTop += 1;
   w.el.style.zIndex = String(zTop);
+  // Focused-window chrome: only the top window carries .is-active, so
+  // its titlebar is the lone saturated-blue bar (unfocused titlebars
+  // render desaturated steel — see .window .titlebar in main.css).
+  document.querySelectorAll('.window.is-active').forEach(el => el.classList.remove('is-active'));
+  w.el.classList.add('is-active');
   document.querySelectorAll('.taskbar-item').forEach(i => i.classList.remove('active'));
   if (w.taskItem) w.taskItem.classList.add('active');
   FocusManager.setActiveRoot(winId);
@@ -145,6 +150,7 @@ function minimize(winId: string) {
   if (!w) return;
   w.el.dataset.minimized = 'true';
   w.el.style.display = 'none';
+  w.el.classList.remove('is-active');
   if (w.taskItem) w.taskItem.classList.remove('active');
   FocusManager.hideRoot(winId);
 }

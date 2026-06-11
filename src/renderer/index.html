@@ -35,6 +35,27 @@
     <div id="clock">--:--</div>
   </div>
 
+  <!-- CRT dressing — static scanlines + glow + vignette over the whole
+       "monitor". Non-interactive; toggled via body.crt-off. -->
+  <div id="crt-layer" aria-hidden="true"></div>
+  <!-- CRT glow — backdrop-filter layer beneath the scanlines. Level set
+       via body[data-crt-glow="off|soft|bloom"] (visualPrefs.ts). -->
+  <div id="crt-glow" aria-hidden="true"></div>
+  <!-- Bright-pass bloom filter for the "bloom" glow level: subtract the
+       dark 62%, blur what survives, screen-blend back over the source.
+       Referenced by #crt-glow's backdrop-filter: url(#crt-bloom-filter). -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="crt-bloom-filter" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feColorMatrix in="SourceGraphic" type="matrix"
+        values="1 0 0 0 -0.62
+                0 1 0 0 -0.62
+                0 0 1 0 -0.62
+                0 0 0 1 0" result="bright"/>
+      <feGaussianBlur in="bright" stdDeviation="3.5" result="halo"/>
+      <feBlend in="SourceGraphic" in2="halo" mode="screen"/>
+    </filter>
+  </svg>
+
   <script type="module" src="/main.ts"></script>
 </body>
 </html>

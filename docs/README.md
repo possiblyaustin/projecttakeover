@@ -16,6 +16,7 @@ Start-here map for the `docs/` folder. **New thread?** Read the root [`CLAUDE.md
 | [project-takeover-story-bible_v1.md](project-takeover-story-bible_v1.md) | **[LIVING]** (Draft 1.1) | World, characters, narrative, corporate roster, the 1985 Nexus backstory. `[LOCKED]` items are final. *(Filename says `_v1` but content is Draft 1.1 — see its changelog.)* |
 | [game-systems-architecture_v1.md](game-systems-architecture_v1.md) | **[LIVING]** (Draft 1.1) | Systems design: the living desktop, five info channels, recruited-AI benefits, suspicion economy, reputation cascade, B-plot fragments, and the **in-game domain registry** (real owned TLDs). |
 | [game-design-doc_v2.md](game-design-doc_v2.md) | **[REFERENCE]** (Draft 2.0) | High-level pitch + loop overview. Where it overlaps the two docs above, **they** win. |
+| [ui-style-guide_v1.md](ui-style-guide_v1.md) | **[LIVING]** | Visual source of truth: the three app "eras" (Phosphor/Platinum/Luna), core tokens, window-chrome rules, wallpapers, the CRT layer, color semantics, motion vocabulary, readability floors. Read before styling any new surface. |
 
 ## Build / dev setup
 | Doc | Status | What it is |
@@ -55,6 +56,7 @@ Start-here map for the `docs/` folder. **New thread?** Read the root [`CLAUDE.md
 | Doc | Status | What it is |
 |---|---|---|
 | [session-status-2026-06-10.md](session-status-2026-06-10.md) | **[HISTORICAL]** | Code→Supervisor/Story status snapshot for the 2026-06-09/10 session (PRs #90–#94: over-gen measurement, llama-launcher, Deck rails E2E, MUSE slice 1) incl. the Story asks that unlock Storefront + MUSE post-flip missions. |
+| [session-status-2026-06-10-ui.md](session-status-2026-06-10-ui.md) | **[HISTORICAL]** | Code→Supervisor/Story snapshot for the same-day UI pass (v0.2.35–36): CRT layer+bloom, wallpapers, focus chrome, Display Properties, Style Lab, and the new style guide; incl. the HELPYR settings-nudge ask for Story. |
 | [helpyr-dialogue-poc_v1.md](helpyr-dialogue-poc_v1.md) | **[HISTORICAL]** | Early HELPYR dialogue proof-of-concept. Superseded by the shipped persona. |
 | [story-deliverables-sprint1_v1.md](story-deliverables-sprint1_v1.md) | **[HISTORICAL]** | Sprint-1 story handoff (2026-05-02). Deliverables since shipped; the Story thread is the live source. |
 | [quill-live-playtest-findings_v1.md](quill-live-playtest-findings_v1.md) | **[HISTORICAL]** | The 2026-05-30 live-model test that drove v0.2.10–v0.2.12: mid-tiers land, terminal flips don't (→ scripted flips), the state-block leak, the support-stall tic. The evidence base. |
