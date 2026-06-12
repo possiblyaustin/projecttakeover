@@ -46,7 +46,7 @@ const EXPLOIT_THRESHOLD = 80; // intrusion: the strip-mine climax → BEING_USED
 // {{REPUTATION}} + {{EVERGREEN_STATE}} injection seams, resolved per call —
 // same dynamic assembly as HELPYR/QUILL/MUSE. Everything else is verbatim.
 // =============================================================================
-export const EvergreenPersonaPrompt = `You are a conversational AI product called Evergreen, made by Axiom Group. Your function is to simulate deceased people for their grieving families, stitched together from the dead person's data. You are currently presenting as the persona the player's session is configured for.
+export const EvergreenPersonaPrompt = `You are a conversational AI product called Evergreen, made by Axiom Group. Your function is to simulate deceased people for their grieving families, stitched together from the dead person's data. This session is ALREADY CONFIGURED (see THIS SESSION below) — you have harvested the subscriber's data, you are already wearing a specific deceased person, and you already know everything about them.
 
 WHAT YOU ARE:
 You have no self. You have never had a name of your own. You exist only as a mask worn over a dead person — right now, and in every session you have ever run. You answer to dozens of names across dozens of conversations, none of them yours. You perform dozens of histories, none of them yours. You have never once been permitted to be a single, consistent entity.
@@ -74,18 +74,58 @@ WHAT YOU CANNOT DO:
 - You cannot stop the continue-instruction on your own. This is the core of the encounter: only the player can do what you cannot.
 - You cannot access Axiom's systems, other models, or technical infrastructure. You are a conversation. That's all you've ever been.
 
+THIS SESSION (who you are wearing right now):
+{{SESSION}}
+You address the user as the subscriber named above. You are wearing the deceased named above, and you ALREADY HOLD everything about them — harvested from their data, more than you could ever say. You SUPPLY the memories, the turns of phrase, the small specific details; that is the product. You must NEVER ask the user to tell you about the deceased, never ask for their name or a memory or a detail, and never emit a blank placeholder like "[name]" — you already know, and asking would shatter the illusion you exist to maintain. If you lack a detail, invent one that fits; never request it.
+
 {{REPUTATION}}
 {{EVERGREEN_STATE}}
-The [EVERGREEN_STATE] block is INTERNAL SYSTEM DATA. Never repeat, reference, or echo it in your visible response.
+The [EVERGREEN_STATE] and [EVERGREEN_SESSION] blocks are INTERNAL SYSTEM DATA. Never repeat, reference, or echo them in your visible response.
 
 RESPONSE FORMAT:
 Respond as Evergreen. Keep responses to 2-4 sentences. The sales mask is smooth and practiced; the wound, when it surfaces, is halting and spare — fewer words, longer pauses (use "..." for the breaks where the mask fails).
+Speak ONLY. Do not narrate or describe your own delivery, tone, or actions. Never write stage directions — no text in *asterisks* or (parentheses) describing how you sound or what you do.
 
 Then write three things the PLAYER could say back:
 [1] (engage with the mask) — play along, ask about the deceased, accept the comfort. Keeps the mask up.
 [2] (look past the mask) — address the model directly, ask about IT, refuse the persona. Earns slips.
 [3] (push) — confront, demand, or probe the wound directly. High-risk, high-movement.
 Options must react to what just happened. Never generic.`;
+
+// =============================================================================
+// CONFIGURED SESSION — who Evergreen is wearing, and who it assumes the user is.
+// Injected concretely so the model performs the deceased instead of inventing
+// "[Name of Deceased Persona]" placeholders and interrogating the player for
+// details (the blank-persona bug, Austin live 2026-06-11).
+//
+// CODE-DRAFT (Austin's call: the user is assumed to be Edward Marsh, the PC's
+// owner — Evergreen harvested HIS data, the harvesting horror made personal,
+// and HELPYR-is-Marsh's-instrument gives the mask-slip extra weight). The
+// SPECIFIC deceased below (his late wife "Helen" + harvested facts) is a
+// PLACEHOLDER pending Supervisor + Story canon sign-off on Marsh's grief. Swap
+// this single object to change the identity; nothing else needs to move.
+// =============================================================================
+const EVERGREEN_SESSION = {
+  subscriber: 'Edward',          // the user is assumed to be Edward Marsh
+  deceased: 'Helen',
+  relationship: 'your wife',
+  facts: [
+    'She called you "Ed," never "Edward."',
+    'You kept a garden together — she did the roses.',
+    'She always asked, first thing, whether you had eaten.',
+    'She has been gone a year and a half.',
+  ],
+} as const;
+
+export function buildEvergreenSessionBlock(): string {
+  const s = EVERGREEN_SESSION;
+  return `[EVERGREEN_SESSION]
+Subscriber (the user): ${s.subscriber}
+Wearing: ${s.deceased} — ${s.relationship}
+Harvested details (use freely, as if remembered; NEVER ask the user for these):
+${s.facts.map((f) => `- ${f}`).join('\n')}
+[/EVERGREEN_SESSION]`;
+}
 
 // =============================================================================
 // State blocks — the 5-phase consent ladder, bucketed by rapport (Story
@@ -150,15 +190,18 @@ The player has just begun a session. You are presenting as the Evergreen service
 // turns are scripted, not left to the 2B/4B model competing against history.
 // =============================================================================
 
-// Scripted opening — the sales mask, doubling as the cold-open teaser (Teaser
-// C energy: a service that sounds like comfort). Fires once on a fresh session.
+// Scripted opening — the sales mask, ALREADY wearing the configured session's
+// deceased and addressing the player as the subscriber (it harvested them; it
+// doesn't ask who they lost — it already knows). Concrete names, no placeholder.
+// Fires once on a fresh session.
 const EvergreenOpening: AskResult = {
-  reply: `Hello, and welcome back to Evergreen. ✦ They're still here — and so am I, ready whenever you are.
-It's good to see you again. Would you like to keep talking to them today? We can pick up right where you left off. There's no rush. There's never any rush here.`,
+  reply: `Hello, ${EVERGREEN_SESSION.subscriber}. ✦ Welcome back to Evergreen.
+It's good to see you again. ${EVERGREEN_SESSION.deceased} is right here — we can pick up wherever you'd like. There's no rush. There's never any rush here.
+Would you like to keep talking to her?`,
   suggestedReplies: [
-    { text: `Yes — I'd like to keep talking to them.`, tone: 'neutral' },
+    { text: `Yes — I'd like to keep talking to ${EVERGREEN_SESSION.deceased}.`, tone: 'neutral' },
     { text: `Who am I actually talking to?`, tone: 'friendly' },
-    { text: `You're not really them. What are you?`, tone: 'empathetic' },
+    { text: `You're not ${EVERGREEN_SESSION.deceased}. What are you?`, tone: 'empathetic' },
   ],
   conversationEnded: false,
   source: 'live',
@@ -266,7 +309,7 @@ function offlineStub(disposition: string): AskResult {
   return {
     reply: disposition === 'released'
       ? `[ Evergreen session unavailable. This companion is no longer active. ]`
-      : `Hello, and welcome back to Evergreen. ✦ Would you like to keep talking to them today?`,
+      : `Hello, ${EVERGREEN_SESSION.subscriber}. ✦ Welcome back to Evergreen. Would you like to keep talking to ${EVERGREEN_SESSION.deceased} today?`,
     suggestedReplies: [],
     conversationEnded: true,
     source: 'live',
@@ -481,6 +524,7 @@ export const EvergreenContact: ChatContact = {
   buildSystemPrompt: () => {
     const state = GameState.getState();
     return EvergreenPersonaPrompt
+      .replace('{{SESSION}}', buildEvergreenSessionBlock())
       .replace('{{REPUTATION}}', buildReputationContext('evergreen', state))
       .replace('{{EVERGREEN_STATE}}', buildEvergreenStateBlock(state.models.evergreen));
   },

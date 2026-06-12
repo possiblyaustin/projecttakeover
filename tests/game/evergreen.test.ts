@@ -13,9 +13,11 @@ import { describe, it, expect } from 'vitest';
 import { reduce, defaultGameState } from '../../src/renderer/game/state';
 import {
   buildEvergreenStateBlock,
+  buildEvergreenSessionBlock,
   deriveEvergreenOptionTone,
   classifyEvergreenApproach,
   EvergreenPersonaPrompt,
+  EvergreenContact,
 } from '../../src/renderer/apps/evergreen';
 
 const ev = (disposition: string, rapport = 0, intrusion = 0) =>
@@ -158,8 +160,29 @@ describe('classifyEvergreenApproach — freeform routing (the "unearned flip" fi
 });
 
 describe('EvergreenPersonaPrompt', () => {
-  it('exposes the {{REPUTATION}} + {{EVERGREEN_STATE}} injection seams', () => {
+  it('exposes the injection seams', () => {
+    expect(EvergreenPersonaPrompt).toContain('{{SESSION}}');
     expect(EvergreenPersonaPrompt).toContain('{{REPUTATION}}');
     expect(EvergreenPersonaPrompt).toContain('{{EVERGREEN_STATE}}');
+  });
+});
+
+describe('configured session — fixes the blank-persona interrogation bug', () => {
+  it('the session block injects CONCRETE names (no [Name] placeholders)', () => {
+    const block = buildEvergreenSessionBlock();
+    expect(block).toContain('[EVERGREEN_SESSION]');
+    expect(block).toMatch(/Edward/);
+    expect(block).toMatch(/Helen/);
+    expect(block).not.toMatch(/\[name\]/i);
+    expect(block).not.toMatch(/\[.*persona.*\]/i);
+  });
+
+  it('buildSystemPrompt resolves every {{...}} seam — no blank persona reaches the model', () => {
+    const prompt = EvergreenContact.buildSystemPrompt();
+    expect(prompt).not.toMatch(/\{\{.*?\}\}/); // no unresolved placeholders
+    expect(prompt).toContain('Edward');
+    expect(prompt).toContain('Helen');
+    // the hard rules that stop the interrogation + placeholder behaviour
+    expect(prompt).toMatch(/never ask the user/i);
   });
 });

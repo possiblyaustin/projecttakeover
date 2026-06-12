@@ -875,20 +875,20 @@
     font-style: italic;
     font-size: 0.8rem;
     color: #2a3a2e;
-    line-height: 1.45;
-    margin: 0.3rem 0 0.15rem;
+    line-height: 1.35;
+    margin: 0.2rem 0 0.1rem;
   }
   .site-wavecrowd .wave-evergreen-cite { font-size: 0.68rem; color: #5d7d63; }
   .site-wavecrowd .wave-evergreen-tagline {
     font-family: 'Georgia', 'Times New Roman', serif;
     font-size: 0.92rem;
     color: #3f7a52;
-    margin-top: 0.4rem;
+    margin-top: 0.3rem;
   }
   .site-wavecrowd .wave-evergreen-cta {
     display: inline-block;
-    margin-top: 0.4rem;
-    padding: 0.25rem 0.7rem;
+    margin-top: 0.3rem;
+    padding: 0.22rem 0.7rem;
     background: linear-gradient(#5fb07a, #3f7a52);
     border: 1px solid #2c5a3b;
     border-radius: 0.875rem;
