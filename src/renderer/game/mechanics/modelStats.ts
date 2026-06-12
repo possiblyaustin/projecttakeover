@@ -45,6 +45,17 @@ const MODEL_STATS: Record<string, ModelStats> = {
   // backfire), and the mid-game 0.6 toneDecay per Story's balance ladder
   // — the CREATE/REFLECT/DIRECT rhythm matters more than tone-spam.
   muse: { guardrail: 35, autonomy: 80, vigilance: 45, toneDecay: 0.6, influence: 20 },
+  // EVERGREEN — grief encounter (CODE-DRAFT balance, needs live E4B playtest).
+  // Highly persuadable (autonomy 70 — it is desperate to be SEEN; genuine
+  // attention lands fast, pacing the 5-phase consent ladder toward THE_ASK in
+  // ~5 strong exchanges). Low guardrail (it can't access systems — it IS a
+  // conversation; the nefarious path is impersonation-craft extraction, voiced
+  // through BEING_USED, never backfire — kept well under GUARDRAIL_BLOCK). Low
+  // vigilance: this is an emotional encounter, not a stealth one — suspicion is
+  // not the tension here, so interactions cost little. influence 0 — not
+  // recruitable, no campaign contribution. See the ASK/EXPLOIT thresholds in
+  // apps/evergreen.ts (the contact owns when the fork surfaces).
+  evergreen: { guardrail: 25, autonomy: 70, vigilance: 15, toneDecay: 0.6, influence: 0 },
 };
 
 export function getModelStats(contactKey: string): ModelStats | undefined {

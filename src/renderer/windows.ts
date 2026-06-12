@@ -164,6 +164,15 @@ function close(winId: string) {
   FocusManager.unregisterContext(winId);
 }
 
+// Close every open window of a given app. `open()` doesn't dedupe by appId
+// (each call spawns a fresh winId), so callers that want "replace the existing
+// one" — e.g. the Evergreen dev entries re-launching a clean run — close first.
+function closeByAppId(appId: string) {
+  for (const [winId, w] of [...windows]) {
+    if (w.appId === appId) close(winId);
+  }
+}
+
 // Stagger window spawn so they don't pile up
 let spawnIdx = 0;
 function spawnPos() {
@@ -229,4 +238,4 @@ function cycleWindows(dir: number) {
   focus(next);
 }
 
-export const WindowManager = { open, close, minimize, focus, cycleWindows };
+export const WindowManager = { open, close, closeByAppId, minimize, focus, cycleWindows };

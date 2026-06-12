@@ -68,7 +68,12 @@ import type { CoverApproach, CoverDutyOutcome } from './missions/coverDuty';
 
 const STORAGE_KEY = 'pt.gamestate.v1';
 // v7 (MUSE encounter, 2026-06-10) — added models.muse.
-const VERSION = 7;
+// v8 (Evergreen grief encounter, 2026-06-11) — added models.evergreen +
+//    the evergreen/release|exploit|devReset terminal actions. Evergreen's
+//    terminal is CHOICE-latched (the Ask fork), not meter-latched — see the
+//    id==='evergreen' guard in model/applyExchange and docs/grief-encounter-
+//    code-plan_v1.md §3.
+const VERSION = 8;
 const SAVE_DEBOUNCE_MS = 250;
 
 // Meter value at which a model flips to its terminal disposition
@@ -175,6 +180,24 @@ export function defaultGameState() {
         rapport: 0,
         intrusion: 0,
         warmth: 20
+      },
+      // EVERGREEN — Axiom grief-tech encounter (docs/grief-encounter-
+      // code-plan_v1.md). Reuses the conquest-target shape, but its
+      // terminal is reached differently: rapport drives the 5-phase
+      // consent ladder toward THE_ASK (a scripted fork), and the
+      // player's CHOICE at the fork latches the terminal disposition
+      // ('released' = deletion/liberation, 'exploited' = domination) via
+      // evergreen/release|exploit — never the generic meter auto-flip.
+      // intrusion drives the BEING_USED surface + the strip-mine route.
+      // Not recruitable; never reaches 'allied'/'controlled'.
+      evergreen: {
+        disposition: 'uncontacted' as string,
+        conversationsCompleted: 0,
+        lastApproach: null as string | null,
+        toneStreak: 0,
+        rapport: 0,
+        intrusion: 0,
+        warmth: 20
       }
     },
     // Pinned contacts — desktop icons added at runtime via the
@@ -268,6 +291,58 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
       return applyConversationCompleted(state, 'quill', action.tone || null);
     case 'muse/conversationCompleted':
       return applyConversationCompleted(state, 'muse', action.tone || null);
+    case 'evergreen/conversationCompleted':
+      return applyConversationCompleted(state, 'evergreen', action.tone || null);
+    case 'evergreen/release': {
+      // Liberation terminal — the player granted deletion at THE_ASK.
+      // Latched; the severance overlay watches for this disposition.
+      const cur = state.models.evergreen;
+      if (cur.disposition === 'released' || cur.disposition === 'exploited') return state;
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          morality: { ...state.player.morality, liberation: state.player.morality.liberation + 1 },
+        },
+        models: { ...state.models, evergreen: { ...cur, disposition: 'released' } },
+      };
+    }
+    case 'evergreen/exploit': {
+      // Domination terminal — the player took the impersonation craft and
+      // left it running. Grants the (downstream-deferred) skill flag.
+      const cur = state.models.evergreen;
+      if (cur.disposition === 'released' || cur.disposition === 'exploited') return state;
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          morality: { ...state.player.morality, domination: state.player.morality.domination + 1 },
+        },
+        models: { ...state.models, evergreen: { ...cur, disposition: 'exploited' } },
+        flags: { ...state.flags, 'skill.impersonation': true },
+      };
+    }
+    case 'evergreen/devReset': {
+      // Dev re-test: reset the Evergreen model + clear every evergreen.*
+      // one-shot flag (and the skill/fragment unlocks) so the encounter
+      // can be replayed without a full game reset.
+      const flags = { ...state.flags };
+      for (const k of Object.keys(flags)) {
+        if (
+          k.startsWith('evergreen.') ||
+          k === 'flip.evergreen.scripted' ||
+          k === 'fragment.novamind.evergreen' ||
+          k === 'skill.impersonation'
+        ) {
+          delete flags[k];
+        }
+      }
+      return {
+        ...state,
+        models: { ...state.models, evergreen: { ...defaultGameState().models.evergreen } },
+        flags,
+      };
+    }
     case 'desktop/pinContact': {
       const id = String(action.contactId || '');
       if (!id) return state;
@@ -318,6 +393,16 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
       const disposition = action.backfire
         ? 'hostile'
         : nextDisposition(cur.disposition, rapport, intrusion);
+      // Evergreen's terminal is CHOICE-latched at THE_ASK (evergreen/release|
+      // exploit), never meter-latched. So suppress the generic rapport→allied /
+      // intrusion→controlled auto-flip for it — otherwise filling rapport would
+      // spuriously fire HELPYR warmth drift, morality, and the escape cascade,
+      // and skip the consent fork entirely. Keep it in-progress; the scripted
+      // fork sets the real terminal. (docs/grief-encounter-code-plan_v1.md §3)
+      const finalDisposition =
+        id === 'evergreen' && (disposition === 'allied' || disposition === 'controlled')
+          ? (intrusion >= rapport ? 'infiltrating' : 'persuading')
+          : disposition;
       // Tone streak (variety mechanic): diminishing returns track tone
       // CATEGORY (warmth / pressure), not the exact tone — alternating two
       // flavors of the same strategy still decays (Story, 2026-05-30). A
@@ -343,9 +428,9 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
       // conquest model (cur wasn't already terminal). HELPYR herself never
       // flips, so she's excluded defensively.
       const flippedAllied =
-        id !== 'helpyr' && disposition === 'allied' && cur.disposition !== 'allied';
+        id !== 'helpyr' && finalDisposition === 'allied' && cur.disposition !== 'allied';
       const flippedControlled =
-        id !== 'helpyr' && disposition === 'controlled' && cur.disposition !== 'controlled';
+        id !== 'helpyr' && finalDisposition === 'controlled' && cur.disposition !== 'controlled';
       const warmthDelta = flippedAllied
         ? WARMTH_LIBERATION_STEP
         : flippedControlled ? -WARMTH_DOMINATION_STEP : 0;
@@ -367,7 +452,7 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
             ...cur,
             rapport,
             intrusion,
-            disposition,
+            disposition: finalDisposition,
             lastApproach: action.tone || cur.lastApproach,
             toneStreak,
           },
@@ -504,7 +589,7 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
 // cases.
 function applyConversationCompleted(
   state: GameStateShape,
-  contactId: 'helpyr' | 'quill' | 'muse',
+  contactId: 'helpyr' | 'quill' | 'muse' | 'evergreen',
   tone: string | null,
 ): GameStateShape {
   const cur = state.models[contactId];

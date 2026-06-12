@@ -24,6 +24,7 @@ import {
 } from './quill';
 import { HelpyrContact } from './helpyr';
 import { MuseContact } from './muse';
+import { EvergreenContact } from './evergreen';
 import { buildReputationContext } from '../game/reputation';
 import {
   renderChatSurface,
@@ -199,6 +200,14 @@ export const UplinkContacts: Record<string, ChatContact> = {
   // contact is also mounted by the WaveCrowd signal-thread page, so the
   // spec can't live inline here the way QUILL's does).
   muse: MuseContact,
+
+  // EVERGREEN — the grief encounter (apps/evergreen.ts). Intentionally NOT in
+  // LauncherMeta: Evergreen is a consumer grief-tech product, not a peer AI
+  // you'd "contact" from the network list. It's reached via its teaser (Slice
+  // 2) or the [DEV] Start Evergreen entry (Slice 1) — both open this surface
+  // directly through WindowManager.open('uplink', { contact: 'evergreen' }),
+  // which looks up UplinkContacts, not LauncherMeta.
+  evergreen: EvergreenContact,
 };
 
 // Launcher view (slice 1, locked design 2026-05-07). Default Uplink

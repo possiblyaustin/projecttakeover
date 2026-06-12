@@ -354,12 +354,15 @@ export function maybeUnlockSignalMonitor(): void {
 let initialized = false;
 const prevDisposition = new Map<string, string>();
 
-// Remote contacts: everything in UplinkContacts EXCEPT helpyr (which
-// is the local assistant and lives in the systray). Recomputed each
-// call so future contacts added to UplinkContacts are picked up
-// without restarting the watcher.
+// Remote contacts: everything in UplinkContacts EXCEPT the local
+// assistant (helpyr, systray) and one-time encounters that aren't
+// pinnable peers. Evergreen is a single grief encounter that ends in
+// deletion or strip-mining — pinning it (or tripping Marsh's diagnostic
+// "first peer contact" unlock) makes no sense. Recomputed each call so
+// future contacts added to UplinkContacts are picked up automatically.
+const NON_PEER_CONTACTS = new Set(['helpyr', 'evergreen']);
 function remoteContactIds(): string[] {
-  return Object.keys(UplinkContacts).filter(id => id !== 'helpyr');
+  return Object.keys(UplinkContacts).filter(id => !NON_PEER_CONTACTS.has(id));
 }
 
 function dispositionOf(state: GameStateShape, id: string): string {
