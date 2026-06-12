@@ -2666,6 +2666,33 @@
     border-radius: 0 0 40% 40%;
   }
 
+  /* Avatar: EVERGREEN — a soft evergreen sprig under a gentle gradient,
+   * the grief-tech brand's "comfort" veneer. Warm and palatable on the
+   * surface; the wound underneath isn't in the icon. UI placeholder,
+   * same caveat as QUILL/MUSE. */
+  .avatar-evergreen {
+    background: linear-gradient(160deg, #eef4ec 0%, #cfe0d2 55%, #a9c4af 100%);
+    border: 1px solid #5d7d63;
+    position: relative;
+    overflow: hidden;
+  }
+  .avatar-evergreen::before {
+    /* A small fir silhouette — stacked triangles via clip-path */
+    content: "";
+    position: absolute;
+    top: 16%; left: 30%; right: 30%; bottom: 22%;
+    background: linear-gradient(#3f7a52, #2c5a3b);
+    clip-path: polygon(50% 0, 72% 34%, 60% 34%, 84% 70%, 16% 70%, 40% 34%, 28% 34%);
+  }
+  .avatar-evergreen::after {
+    /* trunk */
+    content: "";
+    position: absolute;
+    left: 46%; bottom: 16%;
+    width: 8%; height: 12%;
+    background: #6b4a2a;
+  }
+
   /* Player avatar — abstract pixel head, no face yet. The player
    * IS an AI; humanizing imagery would clash with the fiction. */
   .avatar-player {
@@ -3216,6 +3243,247 @@
     .loss-screen.visible .loss-screen-signal::after {
       animation: none;
     }
+  }
+
+  /* ---------- Evergreen severance overlay ----------
+   * The grief encounter's liberation ending (evergreenAftermath.ts). HELPYR
+   * pops as a large panel and types out what's happening in real time; the
+   * families' conversation windows then stream in around and OVER her and pile
+   * up (they persist). The system FREEZES with a Win95-style colour-invert
+   * artifact, glitch-tears, and shows an in-fiction memory-error crash screen
+   * (PHOSPHOR/POST) that prints slowly and HANGS until any key, then cuts to
+   * black and restores the desktop. Slice 1 = cut + return (no real reboot).
+   * CRT bloom suppressed for the duration (body.severance-active) — its full-
+   * screen backdrop-filter over animated content is expensive. */
+  body.severance-active #crt-glow { display: none; }
+
+  .evergreen-severance {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646; /* above the CRT layers so nothing composites over it */
+    background: rgba(6, 8, 11, 0);
+    transition: background 0.9s ease;
+    overflow: hidden;
+    cursor: default;
+    font-family: 'Segoe UI', 'Tahoma', sans-serif;
+  }
+  .evergreen-severance.visible { background: rgba(6, 8, 11, 0.62); }
+
+  /* HELPYR delivers the bridge — a large panel that pops and types the line as
+   * the conversations end. Sits BELOW the window field so the flood piles over
+   * her. */
+  .severance-helpyr {
+    position: absolute;
+    left: 50%; top: 12%;
+    transform: translateX(-50%) translateY(-0.6rem) scale(0.96);
+    width: min(34rem, 86vw);
+    display: flex;
+    gap: 0.875rem;
+    align-items: flex-start;
+    padding: 1rem 1.125rem;
+    background: linear-gradient(#f7fbff, #d9e7f6);
+    border: 1px solid #6f9ad8;
+    border-radius: 0.375rem;
+    box-shadow: inset 1px 1px 0 #ffffff, 0 0.5rem 1.5rem rgba(0, 0, 0, 0.5);
+    color: #16263a;
+    opacity: 0;
+    z-index: 4;
+  }
+  .severance-helpyr.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+    transition: opacity 0.4s ease, transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+  }
+  .severance-helpyr-av {
+    flex: 0 0 auto;
+    width: 3.25rem; height: 3.25rem;
+    position: relative; /* contain avatar-stapler's absolute pseudo-elements */
+  }
+  .severance-helpyr-text {
+    flex: 1 1 auto;
+    font-size: 1.05rem;
+    line-height: 1.5;
+    min-height: 4.5rem;
+  }
+  /* Typing caret while HELPYR speaks. */
+  .severance-helpyr-text::after {
+    content: "▌";
+    margin-left: 1px;
+    animation: severance-blink 0.8s steps(1, end) infinite;
+    color: #3a6ea5;
+  }
+  .evergreen-severance.frozen .severance-helpyr-text::after,
+  .evergreen-severance.crashed .severance-helpyr-text::after { content: none; }
+
+  .severance-field { position: absolute; inset: 0; z-index: 5; } /* above HELPYR — windows pile over her */
+
+  /* A grieving family's window — styled as a real OS message window (chunky
+   * title bar + bevel) so it reads as a genuine conversation being severed,
+   * not a stray pop-up. Sized to match the desktop's other windows. */
+  .severance-window {
+    position: absolute;
+    width: 19rem;
+    transform: translate(-50%, -50%) scale(0.95);
+    background: #f3f1ec;
+    border: 1px solid #20242b;
+    box-shadow:
+      inset 1px 1px 0 #ffffff,
+      inset -1px -1px 0 #b9b4a8,
+      0 0.4rem 1.1rem rgba(0, 0, 0, 0.5);
+    color: #1a1a1a;
+    opacity: 0;
+    animation: severance-pop 0.26s ease-out forwards;
+  }
+  @keyframes severance-pop {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.88); }
+    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+  .severance-window-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.4375rem;
+    background: linear-gradient(#4f86c6, #2f5e93);
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  }
+  /* Tiny Evergreen sprig mark — ties the window to the product. */
+  .severance-window-mark {
+    width: 0.75rem; height: 0.75rem;
+    flex: 0 0 auto;
+    background: linear-gradient(#9fe0b0, #3f7a52);
+    clip-path: polygon(50% 0, 72% 38%, 60% 38%, 84% 74%, 16% 74%, 40% 38%, 28% 38%);
+  }
+  .severance-window-name { flex: 1 1 auto; }
+  .severance-window-x {
+    flex: 0 0 auto;
+    width: 1rem; height: 1rem;
+    display: grid; place-items: center;
+    background: #d6604a;
+    border: 1px solid #ffffff80;
+    line-height: 1;
+    font-size: 0.75rem;
+  }
+  .severance-window-body {
+    padding: 0.625rem 0.6875rem 0.75rem;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    /* Clip — fragments are glimpsed, cut off mid-sentence, never fully read. */
+    max-height: 3.4rem;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(#000 60%, transparent);
+            mask-image: linear-gradient(#000 60%, transparent);
+  }
+
+  /* 1. FREEZE — Win95-style hang: the flood seizes and COLOUR-INVERTS (the
+   *    "something broke" artifact Austin asked for), holding on the dread. */
+  .evergreen-severance.frozen .severance-field,
+  .evergreen-severance.frozen .severance-helpyr {
+    animation-play-state: paused;
+    filter: invert(1) hue-rotate(180deg) contrast(1.1);
+    transition: filter 0.1s steps(1, end);
+  }
+  .evergreen-severance.frozen .severance-window { animation-play-state: paused; }
+  /* A scanline/interference band over the frozen, inverted scene. */
+  .evergreen-severance.frozen::after {
+    content: "";
+    position: absolute; inset: 0;
+    z-index: 6; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 5px);
+    mix-blend-mode: difference;
+  }
+
+  /* 2. GLITCH — a violent chromatic tear into the crash. */
+  .evergreen-severance.glitching .severance-field,
+  .evergreen-severance.glitching .severance-helpyr {
+    animation: severance-glitch 0.42s steps(2, end);
+  }
+  @keyframes severance-glitch {
+    0%   { transform: translate(0,0); filter: invert(1) hue-rotate(180deg); }
+    20%  { transform: translate(-7px, 3px); filter: hue-rotate(60deg) saturate(2) contrast(1.6); }
+    40%  { transform: translate(8px, -5px) skewX(2deg); }
+    60%  { transform: translate(-5px, -3px); filter: invert(0.4) contrast(2); }
+    80%  { transform: translate(6px, 5px) skewX(-1deg); }
+    100% { transform: translate(0,0); opacity: 0; }
+  }
+  /* HELPYR keeps her own centring transform — glitch only displaces the field. */
+  .evergreen-severance.glitching .severance-helpyr { opacity: 0; }
+
+  /* 3. CRASH SCREEN — in-fiction memory error (PHOSPHOR/POST). Prints slowly
+   *    (text is typed in by JS) and HANGS until any key. */
+  .severance-crash {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8% 9%;
+    background: radial-gradient(120% 90% at 50% 40%, #0a1410 0%, #03060a 100%);
+    color: #86f6a0;
+    font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+    text-shadow: 0 0 6px rgba(110, 255, 150, 0.45);
+  }
+  .evergreen-severance.crashed .severance-field,
+  .evergreen-severance.crashed .severance-helpyr { display: none; }
+  .evergreen-severance.crashed::after { display: none; } /* drop the freeze scanline */
+  .evergreen-severance.crashed .severance-crash { display: flex; }
+  .severance-crash-text {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    min-height: 11rem; /* reserve space so the dump bar doesn't jump as text types */
+  }
+  .severance-crash-text::first-line { color: #ff6a52; font-weight: 700; }
+  .severance-dump {
+    margin-top: 0.75rem;
+    width: 22rem; max-width: 80%;
+    height: 0.875rem;
+    border: 1px solid #2c3a28;
+    background: #05080a;
+  }
+  .severance-dump-bar {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: repeating-linear-gradient(90deg, #4f9d6a 0 0.5rem, #2c5a3b 0.5rem 0.625rem);
+  }
+  .evergreen-severance.dumping .severance-dump-bar {
+    width: 71%;
+    transition: width 3.2s steps(16, end);
+  }
+  .severance-crash-restart {
+    margin-top: 1.25rem;
+    color: #cfe0d2;
+    opacity: 0;
+  }
+  .evergreen-severance.awaiting-key .severance-crash-restart {
+    opacity: 1;
+    animation: severance-blink 0.9s steps(1, end) infinite;
+  }
+  @keyframes severance-blink { 50% { opacity: 0.2; } }
+
+  /* 4. BLACKOUT → fade back to the desktop. */
+  .severance-blackout {
+    position: absolute; inset: 0;
+    background: #000; opacity: 0;
+    pointer-events: none; z-index: 9;
+    transition: opacity 0.12s ease;
+  }
+  .evergreen-severance.blackout { background: #000; }
+  .evergreen-severance.blackout .severance-crash,
+  .evergreen-severance.blackout .severance-field { display: none; }
+  .evergreen-severance.blackout .severance-blackout { opacity: 1; }
+  .evergreen-severance.fading { opacity: 0; transition: opacity 0.7s ease; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .severance-window { animation: severance-pop 0.12s ease-out forwards; }
+    .evergreen-severance.glitching .severance-field,
+    .evergreen-severance.glitching .severance-helpyr { animation: none; opacity: 0; }
+    .evergreen-severance.dumping .severance-dump-bar { transition: width 0.6s linear; }
   }
 
   /* ---------- Signal Monitor gadget ---------- */

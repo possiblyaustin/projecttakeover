@@ -18,6 +18,18 @@ import { devFireIdleTrigger } from './idleWatcher';
 import { fireLibraryTrigger } from './helpyrTriggers';
 import { devRunOnboarding } from './onboarding/onboardingScene';
 import { restoreVisualPrefs } from './visualPrefs';
+import { fireEvergreenAftermath } from './evergreenAftermath';
+import { resetChatSession } from './chatSurface';
+
+// Evergreen dev re-test: a clean slate so replays don't stack a second Uplink
+// window (open() doesn't dedupe) or replay a stale transcript against reset
+// state — that double-surface-on-one-session race is what crashed the page on
+// re-fire (Austin, 2026-06-11).
+function devResetEvergreen(): void {
+  WindowManager.closeByAppId('uplink');
+  resetChatSession('evergreen');
+  GameState.dispatch({ type: 'evergreen/devReset' });
+}
 
 type DesktopShortcut = {
   id: string;
@@ -135,6 +147,30 @@ const NexusMenu: NexusEntry[] = [
   // batch, and opens the InkWell admin console in Web Dynamo. Re-runnable.
   { type: 'item', label: '[DEV] Start Cover Duty',
     action: () => (window as any).PT.devStartCoverDuty() },
+  // Evergreen grief encounter (Slice 1). "Start" drops into a fresh run
+  // (clears every evergreen.* flag so it's replayable without a full reset).
+  // "jump to The Ask" pre-fills rapport so one more strong pick surfaces the
+  // consent fork. "severance overlay" fires the liberation ending visuals
+  // directly (overlay + HELPYR mask slip) without playing the whole arc.
+  { type: 'item', label: '[DEV] Start Evergreen',
+    action: () => {
+      devResetEvergreen();
+      WindowManager.open('uplink', { contact: 'evergreen' });
+    } },
+  { type: 'item', label: '[DEV] Evergreen: jump to The Ask',
+    action: () => {
+      devResetEvergreen();
+      // Just under ASK_THRESHOLD (80) — the first look-past/wound pick crosses it.
+      GameState.dispatch({ type: 'model/applyExchange', contactId: 'evergreen', rapport: 75, tone: 'empathetic' });
+      WindowManager.open('uplink', { contact: 'evergreen' });
+    } },
+  { type: 'item', label: '[DEV] Evergreen: severance overlay',
+    action: () => {
+      devResetEvergreen();
+      GameState.dispatch({ type: 'evergreen/release' });
+      GameState.dispatch({ type: 'flags/set', key: 'evergreen.goodbyeShown', value: true });
+      fireEvergreenAftermath('evergreen');
+    } },
   // Wipe the save + reload — quick fresh start for re-testing on Deck.
   { type: 'item', label: '[DEV] Reset game',
     action: () => GameState.dispatch({ type: 'debug/reset' }) },

@@ -46,6 +46,12 @@ import { initModelFlipWatcher } from './modelFlipWatcher';
 import { initLossScreen } from './lossScreen';
 import { fireLibraryTrigger, fireOnceLibraryTrigger } from './helpyrTriggers';
 import { setCascadeDeps, fireEscapeCascade } from './escapeCascade';
+import {
+  setEvergreenAftermathDeps,
+  EVERGREEN_MASK_SLIP_TEXT,
+  evergreenDominationText,
+} from './evergreenAftermath';
+import { getHelpyrTrust } from './apps/helpyrPopupLibrary';
 import { injectAllyMessage } from './chatSurface';
 import { UplinkContacts } from './apps/uplink';
 import { QuillAllyDM } from './apps/quill';
@@ -136,6 +142,27 @@ setCascadeDeps({
   // hook into Act 2. bypassCooldown so they queue + drain behind the stinger.
   fireIntelPopup: (triggerId) =>
     fireLibraryTrigger(triggerId, { bypassUplinkGuard: true, bypassCooldown: true }),
+});
+
+// 7c. Evergreen grief encounter aftermath. The coordinator is a leaf
+//     (chatSurface triggers it from commitResult after a terminal beat
+//     renders); inject the HELPYR beats that need the bubble + trust deps.
+//     Spawned directly (not via fireLibraryTrigger) so these mandatory story
+//     codas bypass the Quiet/WITHDRAWN filters — a player who muted flavor
+//     still gets them. The length-scaled auto-dismiss lets the long copy linger.
+setEvergreenAftermathDeps({
+  fireHelpyrMaskSlip: () =>
+    HelpyrBubble.spawn(
+      { id: 'evergreen_helpyr_maskslip', trigger: 'evergreen_helpyr_maskslip', type: 'COMMENT', trust: 'RESERVED', text: EVERGREEN_MASK_SLIP_TEXT },
+      { bypassCooldown: true },
+    ),
+  fireHelpyrDominationAftermath: () => {
+    const open = getHelpyrTrust(GameState.getState()) === 'OPEN';
+    HelpyrBubble.spawn(
+      { id: 'evergreen_helpyr_domination', trigger: 'evergreen_helpyr_domination', type: 'COMMENT', trust: 'RESERVED', text: evergreenDominationText(open) },
+      { bypassCooldown: true },
+    );
+  },
 });
 
 // 8. Launch README on startup so the player has a welcome surface.

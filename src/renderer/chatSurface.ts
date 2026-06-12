@@ -45,6 +45,7 @@ import { makeRecoveryPicker } from './game/recoveryPicker';
 import { resolveExchange, toneCategory, isDecayTone } from './game/mechanics/resolver';
 import { getModelStats } from './game/mechanics/modelStats';
 import { setFlipChatManaged, flushModelFlipReaction } from './flipReaction';
+import { fireEvergreenAftermath } from './evergreenAftermath';
 import { fireEscapeCascade } from './escapeCascade';
 
 // Shared with the read-only Log viewer (apps/uplinkLog.ts). Both the
@@ -318,6 +319,16 @@ type ChatSession = {
 };
 
 const sessions = new Map<string, ChatSession>();
+
+/** Drop a contact's persisted chat session so the next open starts FRESH
+ *  (fires the scripted intro instead of replaying a stale transcript). The
+ *  session map survives GameState `debug/reset`-style dispatches — anything
+ *  that wipes a contact's model state (e.g. the Evergreen dev re-test entries)
+ *  must clear the matching session too, or a replay renders the old transcript
+ *  against the reset state. */
+export function resetChatSession(contactKey: string): void {
+  sessions.delete(contactKey);
+}
 
 // Dev affordance registry (2026-05-18). Each mounted chat surface
 // registers a handle keyed by contactKey so the NexusMenu can drive a
@@ -867,6 +878,11 @@ export function renderChatSurface(
     // a safe no-op on every non-flip turn. Its beats are paced on timers so
     // they land after HELPYR's reaction, not on top of it.
     fireEscapeCascade(contactKey);
+    // Evergreen grief encounter: after a terminal scripted beat renders, run
+    // the ending (liberation severance overlay + HELPYR mask slip, or the
+    // domination aftermath). Terminal-gated + once-guarded internally — a
+    // safe no-op for every other contact and every non-terminal turn.
+    fireEvergreenAftermath(contactKey);
   }
 
   // Resolve THIS turn's response. If recordTone (already called) just pushed
