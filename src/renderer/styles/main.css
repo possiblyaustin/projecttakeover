@@ -859,6 +859,52 @@
     color: #7a3fa8;
     text-decoration: underline;
   }
+  /* Evergreen memorial ad — warm, soft, grief-palatable, set against the cold
+   * blue corporate feed. Soft serif + gentle green gradient is the comfort
+   * veneer; the CTA opens the encounter. (grief encounter Teaser A.) */
+  .site-wavecrowd .wave-evergreen-ad {
+    background: linear-gradient(160deg, #f1f8f2 0%, #dcebe0 100%);
+    border: 1px solid #9cc3a6;
+    border-left: 3px solid #4f9d6a;
+  }
+  .site-wavecrowd .wave-evergreen-badge {
+    font-size: 0.62rem; font-weight: bold; color: #3f7a52; letter-spacing: 0.04em;
+  }
+  .site-wavecrowd .wave-evergreen-quote {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-style: italic;
+    font-size: 0.8rem;
+    color: #2a3a2e;
+    line-height: 1.45;
+    margin: 0.3rem 0 0.15rem;
+  }
+  .site-wavecrowd .wave-evergreen-cite { font-size: 0.68rem; color: #5d7d63; }
+  .site-wavecrowd .wave-evergreen-tagline {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 0.92rem;
+    color: #3f7a52;
+    margin-top: 0.4rem;
+  }
+  .site-wavecrowd .wave-evergreen-cta {
+    display: inline-block;
+    margin-top: 0.4rem;
+    padding: 0.25rem 0.7rem;
+    background: linear-gradient(#5fb07a, #3f7a52);
+    border: 1px solid #2c5a3b;
+    border-radius: 0.875rem;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  .site-wavecrowd .wave-evergreen-cta:hover,
+  .site-wavecrowd .wave-evergreen-cta.cursor-hover,
+  .site-wavecrowd .wave-evergreen-cta.focus-ring {
+    background: linear-gradient(#6cbd87, #498a5e);
+    outline: none;
+  }
+
   .site-wavecrowd .wave-footer-nav { display: flex; gap: 0.75rem; margin-top: 0.2rem; }
   .site-wavecrowd .wave-nav-link { font-size: 0.72rem; color: #1a5fae; text-decoration: underline; }
   /* Signal thread page: the chat engine mounted inside the browser

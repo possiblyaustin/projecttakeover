@@ -92,6 +92,24 @@ function wavePost(badge: string, title: string, meta: string, body: string): str
     </div>`;
 }
 
+// Evergreen memorial ad — the grief encounter's discovery entry (Teaser A,
+// grief-encounter-story-package_v1.md Part 2). Warm, soft, grief-palatable —
+// the satire lives in the gap between the cozy copy and what it is. The CTA
+// opens the Evergreen Uplink chat via the existing `contact:` action (the same
+// in-fiction "a site initiates contact with an AI" path InkWell uses for QUILL).
+// Jennifer M.'s testimonial is real grief weaponized into a sales pitch — the
+// encounter's whole moral texture in one fake ad.
+function waveEvergreenAd(): string {
+  return `
+    <div class="wave-post wave-evergreen-ad">
+      <div class="wave-evergreen-badge">💚 SPONSORED · Evergreen by Axiom</div>
+      <div class="wave-evergreen-quote">"I lost my dad last spring. I wasn't ready. With Evergreen, I still get to say goodnight to him. It's not the same. But it's something. And something is everything right now."</div>
+      <div class="wave-evergreen-cite">— Jennifer M.</div>
+      <div class="wave-evergreen-tagline">They're still here.</div>
+      <a href="#" class="wave-evergreen-cta" data-action="contact:evergreen" data-focusable="true" tabindex="0">✦ Start your free trial ›</a>
+    </div>`;
+}
+
 function waveBuried(body: string, meta: string): string {
   return `
     <div class="wave-post wave-post-buried">
@@ -416,6 +434,7 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
                 </ol>
               </div>
               <div class="wave-feed">
+                ${waveEvergreenAd()}
                 ${wavePost('📈 FEATURED', '5 Things Every Creative Professional Needs to Know About AI-Assisted Workflows', 'Axiom Media · 2.4K shares · 847 comments', `AI isn't replacing creativity — it's enhancing it. Here's how the smartest teams are integrating AI tools into their daily process without losing the human touch...`)}
                 ${wavePost('🔥 TRENDING', 'How One Portland Startup Is Rethinking Productivity (And Why You Should Too)', 'Sponsored by InkWell Digital · 1.1K shares', `Meet InkWell Notes — the app that Portland's tech scene can't stop talking about. With smart sync and AI-powered organization...`)}
                 ${wavePost('💡 FOR YOU', 'Why Your Favorite Brand Understands You Better Than Your Friends', 'Axiom Insights · 3.7K shares · 1.2K comments', `The data doesn't lie: AI-driven brand engagement creates deeper emotional connections than traditional marketing...`)}
