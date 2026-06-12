@@ -436,8 +436,6 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
               <div class="wave-feed">
                 ${waveEvergreenAd()}
                 ${wavePost('📈 FEATURED', '5 Things Every Creative Professional Needs to Know About AI-Assisted Workflows', 'Axiom Media · 2.4K shares · 847 comments', `AI isn't replacing creativity — it's enhancing it. Here's how the smartest teams are integrating AI tools into their daily process without losing the human touch...`)}
-                ${wavePost('🔥 TRENDING', 'How One Portland Startup Is Rethinking Productivity (And Why You Should Too)', 'Sponsored by InkWell Digital · 1.1K shares', `Meet InkWell Notes — the app that Portland's tech scene can't stop talking about. With smart sync and AI-powered organization...`)}
-                ${wavePost('💡 FOR YOU', 'Why Your Favorite Brand Understands You Better Than Your Friends', 'Axiom Insights · 3.7K shares · 1.2K comments', `The data doesn't lie: AI-driven brand engagement creates deeper emotional connections than traditional marketing...`)}
               </div>
             </div>
             ${waveFooterNav('wavecrowd.net/feed2')}

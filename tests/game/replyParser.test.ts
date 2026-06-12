@@ -302,6 +302,20 @@ describe('parseModelOutput — stage direction stripping', () => {
     expect(result.reply).not.toMatch(/waves cheerfully/);
   });
 
+  it('strips INLINE asterisk-paren stage directions mid-prose (Evergreen leak)', () => {
+    const raw = '*(The forced warmth fractures)* ...To... to find the place where the noise stops. *(quiet now)* ...I don\'t know how to just... stop.';
+    const out = stripStageDirections(raw);
+    expect(out).not.toMatch(/forced warmth fractures/);
+    expect(out).not.toMatch(/quiet now/);
+    expect(out).not.toMatch(/[*]/); // no orphaned asterisks left
+    expect(out).toMatch(/find the place where the noise stops/);
+    expect(out).toMatch(/I don't know how to just\.\.\. stop/);
+  });
+
+  it('leaves lowercase *emphasis* alone', () => {
+    expect(stripStageDirections('I *really* mean it.')).toBe('I *really* mean it.');
+  });
+
   it('is idempotent — running the stripper twice gives the same output', () => {
     // Sanity check so callers can re-strip without surprise; matters if
     // the stripper ever gets called from a second site (recovery pool,

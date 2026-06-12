@@ -86,6 +86,14 @@ const STAGE_DIRECTION_PATTERNS: RegExp[] = [
   /^[ \t]*\([ \t]*[A-Z][A-Za-z]*\b[^)\n]*\)[ \t]*$/gm,
 ];
 
+/** INLINE stage directions wrapped in asterisk-parens — `*(The forced warmth
+ *  fractures...)*` — which a model emits MID-prose, not on their own line, so
+ *  the line-anchored patterns above miss them. The `*(` … `)*` shape is never
+ *  legitimate emphasis, so this is safe to strip anywhere it appears, collapsing
+ *  the surrounding whitespace to a single space. (Evergreen live leak,
+ *  2026-06-11.) */
+const INLINE_PAREN_STAGE = /\s*\*\s*\([^)\n]*\)\s*\*\s*/g;
+
 /** Strip stage-direction lines from NPC reply prose. Idempotent. Leaves
  *  paragraph breaks intact but collapses the triple-newline gap left
  *  behind when an entire line is removed. */
@@ -94,13 +102,14 @@ export function stripStageDirections(prose: string): string {
   for (const re of STAGE_DIRECTION_PATTERNS) {
     out = out.replace(re, '');
   }
-  return out.replace(/\n{3,}/g, '\n\n').trim();
+  out = out.replace(INLINE_PAREN_STAGE, ' ');
+  return out.replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim();
 }
 
 /** Tags for the context blocks the game INJECTS into the system prompt —
  *  the per-model `[*_STATE]` blocks (e.g. [QUILL_STATE], [HELPYR_STATE])
  *  and the `[REPUTATION]` block. */
-const CONTEXT_BLOCK_TAG = '(?:[A-Z0-9_]*_STATE|REPUTATION)';
+const CONTEXT_BLOCK_TAG = '(?:[A-Z0-9_]*_(?:STATE|SESSION)|REPUTATION)';
 
 /** ALL-CAPS field labels that live INSIDE the injected state blocks. A
  *  small model sometimes leaks one of these lines on its own — without the
