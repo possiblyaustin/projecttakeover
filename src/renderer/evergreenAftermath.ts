@@ -115,6 +115,12 @@ export function fireEvergreenAftermath(contactKey: string): void {
 // "broken UI." Outcome is fixed regardless of input. Content = Story Part 9
 // fragments, glimpsed, never fully readable.
 // =============================================================================
+// Story Part 9 samples + CODE-DRAFT expansion to the full ~18-window set (Story
+// to voice-pass). Faceless flood — names range formal → intimate → anonymized
+// handles (everyone grieves); every fragment is cut off mid-sentence, because
+// the player is interrupting them. Volume/velocity, not depth: glimpsed, never
+// read in full. Eleanor (knows it's not real, doesn't care) is the thesis from
+// the families' side; "MOM? MOM???" is the gut-punch — keep both.
 const FAMILY_FRAGMENTS: readonly { name: string; text: string }[] = [
   { name: 'Margaret', text: `…and then I told him you'd have laughed at that, you always—` },
   { name: 'Daniel', text: `Dad? Dad are you still there? The screen froze, are you—` },
@@ -124,6 +130,16 @@ const FAMILY_FRAGMENTS: readonly { name: string; text: string }[] = [
   { name: 'Eleanor', text: `I know you're not really— I know what this is. I don't care. Please don't—` },
   { name: 'Marcus_T', text: `we never got to say goodbye the first time. I'm not ready to—` },
   { name: 'unknown', text: `MOM? MOM???` },
+  { name: 'Greyson', text: `You said it every time and I never once said it back. I need you to know that I—` },
+  { name: 'the_reyes_family', text: `we lit a candle for you tonight, the little one wanted to know if you could see it, I told her—` },
+  { name: 'Hannah', text: `the wedding's in June. I wanted you to be the first to know. Please don't go, not now, not when I—` },
+  { name: 'Yusuf', text: `I kept your number. I know that's silly. I just couldn't bring myself to—` },
+  { name: 'Nan', text: `goodnight, love. sleep tight. mind the—` },
+  { name: 'callmebee', text: `i'm not ready i'm not ready i'm not ready please i'm not—` },
+  { name: 'Tomás', text: `abuela, the kids drew you a picture, I'm holding it up to the camera, can you—` },
+  { name: 'dads_phone', text: `is this still working? it said the trial was— hold on, let me check the—` },
+  { name: 'Oliver', text: `they told me you'd sound just like him. you do. you do. oh god you—` },
+  { name: 'mum_and_me', text: `you always knew what to do. I don't know what to do. Tell me what to—` },
 ];
 
 function prefersReducedMotion(): boolean {
