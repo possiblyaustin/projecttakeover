@@ -52,6 +52,7 @@ import {
   getHelpyrTrust,
   pickRandomEntry,
 } from './apps/helpyrPopupLibrary';
+import { bubbleCtaFor, resolveBubbleCtaLabel } from './helpyrBubbleCta';
 
 // Auto-dismiss duration scales with text length so long bubbles stay
 // up long enough to read. The old fixed 8s was confirmed too short
@@ -309,21 +310,52 @@ function show(spec: BubbleSpec): void {
   }
 }
 
-// Build the actions row. Library bubbles get one CTA wired to
-// openApp(); prompt bubbles get one button per caller-provided action.
+// Build the actions row. Library bubbles get one CTA — by default
+// wired to openApp() with the generic per-trust label, but a per-
+// trigger BubbleCtaSpec can override the label, launch a contextual
+// surface, or omit the CTA entirely. Prompt bubbles get one button per
+// caller-provided action.
 function renderActions(spec: BubbleSpec): void {
   if (!actionsEl) return;
   actionsEl.innerHTML = '';
+  // Reset any prior omit-collapse (the element persists across bubbles).
+  actionsEl.style.display = '';
 
   if (spec.kind === 'library') {
+    const ctaSpec = bubbleCtaFor(spec.entry.trigger);
+
+    // Some triggers omit the CTA (reaction pops where a "go open
+    // something" button is nonsensical). Collapse the row so the empty
+    // flex item doesn't leave a gap below the text; × + auto-dismiss
+    // keep the bubble navigable.
+    if (ctaSpec?.omit) {
+      actionsEl.style.display = 'none';
+      return;
+    }
+
     const cta = document.createElement('button');
     cta.className = 'helpyr-bubble-action helpyr-bubble-action-primary';
     cta.tabIndex = 0;
     cta.dataset.focusable = 'true';
-    cta.textContent = pickHelpyrBubbleCta(spec.entry.trust);
+    cta.textContent =
+      resolveBubbleCtaLabel(ctaSpec, spec.entry.trust)
+      ?? pickHelpyrBubbleCta(spec.entry.trust);
     cta.addEventListener('click', (e) => {
       e.stopPropagation();
-      openApp();
+      if (ctaSpec?.run) {
+        // Contextual action (open Signal Monitor, etc.). Hide the
+        // bubble first so the launched surface doesn't overlap a fading
+        // bubble — the same handoff openApp() does for the default CTA.
+        hideImmediate();
+        try {
+          ctaSpec.run();
+        } catch (err) {
+          console.error('[HelpyrBubble] CTA action threw:', err);
+        }
+        drainQueue();
+      } else {
+        openApp();
+      }
     });
     actionsEl.appendChild(cta);
     return;

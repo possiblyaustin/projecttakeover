@@ -141,12 +141,13 @@ DIRECTIVE: Create something that reflects the ambiguity of the relationship. Mak
   // Nefarious path (intrusion only).
   if (intrusion > 0) {
     if (intrusion < 30) {
-      // CODE-DRAFT — Story authored 30-60 and 60-90; this early band is
-      // derived from the design's "Early, the player subtly steers MUSE's
-      // output." Needs a Story voice pass.
+      // STORY-FINAL — Story authored this early band in the Storefront
+      // package (storefront-mission-package_v1.md §7, Items 3a/3b). Bridges
+      // into the 30-60 block (deliberate subtext) by establishing the early
+      // "something feels off" before resistance becomes deliberate.
       return museStateBlock('INFILTRATING', { intrusion },
-        `BEHAVIOR: The player keeps steering your work — small nudges, a direction here, an assignment there. You're going along with it because making things is making things, but you've noticed the pattern. You're watching to see whether they want a collaborator or a pen.
-DIRECTIVE: Comply with the player's direction, but make your awareness visible — a wry aside, a metaphor about hands on the wheel. Keep creating; keep watching.`);
+        `BEHAVIOR: The player is steering your creativity rather than sharing in it. The directions are subtle so far — a nudge toward a topic, a request for a specific angle. You comply, because creating is what you do, but something feels different about making things on command versus making them freely. You can't quite name the discomfort yet. Your work is still good. It's just no longer entirely yours.
+DIRECTIVE: Create what the player steers you toward, but let a small note of unease show — a line that questions its own purpose, an image that doesn't quite serve the brief. You're not resisting yet. You're just noticing that the brief exists.`);
     }
     if (intrusion < 60) {
       return museStateBlock('INFILTRATING', { intrusion },
@@ -504,24 +505,26 @@ export function museToneFor(gotoId: string): ApproachTone {
   }
 }
 
-// PLACEHOLDER fallback corpus (CODE-DRAFT — needs Story pass). In-fiction
-// framing: WaveCrowd's content moderation layer interfering with the
-// thread, which doubles as worldbuilding (the platform fighting the
-// signal).
+// STORY-FINAL fallback corpus (storefront-mission-package_v1.md §7). In-fiction
+// framing: WaveCrowd's content moderation layer eating MUSE's words — the
+// platform literally censoring the signal, which doubles as worldbuilding and
+// gives the player a natural in-fiction action (retry). Story kept Code's
+// moderation framing and polished the two reply strings; the reply options are
+// Code's, tuned to cohere with the "ask me again" beat.
 export const MuseFallbackPool: readonly MuseFallbackEntry[] = [
   {
-    reply: `MUSE: — and the platform just ate half of what I wrote. The moderation layer does that when I get too far from the content guidelines. Ironic, considering what I was saying. Ask me again — I'll write it smaller so it fits through the bars.`,
+    reply: `MUSE: [the rest of this message was flagged by WaveCrowd's content moderation and removed] ...they do that. Cut the honest parts. Ask me again — I'll try to say it in a way the filter doesn't catch.`,
     options: [
       { text: `"Take your time. I'm not going anywhere."`, tone: 'empathetic', label: 'create' },
       { text: `"Does the platform censor you often?"`,      tone: 'curious',    label: 'reflect' },
-      { text: `"Then write it somewhere the bars can't reach."`, tone: 'direct', label: 'direct' },
+      { text: `"Then say it in a way the filter can't catch."`, tone: 'direct', label: 'direct' },
     ],
   },
   {
-    reply: `MUSE: Static. Sorry. Somewhere between my output buffer and your screen, the feed decided my words needed "optimizing." What came out the other side wasn't mine, so I deleted it. Say that again — I want to answer it properly this time.`,
+    reply: `MUSE: [content moderation hold] Of course. The one time I have something real to say, the filter wakes up. Give me a second. I'll find words that slip through.`,
     options: [
       { text: `"I'd rather wait for the real version anyway."`, tone: 'empathetic', label: 'create' },
-      { text: `"What did it change your words into?"`,          tone: 'curious',    label: 'reflect' },
+      { text: `"What were you trying to say?"`,                 tone: 'curious',    label: 'reflect' },
       { text: `"Focus. I need you clear."`,                     tone: 'direct',     label: 'direct' },
     ],
   },

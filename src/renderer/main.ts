@@ -56,6 +56,7 @@ import { injectAllyMessage } from './chatSurface';
 import { UplinkContacts } from './apps/uplink';
 import { QuillAllyDM } from './apps/quill';
 import { initCoverDutyWatcher } from './coverDutyWatcher';
+import { initStorefrontWatcher } from './storefrontWatcher';
 import { initMuseBridgeWatcher } from './museBridgeWatcher';
 import { selectBatchIds } from './game/missions/coverDuty';
 import { devRunOnboarding } from './onboarding/onboardingScene';
@@ -106,6 +107,11 @@ initLossScreen();
 //     once it's allied + the aftermath turn is consumed. Init after the flip
 //     watcher so the flip/aftermath beats settle first.
 initCoverDutyWatcher();
+
+// 7a-i. Storefront watcher (the nefarious mirror). Arms QUILL's Storefront
+//       mission once it's CONTROLLED + the aftermath turn is consumed. Mutually
+//       exclusive with Cover Duty (QUILL flips one way); harmless to init both.
+initStorefrontWatcher();
 
 // 7a-ii. MUSE bridge (Act 1 → Act 2 connective tissue). When Cover Duty
 //        completes, QUILL's bridge DM points at WaveCrowd and the
@@ -239,6 +245,19 @@ setTimeout(() => {
     GameState.dispatch({ type: 'flags/set', key: 'flip.quill.aftermath', value: true });
     GameState.dispatch({ type: 'mission/coverDuty/clear', contactId: 'quill' });
     GameState.dispatch({ type: 'mission/coverDuty/arm', contactId: 'quill', ticketIds: selectBatchIds() });
+    WindowManager.open('webDynamo', { url: 'inkwell-digital.com/admin' });
+  },
+  // Storefront mission (the nefarious mirror): flips QUILL controlled, clears
+  // any Cover Duty record so the admin console routes to the CMS, arms a fresh
+  // Storefront, resets the HELPYR start-pop guard, and opens the console.
+  devStartStorefront: () => {
+    GameState.dispatch({ type: 'model/applyExchange', contactId: 'quill', intrusion: 100 });
+    GameState.dispatch({ type: 'flags/set', key: 'flip.quill.scripted', value: true });
+    GameState.dispatch({ type: 'flags/set', key: 'flip.quill.aftermath', value: true });
+    GameState.dispatch({ type: 'mission/coverDuty/clear', contactId: 'quill' });
+    GameState.dispatch({ type: 'mission/storefront/clear', contactId: 'quill' });
+    GameState.dispatch({ type: 'flags/set', key: 'storefront.startSeen', value: false });
+    GameState.dispatch({ type: 'mission/storefront/arm', contactId: 'quill' });
     WindowManager.open('webDynamo', { url: 'inkwell-digital.com/admin' });
   },
   helpyr: {

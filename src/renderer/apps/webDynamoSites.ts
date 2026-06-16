@@ -13,6 +13,9 @@
 import type { AppContext } from '../types';
 import { GameState } from '../game/state';
 import { renderInkwellConsole } from './inkwellConsole';
+import { renderStorefrontConsole } from './storefrontConsole';
+import { renderStorefrontLayer } from '../storefrontOverlay';
+import { STOREFRONT_NEWS_AGGRESSIVE, STOREFRONT_NEWS_HOSTILE } from '../game/missions/storefront';
 import { renderChatSurface } from '../chatSurface';
 import { MuseContact } from './muse';
 import { fireOnceLibraryTrigger } from '../helpyrTriggers';
@@ -68,6 +71,14 @@ function inkNav(active: string): string {
   ).join('');
   return `<nav class="ink-nav"><span class="ink-nav-brand">InkWell Notes</span><span class="ink-nav-links">${links}</span></nav>`;
 }
+
+// Storefront (controlled-QUILL nefarious post-flip) layer. After an InkWell
+// public page renders, the overlay module (storefrontOverlay.ts) swaps in any
+// field the player has had QUILL rewrite — committed changes persist (state.
+// missions.storefront.quill) AND an in-flight preview draft overlays on top —
+// then mounts the preview bar / debrief panel when one is active. All copy goes
+// in via textContent ONLY (model/author-generated → never injected as markup).
+// `navigate` lets the overlay's Publish/Cancel/Done buttons drive the browser.
 
 // WaveCrowd page furniture — content package Part 3's header / post /
 // buried-post shapes. Normal posts get big engagement numbers; MUSE's
@@ -196,7 +207,7 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
     pages: [
       {
         label: 'Home',
-        render(c: HTMLElement) {
+        render(c: HTMLElement, browser?: BrowserPageContext) {
           c.classList.add('site-inkwell');
           c.innerHTML = `
             ${inkNav('home')}
@@ -218,12 +229,13 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
             <span style="font-size:10px;color:#999;">&nbsp; * Cloud sync requires InkWell Pro ($4.99/mo).</span></p>
             <p><button class="inkwell-support-btn" data-ink-field="cta_text" disabled>Download InkWell Notes — Free</button></p>
           `;
+          renderStorefrontLayer(c, browser?.navigate);
         }
       },
       {
         label: 'Reviews',
         path: 'reviews',
-        render(c: HTMLElement) {
+        render(c: HTMLElement, browser?: BrowserPageContext) {
           c.classList.add('site-inkwell');
           c.innerHTML = `
             ${inkNav('reviews')}
@@ -239,12 +251,13 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
             note apps to InkWell and haven't looked back. The search alone is worth
             it.&rdquo;<br><span style="color:#777;">— Priya K., Seattle</span></blockquote>
           `;
+          renderStorefrontLayer(c, browser?.navigate);
         }
       },
       {
         label: 'About',
         path: 'about',
-        render(c: HTMLElement) {
+        render(c: HTMLElement, browser?: BrowserPageContext) {
           c.classList.add('site-inkwell');
           c.innerHTML = `
             ${inkNav('about')}
@@ -259,12 +272,13 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
             <div class="hr-bar"></div>
             <p style="font-size:11px;color:#777;" data-ink-field="footer_company">&copy; 2007 InkWell Digital, Portland, OR</p>
           `;
+          renderStorefrontLayer(c, browser?.navigate);
         }
       },
       {
         label: 'Support',
         path: 'support',
-        render(c: HTMLElement) {
+        render(c: HTMLElement, browser?: BrowserPageContext) {
           c.classList.add('site-inkwell');
           c.innerHTML = `
             ${inkNav('support')}
@@ -287,24 +301,29 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
               (response time: 1&ndash;2 business days).
             </p>
           `;
+          renderStorefrontLayer(c, browser?.navigate);
         }
       }
     ]
   },
-  // InkWell support admin console — Cover Duty's home (post-flip missions
-  // slice 2). Gated: until QUILL is flipped + the mission is armed (the
-  // coverDuty.quill record exists, set by coverDutyWatcher), the path shows
-  // a staff-login wall with no way in. Once armed, it renders the helpdesk
-  // console (apps/inkwellConsole.ts). Registered as its own top-level key so
-  // resolveUrl's exact-match wins before path-peeling → stays single-page
-  // (no pager). Reachable via the "InkWell Admin" bookmark + QUILL's DM.
+  // InkWell support admin console — home for QUILL's post-flip missions.
+  // Gated: until QUILL is flipped + a mission is armed, the path shows a
+  // staff-login wall with no way in. Which console renders depends on HOW
+  // QUILL flipped (the two are mutually exclusive — QUILL flips one way):
+  //   - allied  → Cover Duty helpdesk (coverDuty.quill, apps/inkwellConsole.ts)
+  //   - controlled → Storefront CMS (storefront.quill, apps/storefrontConsole.ts)
+  // Registered as its own top-level key so resolveUrl's exact-match wins before
+  // path-peeling → stays single-page (no pager). Reachable via the "InkWell
+  // Admin" bookmark + QUILL's DM.
   'inkwell-digital.com/admin': {
     title: 'InkWell Support — Admin Console',
     pages: [
       {
-        render(c: HTMLElement) {
-          const armed = !!GameState.getState().missions.coverDuty['quill'];
-          if (!armed) {
+        render(c: HTMLElement, browser?: BrowserPageContext) {
+          const missions = GameState.getState().missions;
+          const storefrontArmed = !!missions.storefront['quill'];
+          const coverDutyArmed = !!missions.coverDuty['quill'];
+          if (!storefrontArmed && !coverDutyArmed) {
             c.classList.add('site-inkwell');
             c.innerHTML = `
               <h1>InkWell Support — Staff Login</h1>
@@ -320,6 +339,7 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
             `;
             return;
           }
+          if (storefrontArmed) { renderStorefrontConsole(c, browser); return; }
           renderInkwellConsole(c);
         }
       }
@@ -386,10 +406,27 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
               completion rates among PIPPA users, which is either a testament to
               AI-assisted learning or a sign that PIPPA is very good at nagging.</p>
               <p class="sw-foot">&mdash; SignalWatch Staff</p>`;
+          // Storefront (controlled-QUILL) defacement story. When the player's
+          // changes have crossed the aggressive/hostile threshold, the press
+          // reacts — and this is the freshest story, so it runs ABOVE the Act 1
+          // anomaly stinger. Story copy lives in the storefront module (authored,
+          // no LLM/user input → safe to template).
+          const sfTier = GameState.getState().missions.storefront['quill']?.newsTier ?? 'none';
+          const sfArticle =
+            sfTier === 'hostile' ? STOREFRONT_NEWS_HOSTILE :
+            sfTier === 'aggressive' ? STOREFRONT_NEWS_AGGRESSIVE : null;
+          const sfLead = sfArticle
+            ? `<div class="sw-tag">${sfArticle.tag}</div>
+               <h2>${sfArticle.headline}</h2>
+               <p class="sw-byline">SignalWatch Staff</p>
+               ${sfArticle.body.split('\n\n').map((p) => `<p>${p}</p>`).join('')}
+               <div class="hr-bar"></div>`
+            : '';
           c.innerHTML = `
             <h1>SIGNALWATCH</h1>
             <div class="tagline">Watching the wires so you don't have to.</div>
             <div class="hr-bar"></div>
+            ${sfLead}
             ${lead}
           `;
         }

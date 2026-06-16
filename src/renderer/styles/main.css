@@ -1098,6 +1098,52 @@
   }
   .ink-steer-btn { flex: 0 0 auto; margin-top: 0; }
 
+  /* Storefront CMS — controlled-QUILL mission. Reuses the ink-console chrome;
+   * the intensity accents + the on-site overlay are Storefront-specific. */
+  .sf-tier-subtle strong { color: #2a5499; }
+  .sf-tier-aggressive strong { color: #b5631b; }
+  .sf-tier-hostile strong { color: #a3271b; }
+
+  /* Corrupted field on the LIVE InkWell public pages — the clean template
+   * fighting the dirty copy (style guide: intentional tension). Subtle so it
+   * reads as "off", not vandalized. The PREVIEW variant (a draft not yet
+   * published) pulses so the player sees exactly what this draft touches. */
+  .site-inkwell .ink-field-corrupt { color: #7a1f16; }
+  .site-inkwell .ink-field-preview {
+    background: #fff6cf; box-shadow: 0 0 0 2px #e9c66a inset;
+    border-radius: 0.125rem; animation: sf-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes sf-pulse { 0%, 100% { box-shadow: 0 0 0 2px #e9c66a inset; } 50% { box-shadow: 0 0 0 2px #d99a2a inset; } }
+
+  /* On-site preview bar + debrief panel — mounted into the browser viewport on
+   * the real InkWell pages (storefrontOverlay.ts). Sticky-bottom so it stays
+   * reachable without covering the changed copy above it. */
+  .sf-overlay {
+    position: sticky; bottom: 0; z-index: 5; margin-top: 0.75rem;
+    padding: 0.5rem 0.625rem;
+    background: linear-gradient(to bottom, #2a3550, #1c2336); color: #eef2fb;
+    border-top: 2px solid #c2402f; border-radius: 0.25rem 0.25rem 0 0;
+    box-shadow: 0 -0.25rem 0.75rem rgba(0,0,0,0.35);
+  }
+  .sf-overlay-head { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.4375rem; }
+  .sf-overlay-tag {
+    font-size: 0.625rem; font-weight: bold; letter-spacing: 0.0625rem;
+    background: #c2402f; color: #fff; padding: 0.125rem 0.375rem; border-radius: 0.125rem;
+  }
+  .sf-overlay-tag.sf-tag-done { background: #5a6884; }
+  .sf-overlay-where { font-size: 0.75rem; color: #c7d2ea; }
+  .sf-overlay-label { font-size: 0.8125rem; color: #eef2fb; font-style: italic; padding: 0.25rem 0; }
+  .sf-overlay-steer { display: flex; gap: 0.3125rem; margin-bottom: 0.4375rem; }
+  .sf-overlay-input { flex: 1; min-width: 0; }
+  .sf-overlay-actions { display: flex; gap: 0.4375rem; flex-wrap: wrap; }
+  .sf-overlay-btn { margin-top: 0; }
+  /* Debrief: the consequence recap landed on the defaced site. */
+  .sf-debrief-recap {
+    margin: 0.25rem 0 0.5rem; padding: 0.4375rem 0.5rem;
+    background: rgba(0,0,0,0.22); border-radius: 0.1875rem;
+  }
+  .sf-debrief-line { font-size: 0.75rem; line-height: 1.5; color: #dde4f2; }
+
   /* Nexus home portal — the browser's landing page */
   .site-home h1 {
     font-family: Georgia, "Times New Roman", serif;

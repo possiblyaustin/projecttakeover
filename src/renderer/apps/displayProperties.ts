@@ -17,6 +17,7 @@ import {
   getGlowLevel, setGlowLevel,
   type Wallpaper, type GlowLevel,
 } from '../visualPrefs';
+import { fireOnceLibraryTrigger } from '../helpyrTriggers';
 
 const WALLPAPER_LABELS: Record<Wallpaper, string> = {
   dusk: 'Dusk',
@@ -101,5 +102,13 @@ export const DisplayPropertiesApp: AppDef = {
     }));
 
     sync();
+
+    // HELPYR's redecorating beat (Story — ui-fiction-package_v1.md §1). Fires
+    // once, the first time the player opens this panel. Slightly deferred so
+    // the window finishes opening before the bubble appears. Flag-gated, so a
+    // reopen never re-fires; warmth tier picked at fire time.
+    setTimeout(() => {
+      fireOnceLibraryTrigger('displayProperties.introSeen', 'display_properties_opened');
+    }, 900);
   },
 };

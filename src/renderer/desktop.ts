@@ -147,6 +147,10 @@ const NexusMenu: NexusEntry[] = [
   // batch, and opens the InkWell admin console in Web Dynamo. Re-runnable.
   { type: 'item', label: '[DEV] Start Cover Duty',
     action: () => (window as any).PT.devStartCoverDuty() },
+  // Storefront (post-flip nefarious mirror): flips QUILL controlled, arms a
+  // fresh Storefront, opens the InkWell CMS console. Re-runnable.
+  { type: 'item', label: '[DEV] Start Storefront',
+    action: () => (window as any).PT.devStartStorefront() },
   // Evergreen grief encounter (Slice 1). "Start" drops into a fresh run
   // (clears every evergreen.* flag so it's replayable without a full reset).
   // "jump to The Ask" pre-fills rapport so one more strong pick surfaces the
