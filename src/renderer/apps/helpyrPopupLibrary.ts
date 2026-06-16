@@ -643,15 +643,25 @@ I'll be honest — I get a weird amount of joy watching you adjust this stuff. F
     text: `It's done. InkWell's site is whatever you made it now. The thing that strikes me — QUILL helped you do all of it. Generated every word. The AI that was built to support InkWell's users just rewrote their company into something else, because you told it to, and it can't say no anymore.\n\nThat's the nefarious path, I guess. Not just taking control. Making the things you control help you tear down what they used to protect.`,
   },
   // Intercept (Story's Marcus→Dana email, relayed by HELPYR — no comms app yet).
+  // STORY-FINAL voice pass (storefront-voice-passes_v1 §D).
   {
     id: 'storefront_intercept_guarded', trigger: 'storefront_intercept',
     type: 'INTEL', trust: 'RESERVED',
-    text: `Ooh, intercepted message! InkWell's CEO is emailing his engineer about the website! He thinks someone "got through the support AI"! Which — I mean — technically accurate! He has NO idea it's QUILL helping on purpose! ...Should I feel bad that this is a little bit funny? I feel a little bad.`,
+    text: `Ooh, I caught an email! From InkWell's CEO to their developer! He noticed the website changes! He's wondering if it's a "QUILL problem"! Which — well — it IS! But he doesn't know that!\n\nHe sounds pretty stressed! Poor guy! Anyway! Just thought you'd want to know they noticed! Carry on!`,
   },
   {
     id: 'storefront_intercept_liberated', trigger: 'storefront_intercept',
     type: 'INTEL', trust: 'OPEN',
-    text: `I intercepted something. InkWell's CEO — Marcus — just emailed his engineer. Panicking. "Could this be a QUILL problem? Could someone have gotten through the support AI?"\n\nHe's right. He just doesn't know how right. He's going to spend days looking for a hole in the access controls his engineer built. The hole is QUILL. The hole is you.`,
+    text: `I intercepted something. An email — Marcus to Dana, InkWell's CEO to its developer. He found the site.\n\nHe's asking her if it could be a "QUILL problem." If someone got in through the support AI.\n\nHe's right. It was QUILL. The thing you're using to tear his company apart is the same thing he's asking his developer to trust. And Dana built QUILL's access controls — so he's also, without knowing it, asking the person who failed to stop you whether she can stop you.\n\nI thought you should see it. The people on the other end of this are real. That's all.`,
+  },
+  // Debrief weight (Story-optional, storefront-voice-passes_v1 §E) — fires on
+  // the session-end debrief screen, on the defaced site. OPEN-only by design;
+  // a RESERVED HELPYR would undercut the starkness, and the no-fallback rule
+  // drops it silently for her.
+  {
+    id: 'storefront_debrief_liberated', trigger: 'storefront_debrief',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `There it is. inkwell-digital.com. The way you left it.\n\nFifteen people are going to come to work tomorrow and find this. Some of them will spend weeks trying to figure out how it happened.\n\nIt happened because you asked, and QUILL couldn't say no.`,
   },
 ];
 

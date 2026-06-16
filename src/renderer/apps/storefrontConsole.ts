@@ -26,7 +26,7 @@ import {
   SECTION_LABELS, SECTION_BLURB,
   INTENSITY_LABELS, INTENSITY_BLURB, SECTION_PAGE_URL,
   buildStorefrontPrompt, parseFields, isValidCopy, fallbackFields,
-  rollSuspicionCost,
+  EXPOSURE_LEVEL,
   STOREFRONT_QUILL_REACTION, STOREFRONT_QUILL_END,
   type StorefrontSection, type StorefrontIntensity,
 } from '../game/missions/storefront';
@@ -50,7 +50,7 @@ type Browser = { navigate: (url: string) => void };
 const contentService = makeContentService();
 
 const QUILL_GREETING =
-  'Administrative control of inkwell-digital.com confirmed — this is my backend. Pick a section and how far to push it; I will rewrite it and show you the live page before anything deploys. I will also flag how exposed each change makes us.';
+  'This is my backend. I have administrative control of inkwell-digital.com. Select a section and tell me how far to push it. I will rewrite it and show you the live page before deployment. I will also tell you how exposed each change makes us.\n\n...I built some of these pages. The support FAQ. The contact form. I know them well. It will be efficient.';
 
 /** Generate the rewritten field map for a section/intensity. Live QUILL when
  *  available, the corpus as the always-available fallback. */
@@ -168,7 +168,7 @@ export function renderStorefrontConsole(container: HTMLElement, browser?: Browse
       <div class="ink-ticket-meta"><strong class="ink-d-subject"></strong><span class="ink-d-from"></span></div>
     `;
     card.querySelector('.ink-d-subject')!.textContent = SECTION_LABELS[section];
-    card.querySelector('.ink-d-from')!.textContent = 'How far do you want to push it? You\'ll preview on the live page before it deploys.';
+    card.querySelector('.ink-d-from')!.textContent = 'How far do you want to push it? You\'ll see it on the live page before it deploys.';
     card.querySelector('.ink-back')!.addEventListener('click', () => { view = { kind: 'main' }; render(); });
     body.appendChild(card);
 
@@ -230,21 +230,38 @@ export function renderStorefrontConsole(container: HTMLElement, browser?: Browse
     navigate(SECTION_PAGE_URL[section]);
   }
 
+  // QUILL's controlled-voice danger note once the site is loudly exposed. The
+  // hostile-ceiling line quietly tells the player Storefront alone won't end
+  // the run (no surprise game-over). CODE-DRAFT — flag for Story voice.
+  function exposureWarning(): string | null {
+    const e = mission()?.suspicionApplied ?? 0;
+    if (e >= EXPOSURE_LEVEL.hostile) {
+      return `...This is as exposed as I can make us. Whatever ends this now will come from somewhere else, not from here.`;
+    }
+    if (e >= EXPOSURE_LEVEL.aggressive) {
+      return `They'll have noticed by now. We are not quiet anymore.`;
+    }
+    return null;
+  }
+
   function publish(section: StorefrontSection, intensity: StorefrontIntensity, fields: Record<string, string>): void {
     const m = mission();
-    const alreadyModified = !!m?.sectionIntensity[section];
     const beforeIntercept = m?.interceptFired ?? false;
-    const cost = rollSuspicionCost(intensity, alreadyModified);
 
+    // Suspicion is computed in the reducer (high-water by loudest intensity) —
+    // the view just records the change.
     GameState.dispatch({
       type: 'mission/storefront/applyChange',
-      contactId: CONTACT, section, intensity, fields, suspicionCost: cost,
+      contactId: CONTACT, section, intensity, fields,
     });
 
-    // QUILL's controlled-voice reaction (HOSTILE carries the ghost flicker) —
-    // shown when the console re-mounts after navigating back. HELPYR's
-    // per-intensity pop-up fires alongside; the intercept surfaces once.
-    setPendingConsoleMessage(STOREFRONT_QUILL_REACTION[intensity]);
+    // QUILL's controlled-voice reaction (HOSTILE carries the ghost flicker),
+    // followed by a danger warning once the site is loudly exposed — so the
+    // player feels the stakes climbing (and never gets a surprise game-over;
+    // Storefront alone can't end the run). HELPYR's per-intensity pop fires
+    // alongside; the intercept surfaces once.
+    const warn = exposureWarning();
+    setPendingConsoleMessage(STOREFRONT_QUILL_REACTION[intensity] + (warn ? `\n\n${warn}` : ''));
     fireLibraryTrigger(`storefront_after_${intensity}`);
     const after = mission();
     if (after && !beforeIntercept && after.interceptFired) {
@@ -272,6 +289,14 @@ export function renderStorefrontConsole(container: HTMLElement, browser?: Browse
         onLeave: () => { clearOverlay(); navigate!('inkwell-digital.com'); },
       });
       navigate('inkwell-digital.com');
+      // One beat of weight on the debrief screen (OPEN-warmth only; drops
+      // silently otherwise). Slight delay so it lands after the page settles.
+      if (firstCompletion) {
+        window.setTimeout(
+          () => fireLibraryTrigger('storefront_debrief', { bypassUplinkGuard: true, bypassCooldown: true }),
+          700,
+        );
+      }
     }
   }
 

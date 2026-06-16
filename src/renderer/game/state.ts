@@ -49,13 +49,14 @@
 //                                   site is persistent across sessions.
 //   mission/storefront/clear     { contactId }
 //                                -- remove a contact's Storefront record.
-//   mission/storefront/applyChange { contactId, section, intensity, fields,
-//                                    suspicionCost }
+//   mission/storefront/applyChange { contactId, section, intensity, fields }
 //                                -- apply one section change: merge field
 //                                   overrides, latch the section intensity,
-//                                   bump suspicion (loss-latched), recompute
-//                                   the news tier + intercept gate. suspicionCost
-//                                   is rolled at the call site (rollSuspicionCost).
+//                                   raise suspicion to the new high-water
+//                                   exposure (EXPOSURE_LEVEL of the loudest
+//                                   intensity — NOT a per-change sum; capped
+//                                   <100 so Storefront can't solo-end), and
+//                                   recompute the news tier + intercept gate.
 //   mission/storefront/complete  { contactId }
 //                                -- end the session (status→complete).
 //
@@ -84,7 +85,7 @@
 import { toneCategory } from './mechanics/resolver';
 import type { CoverApproach, CoverDutyOutcome } from './missions/coverDuty';
 import {
-  newsTierFor, isVisible,
+  newsTierFor, isVisible, exposureFor,
   type StorefrontSection, type StorefrontIntensity, type NewsTier,
 } from './missions/storefront';
 
@@ -156,9 +157,11 @@ export type StorefrontMissionState = {
    *  Applied via textContent — never injected as markup. */
   appliedFields: Record<string, string>;
   /** Current intensity of each modified section (the latest applied). Drives
-   *  the news tier + the re-deface incremental-cost check. */
+   *  the news tier + the high-water exposure level. */
   sectionIntensity: Partial<Record<StorefrontSection, StorefrontIntensity>>;
-  /** Total suspicion this mission has added (display / tuning). */
+  /** Storefront's current contribution to global suspicion — the high-water
+   *  EXPOSURE_LEVEL of the loudest section applied (NOT a running sum). Drives
+   *  the per-change delta + the console "exposure" readout. */
   suspicionApplied: number;
   /** Loudest SignalWatch story already warranted by the changes so far. Gates
    *  the article so each tier publishes once. */
@@ -676,9 +679,17 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
     }
     case 'mission/storefront/applyChange': {
       // Apply one section change: merge the field overrides, latch the
-      // section's intensity, bump suspicion (with the loss latch), and update
-      // the news tier + intercept gate so the side-effects fire once. Atomic so
-      // a reload restores the exact site + world-reaction state.
+      // section's intensity, raise suspicion to the new high-water exposure,
+      // and update the news tier + intercept gate. Atomic so a reload restores
+      // the exact site + world-reaction state.
+      //
+      // Suspicion is a HIGH-WATER MARK by loudest intensity (storefront.ts
+      // EXPOSURE_LEVEL), NOT a per-change sum — going louder raises it, more
+      // changes at the same loudness don't. suspicionApplied tracks Storefront's
+      // own contribution so we only apply the positive DELTA each time. The
+      // hostile level is < 100, and a storefront rise is capped at 99, so
+      // Storefront can NEVER solo-trigger the game-over loss (no gameOver latch
+      // here — the wider campaign's suspicion owns that).
       const id = String(action.contactId || '');
       const section = action.section as StorefrontSection;
       const intensity = action.intensity as StorefrontIntensity;
@@ -691,17 +702,16 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
       const appliedFields = { ...m.appliedFields };
       for (const [k, v] of Object.entries(fields)) appliedFields[String(k)] = String(v);
       const sectionIntensity = { ...m.sectionIntensity, [section]: intensity };
-      const suspicionCost = num(action.suspicionCost);
-      const suspicion = clamp(state.player.suspicion + suspicionCost, 0, 100);
+      const newContribution = exposureFor(Object.values(sectionIntensity) as StorefrontIntensity[]);
+      const delta = Math.max(0, newContribution - m.suspicionApplied);
+      const suspicion = state.player.suspicion >= 99
+        ? state.player.suspicion
+        : Math.min(state.player.suspicion + delta, 99);
       const newsTier = newsTierFor(Object.values(sectionIntensity) as StorefrontIntensity[]);
       const interceptFired = m.interceptFired || isVisible(intensity);
-      const flags = (suspicion >= 100 && !state.flags.gameOver)
-        ? { ...state.flags, gameOver: true }
-        : state.flags;
       return {
         ...state,
         player: { ...state.player, suspicion },
-        flags,
         missions: {
           ...state.missions,
           storefront: {
@@ -710,7 +720,7 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
               ...m,
               appliedFields,
               sectionIntensity,
-              suspicionApplied: m.suspicionApplied + suspicionCost,
+              suspicionApplied: newContribution,
               newsTier,
               interceptFired,
             },

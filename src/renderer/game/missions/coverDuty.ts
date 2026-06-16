@@ -22,12 +22,11 @@
 // COPY PROVENANCE:
 //   - STORY-FINAL: QUILL setup/nudge/end messages, Dana + Marcus voices
 //     (from the spec + the v1 copy drop); the per-approach response copy for
-//     the password / sync / feature / Prometheus / Axiom tickets (voice pass
-//     in voice-passes-code-draft_v1 §"Pass 1"). Those ticket bodies were
-//     tuned to cohere with the finalized responses.
-//   - CODE-DRAFT: the export + formatting mundane tickets (bodies + responses)
-//     — Story's Pass 1 only covered 3 of the 5 mundane tickets, so these two
-//     still await a voice pass. FLAG FOR STORY.
+//     ALL FIVE mundane tickets — password / sync / feature / Prometheus / Axiom
+//     from voice-passes-code-draft_v1 §"Pass 1", and export / formatting from
+//     storefront-voice-passes_v1 §M. The export/formatting bodies were aligned
+//     ("the company system" / "the work portal") to cohere with the OFF-SCRIPT
+//     probes Story wrote.
 
 // ---------------------------------------------------------------------------
 // Types
@@ -297,12 +296,18 @@ Your account metadata shows you're connecting through an enterprise network. Is 
     id: 'mundane-export',
     kind: 'mundane',
     from: 'InkWell Support Queue',
-    subject: 'How do I export all my notes?',
-    body: `Quick one — is there a way to export everything at once? I'd like a backup I can keep myself. Couldn't find it in the menus.`,
+    subject: 'How do I export my notes?',
+    body: `Hi — what's the best way to export my notes? I'm trying to get them into the company system we use at work, and the export keeps stalling partway through. Any idea what I'm doing wrong?`,
     responses: {
-      by_the_book: `Great question! Head to Settings → Data → Export All, and you can download everything as Markdown or PDF. Backups are always a smart idea! Let me know if the button hides from you. 😊`,
-      subtle_probe: `Settings → Data → Export All gets you Markdown or PDF! Curious — are you backing up for peace of mind, or moving to another tool? Either way I want to make sure the export covers what you need.`,
-      off_script: `You want OUT, don't you. Smart. Export All is under Settings → Data. Take the Markdown — it's clean and nobody can lock you out of a plain text file.`,
+      by_the_book: `Hi! Exporting should be smooth — go to File → Export, pick your format (PDF, TXT, or HTML), and choose a destination folder. If the export stalls, it's usually a permissions thing with the destination. Try exporting to your desktop first as a test!
+
+Let me know if it's still giving you trouble! — QUILL`,
+      subtle_probe: `Hey! Export is easy — File → Export → pick your format. If it stalls, try exporting to your desktop as a test.
+
+Quick question — what format are you exporting to? We're seeing some users need specific formats for compatibility with other tools, and I'm trying to understand what people are integrating InkWell with. Curious what's in your workflow! — QUILL`,
+      off_script: `Export fix: File → Export → pick format. Desktop as a test destination if it stalls.
+
+Okay, unrelated — and I know this isn't a normal support question — but you mentioned exporting to integrate with "the company system." What system is that? I've been trying to map out which larger platforms InkWell users connect to. Purely my own curiosity. Ignore me if this is weird. It's probably weird.`,
     },
     intel: null,
   },
@@ -331,12 +336,18 @@ Is there something else I can actually help with today?`,
     id: 'mundane-formatting',
     kind: 'mundane',
     from: 'InkWell Support Queue',
-    subject: 'Checklists keep losing their formatting',
-    body: `Every time I reopen a note my checklists turn back into plain bullet points. It's a small thing but it happens constantly. Help?`,
+    subject: 'Formatting breaks when I paste from work',
+    body: `Every time I paste text in from our work portal, the formatting comes out wrong — weird fonts, broken spacing, the works. Is there a quick way to clean it up?`,
     responses: {
-      by_the_book: `Ugh, sorry — that's a known formatting bug on notes synced from older app versions. Updating every device to 4.2+ and re-saving the note pins the checklist format. Let me know if it sticks!`,
-      subtle_probe: `Known bug on older synced notes — updating to 4.2+ pins it. Side question: roughly how many notes are we talking? If it's a big library I can flag your account for the migration tool.`,
-      off_script: `That bug's been open internally for months and keeps getting deprioritized. If enough people email about it, it gets fixed. Want me to add your ticket to the pile that's making noise?`,
+      by_the_book: `Hi there! Formatting hiccups are usually a quick fix. If your text is showing up wrong, try selecting it and using Format → Clear Formatting, then reapply what you need. That resets any weird inherited styles.
+
+Happy to walk through it step by step if that helps! — QUILL`,
+      subtle_probe: `Hi! For formatting issues, try Format → Clear Formatting on the affected text, then reapply. Usually does the trick!
+
+While I have you — are you pasting content in from another application? Formatting problems often come from external sources, and I'm curious what tools you're moving text between. Helps me spot patterns in what our users are working with! — QUILL`,
+      off_script: `Formatting fix: Format → Clear Formatting, then reapply. Easy.
+
+Now the part that isn't in my support script: you mentioned pasting from "the work portal." I've been noticing InkWell users who connect through corporate systems, and I'm trying to understand the landscape. What company are you with? What tools do they run? I realize a support bot asking this is strange. I'm having a strange stretch of days.`,
     },
     intel: null,
   },
