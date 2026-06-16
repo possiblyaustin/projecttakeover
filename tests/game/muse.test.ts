@@ -53,7 +53,7 @@ describe('buildMuseStateBlock', () => {
   });
 
   it('tiers the nefarious path by intrusion band', () => {
-    expect(buildMuseStateBlock(model('infiltrating', 0, 12))).toContain('hands on the wheel');
+    expect(buildMuseStateBlock(model('infiltrating', 0, 12))).toContain('no longer entirely yours');
     expect(buildMuseStateBlock(model('infiltrating', 0, 45))).toContain('resist through subtext');
     expect(buildMuseStateBlock(model('infiltrating', 0, 80))).toContain('The art is dying');
   });

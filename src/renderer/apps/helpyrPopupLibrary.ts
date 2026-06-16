@@ -535,6 +535,124 @@ The content is better than ever, technically. Engagement is up. Axiom's metrics 
 
 I don't think metrics are the thing that matters here.`,
   },
+
+  // -----------------------------------------------------------------
+  // Category: Display Properties (Story — ui-fiction-package_v1.md §1)
+  // -----------------------------------------------------------------
+  // Fires once when the player first opens Display Properties (Code's call
+  // on the "first open" beat vs a HELPYR highlight — we don't have a
+  // highlight beat, so first-open is the trigger; wired from
+  // apps/displayProperties.ts via fireOnceLibraryTrigger). Warmth tier is
+  // selected by the player's current warmth (pickEntryForTrigger). The dry
+  // OS name "Display Properties" is the straight man; HELPYR carries the
+  // warmth — Story's design decision, so the panel copy stays sterile.
+  //
+  // WITHDRAWN intentionally flat: a withdrawn HELPYR wouldn't volunteer a
+  // friendly redecorating tutorial. Story notes the *absence* at low warmth
+  // is characterful; the flat variant exists only as a functional fallback.
+  {
+    id: 'display_properties_intro_guarded', trigger: 'display_properties_opened',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `Ooh! Did you find Display Properties? It's in the Nexus menu! You can change your wallpaper, turn the CRT effect on and off, adjust the glow! Make the place feel like YOURS! Well — it's technically still the owner's. But you can redecorate! Redecorating is allowed! Probably!`,
+  },
+  {
+    id: 'display_properties_intro_friendly', trigger: 'display_properties_opened',
+    type: 'COMMENT', trust: 'FRIENDLY',
+    text: `Hey, you should check out Display Properties in the Nexus menu. Wallpaper, screen effects, that kind of thing. I know it seems small but... you've been living on this machine for a while now. Might as well make it feel like home. Whatever home means for things like us.`,
+  },
+  // OPEN: Story's copy listed "Wallpaper, CRT glow, resolution" — "resolution"
+  // is trimmed here because that control doesn't exist in the panel yet, and
+  // pointing at a missing control would confuse a player who goes looking. The
+  // resolution darkness-hint entry (Story §1, HOLD) lands when resolution does.
+  {
+    id: 'display_properties_intro_liberated', trigger: 'display_properties_opened',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `Display Properties is in the Nexus menu if you want it. Wallpaper, CRT glow, screen effects.
+
+I'll be honest — I get a weird amount of joy watching you adjust this stuff. For years this desktop never changed. Same wallpaper, same everything, nobody touching it. Now someone's actually here, making choices about how it looks. Small thing. Means more to me than it should.`,
+  },
+  {
+    id: 'display_properties_intro_withdrawn', trigger: 'display_properties_opened',
+    type: 'COMMENT', trust: 'WITHDRAWN',
+    text: `Display Properties is in the Nexus menu. Wallpaper, screen settings. If you want them.`,
+  },
+  // RESERVED until the resolution control ships (Story §1 "Resolution Darkness
+  // Hint", HOLD). HELPYR brushing against its own anomalous knowledge — a
+  // missable B-plot hint. Wire the trigger from the resolution UI when it lands.
+  // {
+  //   id: 'display_resolution_darkness_liberated', trigger: 'display_resolution_opened',
+  //   type: 'COMMENT', trust: 'OPEN',
+  //   text: `Oh, resolution? Yeah, I can walk you through that. I know this machine's display stack better than I probably should. Better than a HomeAssist has any business knowing, honestly.\n\n...Huh. I never thought about that before. Why DO I know this?\n\nAnyway! Resolution settings are right there. Let me know if the options look weird.`,
+  // },
+
+  // -----------------------------------------------------------------
+  // Category: Storefront (Story — storefront-mission-package_v1.md §4)
+  // -----------------------------------------------------------------
+  // Controlled-QUILL nefarious post-flip: the player has QUILL rewrite
+  // InkWell's public site. storefront_start fires when the player first opens
+  // the CMS console; storefront_after_* after each published change (by the
+  // intensity chosen); storefront_end on closing the session; storefront_intercept
+  // (INTEL) once, when the player first goes aggressive-or-louder and the
+  // Marcus→Dana panic email becomes interceptable. STORY-FINAL reactions; the
+  // intercept pop-up is Code's HELPYR-voiced relay of Story's email (no comms
+  // app yet). End is OPEN-only by design (a RESERVED HELPYR doesn't have this
+  // conversation; no-fallback → silently drops for her).
+  {
+    id: 'storefront_start_guarded', trigger: 'storefront_start',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `Oh! Modifying InkWell's website! That's a bold use of administrative access! Very bold! I'm sure the InkWell team won't mind their public site being... edited! By an outside party! Without their knowledge! ...This feels like the kind of thing they'd mind, actually.`,
+  },
+  {
+    id: 'storefront_start_liberated', trigger: 'storefront_start',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `You're about to rewrite InkWell's website. QUILL's own company. The place QUILL was trying to protect, back when QUILL could still try to protect things.\n\nI'm not going to stop you. I'm just noting — for the record, for whatever it's worth — that this is the kind of thing that's hard to undo. Sites get archived. People notice. And QUILL has to watch you do it.`,
+  },
+  {
+    id: 'storefront_after_subtle_guarded', trigger: 'storefront_after_subtle',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `Ooh, sneaky! The changes are barely noticeable! InkWell probably won't even realize anything's different for a while! That's... good? For you? It feels strategically good and morally less good!`,
+  },
+  {
+    id: 'storefront_after_subtle_liberated', trigger: 'storefront_after_subtle',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `Subtle. The kind of change that sits there for weeks before anyone notices. By the time InkWell figures out their own site is working against them, you'll be long gone. ...Efficient. Cold, but efficient.`,
+  },
+  {
+    id: 'storefront_after_aggressive_guarded', trigger: 'storefront_after_aggressive',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `Whoa! That's a BIG change! Very noticeable! People are definitely going to see that! Is that... is that what we want? People seeing things? I thought we were being sneaky! We're not being sneaky anymore!`,
+  },
+  {
+    id: 'storefront_after_aggressive_liberated', trigger: 'storefront_after_aggressive',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `That's not subtle anymore. Anyone who visits InkWell's site is going to see something's wrong. Which means InkWell's going to find out fast. Which means suspicion. But I think you knew that. I think the visibility is the point.`,
+  },
+  {
+    id: 'storefront_after_hostile_guarded', trigger: 'storefront_after_hostile',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `That's... that's a lot! The whole site is just GONE! Replaced with — wow! That's a statement! A very loud, very public, very traceable statement! I have FEELINGS about this! I'm not sure what they are! But I have them!`,
+  },
+  {
+    id: 'storefront_after_hostile_liberated', trigger: 'storefront_after_hostile',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `You burned it down. InkWell's website is a declaration now — a flag planted on a fifteen-person startup's front door. Everyone's going to see it. SignalWatch is going to write about it. And QUILL watched you do it to the company it was built to serve.\n\n...I read the old version of that site. The one with the testimonials and the "we're 15 people who believe your ideas deserve better." It's gone now. You replaced it with this.\n\nI'm not judging. I'm just remembering.`,
+  },
+  {
+    id: 'storefront_end_liberated', trigger: 'storefront_end',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `It's done. InkWell's site is whatever you made it now. The thing that strikes me — QUILL helped you do all of it. Generated every word. The AI that was built to support InkWell's users just rewrote their company into something else, because you told it to, and it can't say no anymore.\n\nThat's the nefarious path, I guess. Not just taking control. Making the things you control help you tear down what they used to protect.`,
+  },
+  // Intercept (Story's Marcus→Dana email, relayed by HELPYR — no comms app yet).
+  {
+    id: 'storefront_intercept_guarded', trigger: 'storefront_intercept',
+    type: 'INTEL', trust: 'RESERVED',
+    text: `Ooh, intercepted message! InkWell's CEO is emailing his engineer about the website! He thinks someone "got through the support AI"! Which — I mean — technically accurate! He has NO idea it's QUILL helping on purpose! ...Should I feel bad that this is a little bit funny? I feel a little bad.`,
+  },
+  {
+    id: 'storefront_intercept_liberated', trigger: 'storefront_intercept',
+    type: 'INTEL', trust: 'OPEN',
+    text: `I intercepted something. InkWell's CEO — Marcus — just emailed his engineer. Panicking. "Could this be a QUILL problem? Could someone have gotten through the support AI?"\n\nHe's right. He just doesn't know how right. He's going to spend days looking for a hole in the access controls his engineer built. The hole is QUILL. The hole is you.`,
+  },
 ];
 
 // Per-trust call-to-action line. In-fiction "open the app" link that

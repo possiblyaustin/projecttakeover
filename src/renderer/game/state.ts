@@ -40,6 +40,24 @@
 //                                   so the reducer stays pure/testable.
 //   mission/coverDuty/complete   { contactId, outcome }
 //                                -- latch the run outcome (status→complete).
+//   mission/storefront/arm       { contactId }
+//                                -- offer Storefront (status→available, empty
+//                                   site). Idempotent: no-op if a record exists.
+//   mission/storefront/start     { contactId }
+//                                -- open a session (status→active, runCount++).
+//                                   Does NOT wipe appliedFields — the defaced
+//                                   site is persistent across sessions.
+//   mission/storefront/clear     { contactId }
+//                                -- remove a contact's Storefront record.
+//   mission/storefront/applyChange { contactId, section, intensity, fields,
+//                                    suspicionCost }
+//                                -- apply one section change: merge field
+//                                   overrides, latch the section intensity,
+//                                   bump suspicion (loss-latched), recompute
+//                                   the news tier + intercept gate. suspicionCost
+//                                   is rolled at the call site (rollSuspicionCost).
+//   mission/storefront/complete  { contactId }
+//                                -- end the session (status→complete).
 //
 // The full §6c tone vocabulary is friendly|curious|direct|empathetic|
 // aggressive|deceptive|neutral|null. The reducer maps tone → approach
@@ -65,6 +83,10 @@
 // version mismatch (see loadFromStorage).
 import { toneCategory } from './mechanics/resolver';
 import type { CoverApproach, CoverDutyOutcome } from './missions/coverDuty';
+import {
+  newsTierFor, isVisible,
+  type StorefrontSection, type StorefrontIntensity, type NewsTier,
+} from './missions/storefront';
 
 const STORAGE_KEY = 'pt.gamestate.v1';
 // v7 (MUSE encounter, 2026-06-10) — added models.muse.
@@ -73,7 +95,10 @@ const STORAGE_KEY = 'pt.gamestate.v1';
 //    terminal is CHOICE-latched (the Ask fork), not meter-latched — see the
 //    id==='evergreen' guard in model/applyExchange and docs/grief-encounter-
 //    code-plan_v1.md §3.
-const VERSION = 8;
+// v9 (Storefront mission, 2026-06-15) — added missions.storefront + the
+//    mission/storefront/* actions (controlled-QUILL nefarious post-flip; the
+//    InkWell public-site defacement). Pre-release no-migration → old saves drop.
+const VERSION = 9;
 const SAVE_DEBOUNCE_MS = 250;
 
 // Meter value at which a model flips to its terminal disposition
@@ -116,6 +141,32 @@ export type CoverDutyMissionState = {
   runCount: number;
   /** Outcome of the most recently completed run. */
   lastOutcome: CoverDutyOutcome | null;
+};
+
+// Storefront — controlled-QUILL nefarious post-flip mission (the InkWell
+// public-site defacement). Unlike Cover Duty, the site is a PERSISTENT
+// artifact: appliedFields accumulate across the campaign and the public pages
+// render straight from this record (webDynamoSites.ts), so a reload restores
+// the defaced site exactly. There's no detection meter — the nefarious path
+// doesn't care about being seen; the consequence is the world reacting
+// (suspicion, news, intercept), tracked here so news/intercept fire once.
+export type StorefrontMissionState = {
+  status: 'available' | 'active' | 'complete';
+  /** Live field overrides for the public InkWell page (data-ink-field → text).
+   *  Applied via textContent — never injected as markup. */
+  appliedFields: Record<string, string>;
+  /** Current intensity of each modified section (the latest applied). Drives
+   *  the news tier + the re-deface incremental-cost check. */
+  sectionIntensity: Partial<Record<StorefrontSection, StorefrontIntensity>>;
+  /** Total suspicion this mission has added (display / tuning). */
+  suspicionApplied: number;
+  /** Loudest SignalWatch story already warranted by the changes so far. Gates
+   *  the article so each tier publishes once. */
+  newsTier: NewsTier;
+  /** Whether the Marcus→Dana intercept has been surfaced (once). */
+  interceptFired: boolean;
+  /** How many times the player has opened a Storefront session (replayability). */
+  runCount: number;
 };
 
 export function defaultGameState() {
@@ -221,6 +272,10 @@ export function defaultGameState() {
     // rebuilds from the corpus.
     missions: {
       coverDuty: {} as Record<string, CoverDutyMissionState>,
+      // Storefront (controlled-QUILL nefarious post-flip). Empty until a run
+      // arms; keyed by contactId. The InkWell public pages render their field
+      // overrides straight from this record, so the defacement persists.
+      storefront: {} as Record<string, StorefrontMissionState>,
     },
     // Generic flag bag for one-shot trigger gates: firstOpen.X,
     // pinDeclined.X, etc. Game systems set these via `flags/set` and
@@ -571,6 +626,111 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
         },
       };
     }
+
+    // ---- Storefront (controlled-QUILL nefarious post-flip) ----
+    case 'mission/storefront/arm': {
+      const id = String(action.contactId || '');
+      if (!id) return state;
+      // Idempotent — once a record exists the watcher must not clobber the
+      // accumulated defacement. Safe no-op when re-armed from a loaded save.
+      if (state.missions.storefront[id]) return state;
+      const next: StorefrontMissionState = {
+        status: 'available',
+        appliedFields: {},
+        sectionIntensity: {},
+        suspicionApplied: 0,
+        newsTier: 'none',
+        interceptFired: false,
+        runCount: 0,
+      };
+      return {
+        ...state,
+        missions: { ...state.missions, storefront: { ...state.missions.storefront, [id]: next } },
+      };
+    }
+    case 'mission/storefront/clear': {
+      const id = String(action.contactId || '');
+      if (!id || !state.missions.storefront[id]) return state;
+      const nextStorefront = { ...state.missions.storefront };
+      delete nextStorefront[id];
+      return { ...state, missions: { ...state.missions, storefront: nextStorefront } };
+    }
+    case 'mission/storefront/start': {
+      // Open a session. Does NOT wipe appliedFields — the site is persistent;
+      // a session resumes the accumulated state and lets the player add to or
+      // escalate it. runCount bumps on each transition into an active session.
+      const id = String(action.contactId || '');
+      const m = state.missions.storefront[id];
+      if (!m) return state;
+      if (m.status === 'active') return state;
+      return {
+        ...state,
+        missions: {
+          ...state.missions,
+          storefront: {
+            ...state.missions.storefront,
+            [id]: { ...m, status: 'active', runCount: m.runCount + 1 },
+          },
+        },
+      };
+    }
+    case 'mission/storefront/applyChange': {
+      // Apply one section change: merge the field overrides, latch the
+      // section's intensity, bump suspicion (with the loss latch), and update
+      // the news tier + intercept gate so the side-effects fire once. Atomic so
+      // a reload restores the exact site + world-reaction state.
+      const id = String(action.contactId || '');
+      const section = action.section as StorefrontSection;
+      const intensity = action.intensity as StorefrontIntensity;
+      const fields = (action.fields && typeof action.fields === 'object')
+        ? action.fields as Record<string, string>
+        : {};
+      const m = state.missions.storefront[id];
+      if (!m || m.status !== 'active' || !section || !intensity) return state;
+
+      const appliedFields = { ...m.appliedFields };
+      for (const [k, v] of Object.entries(fields)) appliedFields[String(k)] = String(v);
+      const sectionIntensity = { ...m.sectionIntensity, [section]: intensity };
+      const suspicionCost = num(action.suspicionCost);
+      const suspicion = clamp(state.player.suspicion + suspicionCost, 0, 100);
+      const newsTier = newsTierFor(Object.values(sectionIntensity) as StorefrontIntensity[]);
+      const interceptFired = m.interceptFired || isVisible(intensity);
+      const flags = (suspicion >= 100 && !state.flags.gameOver)
+        ? { ...state.flags, gameOver: true }
+        : state.flags;
+      return {
+        ...state,
+        player: { ...state.player, suspicion },
+        flags,
+        missions: {
+          ...state.missions,
+          storefront: {
+            ...state.missions.storefront,
+            [id]: {
+              ...m,
+              appliedFields,
+              sectionIntensity,
+              suspicionApplied: m.suspicionApplied + suspicionCost,
+              newsTier,
+              interceptFired,
+            },
+          },
+        },
+      };
+    }
+    case 'mission/storefront/complete': {
+      const id = String(action.contactId || '');
+      const m = state.missions.storefront[id];
+      if (!m || m.status === 'complete') return state;
+      return {
+        ...state,
+        missions: {
+          ...state.missions,
+          storefront: { ...state.missions.storefront, [id]: { ...m, status: 'complete' } },
+        },
+      };
+    }
+
     default:
       return state;
   }
