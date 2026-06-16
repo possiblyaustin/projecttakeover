@@ -44,6 +44,7 @@ describe('bubbleCtaFor', () => {
       'storefront_after_hostile',
       'storefront_intercept',
       'storefront_end',
+      'storefront_debrief',
     ];
     for (const trigger of storefrontTriggers) {
       const spec = bubbleCtaFor(trigger);
@@ -64,6 +65,7 @@ describe('bubbleCtaFor', () => {
       'storefront_after_hostile',
       'storefront_intercept',
       'storefront_end',
+      'storefront_debrief',
     ];
     for (const trigger of configured) {
       expect(libraryTriggers.has(trigger), `${trigger} has no library entry`).toBe(true);

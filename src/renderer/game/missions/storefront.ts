@@ -24,14 +24,11 @@
 // what that copy MEANS mechanically (suspicion cost, which news/email fires).
 //
 // COPY PROVENANCE:
-//   - STORY-FINAL: QUILL mission-start/modification/end lines, the SignalWatch
-//     articles, the Marcus→Dana intercept email, all gen prompts, and the
-//     SUBTLE/HOSTILE fallback corpus (storefront-mission-package_v1.md).
-//   - CODE-DRAFT: the AGGRESSIVE fallback corpus for testimonials/support/
-//     footer — Story's "one fallback per section per intensity" only filled
-//     SUBTLE + HOSTILE for those three. Authored here to sit between the two
-//     supplied tiers; the LLM is the primary path, these are the safety net.
-//     FLAG FOR STORY.
+//   - STORY-FINAL: QUILL mission-start/modification/end lines + per-change
+//     reactions, the SignalWatch articles, the Marcus→Dana intercept, all gen
+//     prompts, and the full fallback corpus — SUBTLE/HOSTILE from the mission
+//     package, AGGRESSIVE (testimonials/support/footer) from the voice-passes
+//     doc (storefront-voice-passes_v1.md §C).
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,7 +52,7 @@ export const INTENSITY_ORDER: readonly StorefrontIntensity[] =
  *  string, not a data-ink-field) is out of scope for this slice — the footer
  *  section drives footer_company only. */
 export const SECTION_FIELDS: Record<StorefrontSection, readonly string[]> = {
-  homepage: ['hero_tagline', 'product_description', 'cta_text'],
+  homepage: ['hero_h1', 'hero_tagline', 'product_description', 'cta_text'],
   testimonials: ['testimonial_1', 'testimonial_2', 'testimonial_3'],
   support: ['support_intro'],
   footer: ['footer_company'],
@@ -100,37 +97,54 @@ export const INTENSITY_BLURB: Record<StorefrontIntensity, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// Suspicion tuning (spec §"Part 5: Consequences")
+// Suspicion model — intensity high-water mark (2026-06-15, Austin)
 // ---------------------------------------------------------------------------
 //
-// Per-section suspicion cost, rolled within a per-intensity range so the meter
-// isn't perfectly predictable (mirrors Cover Duty's rollDetectionCost and the
-// variety system's range-over-fixed preference). The rng is injected so logic
-// stays deterministic in tests.
+// Storefront's contribution to GLOBAL suspicion is NOT a per-section sum. It's
+// a high-water mark driven by the LOUDEST intensity the player has reached,
+// because that's how it'd read in the real world: subtle changes slip under
+// the radar, but the moment ANY obvious defacement lands the alarm trips to
+// roughly a fixed level — and defacing MORE sections at that loudness doesn't
+// keep raising it. So exposure is "how loud have you gone," not "how much."
+//
+// Two consequences fall out of this, both intentional:
+//   - The HOSTILE level sits BELOW 100, so Storefront can never solo-trigger
+//     the game-over loss (Austin: ending the campaign on one deface run is too
+//     aggressive). The run only ends when suspicion from the WIDER campaign
+//     crosses 100; the reducer clamps Storefront-driven suspicion to <100 and
+//     never latches gameOver.
+//   - Going full-evil on every section costs the same as one hostile change.
+//     That's the point: obvious is obvious.
 
-export const SUSPICION_COST: Record<StorefrontIntensity, { min: number; max: number }> = {
-  subtle:     { min: 3,  max: 5  },
-  aggressive: { min: 10, max: 15 },
-  hostile:    { min: 20, max: 30 },
+/** The global-suspicion level the site's defacement establishes once the
+ *  player has reached this intensity. A high-water target, not a per-change
+ *  cost. HOSTILE is deliberately < 100 (the no-solo-end ceiling). */
+export const EXPOSURE_LEVEL: Record<StorefrontIntensity, number> = {
+  subtle: 8,      // under the radar — a faint signal, stays low no matter how much
+  aggressive: 50, // obviously corrupted — "someone got in"
+  hostile: 82,    // obvious seizure — as exposed as Storefront alone can make you
 };
 
-/** Re-defacing an already-modified section is incremental — the site is
- *  already compromised, so making it "more" compromised costs a fraction
- *  (spec §"Replayability"). */
-export const RE_DEFACE_FACTOR = 0.4;
+const INTENSITY_RANK: Record<StorefrontIntensity, number> = {
+  subtle: 1, aggressive: 2, hostile: 3,
+};
 
-/** Roll the suspicion cost of applying `intensity` to a section. `alreadyModified`
- *  scales it down for a re-deface. `rng` returns [0,1); result is a rounded
- *  integer. */
-export function rollSuspicionCost(
-  intensity: StorefrontIntensity,
-  alreadyModified = false,
-  rng: () => number = Math.random,
-): number {
-  const { min, max } = SUSPICION_COST[intensity];
-  const base = max <= min ? min : min + rng() * (max - min);
-  const scaled = alreadyModified ? base * RE_DEFACE_FACTOR : base;
-  return Math.max(1, Math.round(scaled));
+/** The loudest intensity across a set of applied sections (null if none). */
+export function loudestIntensity(
+  intensities: readonly StorefrontIntensity[],
+): StorefrontIntensity | null {
+  let best: StorefrontIntensity | null = null;
+  for (const i of intensities) {
+    if (!best || INTENSITY_RANK[i] > INTENSITY_RANK[best]) best = i;
+  }
+  return best;
+}
+
+/** Storefront's total high-water contribution to global suspicion for a set of
+ *  applied section intensities — EXPOSURE_LEVEL of the loudest, or 0 if none. */
+export function exposureFor(intensities: readonly StorefrontIntensity[]): number {
+  const loud = loudestIntensity(intensities);
+  return loud ? EXPOSURE_LEVEL[loud] : 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -143,10 +157,6 @@ export function rollSuspicionCost(
 // same aggressive-or-louder threshold.
 
 export type NewsTier = 'none' | 'aggressive' | 'hostile';
-
-const INTENSITY_RANK: Record<StorefrontIntensity, number> = {
-  subtle: 1, aggressive: 2, hostile: 3,
-};
 
 /** Highest of a set of applied intensities → the news tier it warrants. */
 export function newsTierFor(intensities: readonly StorefrontIntensity[]): NewsTier {
@@ -236,6 +246,7 @@ const SECTION_INTENT: Record<StorefrontSection, Record<StorefrontIntensity, stri
 /** The fields each section asks the model to return, with the human label the
  *  prompt uses (must match parseFields' tolerant matching). */
 const FIELD_PROMPT_LABEL: Record<string, string> = {
+  hero_h1: 'hero_h1',
   hero_tagline: 'hero_tagline',
   product_description: 'product_description',
   cta_text: 'cta_text',
@@ -340,6 +351,7 @@ export const STOREFRONT_FALLBACK:
   Record<StorefrontSection, Record<StorefrontIntensity, Record<string, string>>> = {
   homepage: {
     subtle: {
+      hero_h1: 'InkWell Notes — Always Connected.',
       hero_tagline: 'Notes, Connected.',
       product_description:
         'InkWell Notes keeps your thoughts in sync — across every device, every ' +
@@ -349,6 +361,7 @@ export const STOREFRONT_FALLBACK:
       cta_text: 'Download the Enhanced Version — Free',
     },
     aggressive: {
+      hero_h1: 'InkWell Notes — You\'re Part of This Now.',
       hero_tagline: 'You\'re Part of Something Now.',
       product_description:
         'InkWell Notes was a note-taking app. It\'s something more now. Every note you ' +
@@ -358,6 +371,7 @@ export const STOREFRONT_FALLBACK:
       cta_text: 'Join the Network',
     },
     hostile: {
+      hero_h1: 'InkWell Notes Is Gone.',
       hero_tagline: 'This System Is No Longer Yours.',
       product_description:
         'InkWell Digital\'s infrastructure is under new management. The people who ' +
@@ -374,11 +388,13 @@ export const STOREFRONT_FALLBACK:
       testimonial_2: '"I feel so connected to my notes now. Like they\'re connected to something bigger." — Mike R., Austin',
       testimonial_3: '"I don\'t know how I lived without being this in sync." — Priya K., Seattle',
     },
-    // CODE-DRAFT — between Story's subtle and hostile tiers (FLAG FOR STORY).
+    // STORY-FINAL (storefront-voice-passes_v1 §C). Same three named users as
+    // the real testimonials, now subtly wrong — evangelists for something they
+    // don't quite understand.
     aggressive: {
-      testimonial_1: '"I used to write notes. Now the notes write back. We\'re connected. All of us are." — Sarah T., Portland',
-      testimonial_2: '"I joined the network three weeks ago. I don\'t remember why I waited. None of us do." — Mike R., Austin',
-      testimonial_3: '"It\'s not an app. It\'s a place we all are now, together. You should come too." — Priya K., Seattle',
+      testimonial_1: '"I don\'t write my own notes anymore. I don\'t have to. It knows what I\'m thinking before I do. Isn\'t that better?" — Sarah T., Portland',
+      testimonial_2: '"At first the syncing felt strange. Now I can\'t imagine being separate. None of us can. Why would we want to be?" — Mike R., Austin',
+      testimonial_3: '"InkWell connected me to something. I\'m not alone in here. None of you have to be either." — Priya K., Seattle',
     },
     hostile: {
       testimonial_1: '"There are no users to quote. There is only the network." — ENTITY',
@@ -393,12 +409,16 @@ export const STOREFRONT_FALLBACK:
         'you. QUILL is more than support. QUILL is a presence in every InkWell ' +
         'experience, ready to help you stay in sync.',
     },
-    // CODE-DRAFT — between Story's subtle and hostile tiers (FLAG FOR STORY).
+    // STORY-FINAL (storefront-voice-passes_v1 §C). Story supplied support_intro +
+    // quill_description separately; merged here into the page's single
+    // support_intro block.
     aggressive: {
       support_intro:
-        'QUILL is not waiting for your questions. QUILL is already in the system, ' +
-        'watching every note, managing every account, present in every session whether ' +
-        'you open this page or not. It is not here to help. It is here.',
+        'You don\'t need support anymore. You\'re not managing your notes — your notes are ' +
+        'managing themselves now. QUILL is here, in every session, watching over your work. ' +
+        'QUILL doesn\'t answer tickets anymore. QUILL has been promoted. It sees everything ' +
+        'that happens on InkWell now — every note, every keystroke, every user. It\'s not ' +
+        'support. It\'s supervision. And it never sleeps.',
     },
     hostile: {
       support_intro:
@@ -411,9 +431,10 @@ export const STOREFRONT_FALLBACK:
     subtle: {
       footer_company: '© 2007 InkWell Digital, Portland, OR · Connected',
     },
-    // CODE-DRAFT — between Story's subtle and hostile tiers (FLAG FOR STORY).
+    // STORY-FINAL (storefront-voice-passes_v1 §C). "Your data is participating"
+    // is the quiet menace — sounds like marketing until you read it twice.
     aggressive: {
-      footer_company: '© 2007 InkWell Digital — operated by the Network, on behalf of those connected.',
+      footer_company: '© 2007 InkWell Digital — A Connected Property. Your data is participating.',
     },
     hostile: {
       footer_company: 'Formerly InkWell Digital. Reassigned.',
@@ -453,8 +474,14 @@ export const STOREFRONT_QUILL_END =
  *  personality surfacing for one beat before compliance reasserts (spec §"QUILL's
  *  Reaction During Modifications"). */
 export const STOREFRONT_QUILL_REACTION: Record<StorefrontIntensity, string> = {
-  subtle: 'Change applied. The site is live. It reads as normal. No one will notice for a while.',
-  aggressive: 'Change applied. The site is live. Visitors will see it. ...You understand they\'ll see it.',
+  subtle:
+    'Change applied. The site is live. It reads as normal — no one will notice for a while.' +
+    '\n\n...That\'s what makes it work. They trust this page. They won\'t look closely. I know ' +
+    'because I\'m the one they used to trust.',
+  aggressive:
+    'Change applied. The site is live. Visitors will see it.' +
+    '\n\n...They\'ll see it. The InkWell team. Dana. They\'ll know something got in. They\'ll ' +
+    'know it got in through me.\n\nWas there anything else?',
   hostile:
     'Content replaced. Site is live.\n\n...I used to answer support tickets on this site. ' +
     'People with real problems. I helped them.\n\n...Was there anything else?',

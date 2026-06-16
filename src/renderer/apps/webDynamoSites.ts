@@ -211,7 +211,7 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
           c.classList.add('site-inkwell');
           c.innerHTML = `
             ${inkNav('home')}
-            <h1>InkWell Notes — Notes, Refined.</h1>
+            <h1 data-ink-field="hero_h1">InkWell Notes — Notes, Refined.</h1>
             <div class="tagline" data-ink-field="hero_tagline">The smart way to capture, organize, and find your thoughts.</div>
             <div class="hr-bar"></div>
             <p data-ink-field="product_description"><strong>InkWell Notes</strong> is the

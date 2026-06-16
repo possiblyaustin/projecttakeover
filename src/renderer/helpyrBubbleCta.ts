@@ -76,6 +76,7 @@ const CTA_BY_TRIGGER: Record<string, BubbleCtaSpec> = {
   storefront_after_hostile: { omit: true },
   storefront_intercept: { omit: true },
   storefront_end: { omit: true },
+  storefront_debrief: { omit: true },
 };
 
 /** CTA configuration for a trigger, or undefined for the default
