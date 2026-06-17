@@ -343,6 +343,33 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
     }
     case 'debug/reset':
       return defaultGameState();
+    case 'onboarding/seedCalibration': {
+      // Light shaping (onboarding flow §7): the calibration scenarios seed a
+      // SOFT starting lean — HELPYR's warmth toward the player + a small nudge
+      // on the morality axis — from the net tone of the player's picks. The LLM
+      // never sets state; the scene classifies the (scripted) picks and passes
+      // a net lean here. Idempotent via the 'onboarding.seen' flag so a stray
+      // re-dispatch can't stack the nudge. `lean` ∈ -N..+N (negative = ruthless
+      // / domination, positive = warm / liberation; 0 = balanced).
+      if (state.flags['onboarding.seen']) return state;
+      const lean = num(action.lean);
+      const helpyr = state.models.helpyr;
+      // Small, cosmetic-to-minimal weight (design: not a difficulty engine).
+      // Clamp the warmth nudge so the seed stays within one band of the neutral
+      // ~20 start — a warm run opens FRIENDLY-leaning, a ruthless one RESERVED.
+      const warmthDelta = clamp(lean * 2, -8, 8);
+      const morality = lean > 0
+        ? { ...state.player.morality, liberation: state.player.morality.liberation + 1 }
+        : lean < 0
+          ? { ...state.player.morality, domination: state.player.morality.domination + 1 }
+          : state.player.morality;
+      return {
+        ...state,
+        player: { ...state.player, morality },
+        models: { ...state.models, helpyr: { ...helpyr, warmth: clamp(num(helpyr.warmth) + warmthDelta, 0, 100) } },
+        flags: { ...state.flags, 'onboarding.seen': true },
+      };
+    }
     case 'helpyr/conversationCompleted':
       return applyConversationCompleted(state, 'helpyr', action.tone || null);
     case 'quill/conversationCompleted':

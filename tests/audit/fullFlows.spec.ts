@@ -13,37 +13,44 @@ import {
 test.describe.configure({ timeout: 120_000 });
 
 // ---------------------------------------------------------------------
-// Flow 1 — Onboarding: boot POST → HELPYR intro → calibration choice →
-// overlay teardown. Run with both input drivers; the keyboard pass
-// proves a D-pad player can't get softlocked at the choice screen.
+// Flow 1 — Onboarding: boot POST → HELPYR intro → 3 calibration scenarios
+// (each: intro → premise → moral fork) → handoff → "Open the desktop" →
+// overlay teardown. Run with both input drivers; the keyboard pass proves a
+// D-pad player can't get softlocked at any choice screen across the whole
+// calibration. The driver advances typing between beats and picks the first
+// enabled choice each time it appears, until the overlay tears down.
 // ---------------------------------------------------------------------
 async function runOnboardingFlow(page: any, driver: Driver): Promise<void> {
   await boot(page, DECK);
   await page.evaluate(() => (window as any).PT.devRunOnboarding());
   await page.waitForSelector('#onboarding-root');
 
-  // Advance the boot beats (any key / click advances; a press mid-type
-  // snaps the line) until the calibration choices render.
-  const deadline = Date.now() + 60_000;
+  let picks = 0;
+  const deadline = Date.now() + 120_000;
   while (Date.now() < deadline) {
-    const ready = await page.evaluate(() => !!document.querySelector('.ob-choice'));
-    if (ready) break;
-    if (driver === 'mouse') {
-      await page.mouse.click(640, 300); // mid-screen, away from Skip/choices
+    if (await page.evaluate(() => !document.querySelector('#onboarding-root'))) break;
+    // A non-disabled, visible choice button → make a pick with this driver.
+    const pickable = await page.evaluate(() => {
+      const b = document.querySelector('.ob-choice:not([disabled])') as HTMLElement | null;
+      return !!b && !!b.offsetParent;
+    });
+    if (pickable) {
+      await activate(page, '.ob-choice:not([disabled])', driver);
+      picks += 1;
+      await page.waitForTimeout(300);
     } else {
-      await page.keyboard.press('Space');
+      // Typing in progress (choices hidden) — advance it. Any key / click
+      // advances; a press mid-type snaps the line to full.
+      if (driver === 'mouse') await page.mouse.click(640, 180); // above the choices
+      else await page.keyboard.press('Space');
+      await page.waitForTimeout(220);
     }
-    await page.waitForTimeout(350);
   }
-  expect(await page.locator('.ob-choice').count(), 'calibration choices never appeared').toBeGreaterThan(0);
 
-  // Pick a choice with the driver under test. For keyboard this exercises
-  // focus mode INSIDE the overlay (snapScopeRoot scoping + data-focusable
-  // snap targets — both fixed after the audit caught the gap).
-  await activate(page, '.ob-choice', driver);
-
-  // Acknowledgment line plays, then the overlay tears down to the desktop.
-  await page.waitForSelector('#onboarding-root', { state: 'detached', timeout: 15_000 });
+  // Overlay tears down to the desktop once the final "Open the desktop" choice
+  // finishes. Picks = 1 intro + 3 scenarios + 1 proceed = 5.
+  await page.waitForSelector('#onboarding-root', { state: 'detached', timeout: 8_000 });
+  expect(picks, 'expected to advance through the full calibration').toBeGreaterThanOrEqual(5);
   expect(errorsFor(page), 'page threw during onboarding').toEqual([]);
 }
 

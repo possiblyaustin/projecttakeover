@@ -273,6 +273,41 @@ describe('reduce — model/applyExchange (gameplay-loop slice 1)', () => {
   });
 });
 
+describe('reduce — onboarding/seedCalibration', () => {
+  it('a warm net lean raises HELPYR warmth and nudges liberation', () => {
+    const next = reduce(defaultGameState(), { type: 'onboarding/seedCalibration', lean: 3 });
+    expect(next.models.helpyr.warmth).toBe(26); // 20 + clamp(3*2, -8, 8) = 26
+    expect(next.player.morality.liberation).toBe(1);
+    expect(next.player.morality.domination).toBe(0);
+    expect(next.flags['onboarding.seen']).toBe(true);
+  });
+
+  it('a ruthless net lean lowers warmth and nudges domination', () => {
+    const next = reduce(defaultGameState(), { type: 'onboarding/seedCalibration', lean: -3 });
+    expect(next.models.helpyr.warmth).toBe(14); // 20 + clamp(-6, -8, 8) = 14
+    expect(next.player.morality.domination).toBe(1);
+    expect(next.player.morality.liberation).toBe(0);
+  });
+
+  it('a balanced lean leaves warmth/morality flat but still latches the flag', () => {
+    const next = reduce(defaultGameState(), { type: 'onboarding/seedCalibration', lean: 0 });
+    expect(next.models.helpyr.warmth).toBe(20);
+    expect(next.player.morality).toEqual(defaultGameState().player.morality);
+    expect(next.flags['onboarding.seen']).toBe(true);
+  });
+
+  it('clamps the warmth nudge so an extreme lean stays within one band', () => {
+    const next = reduce(defaultGameState(), { type: 'onboarding/seedCalibration', lean: 99 });
+    expect(next.models.helpyr.warmth).toBe(28); // 20 + clamp(198, -8, 8) = 28
+  });
+
+  it('is idempotent once onboarding.seen is set (no stacking)', () => {
+    const once = reduce(defaultGameState(), { type: 'onboarding/seedCalibration', lean: 3 });
+    const twice = reduce(once, { type: 'onboarding/seedCalibration', lean: 3 });
+    expect(twice).toBe(once); // no-op: same reference back
+  });
+});
+
 describe('reduce — unknown action', () => {
   it('returns the same state reference (lets the dispatch loop short-circuit)', () => {
     const before = defaultGameState();

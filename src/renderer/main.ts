@@ -60,7 +60,7 @@ import { initCoverDutyWatcher } from './coverDutyWatcher';
 import { initStorefrontWatcher } from './storefrontWatcher';
 import { initMuseBridgeWatcher } from './museBridgeWatcher';
 import { selectBatchIds } from './game/missions/coverDuty';
-import { devRunOnboarding } from './onboarding/onboardingScene';
+import { runOnboarding, devRunOnboarding } from './onboarding/onboardingScene';
 import { bootIntoGame, devRunTitleScreen, devRunTitleScreenRecovered } from './titleScreen/titleScreen';
 
 // ---- Boot order ----
@@ -175,19 +175,33 @@ setEvergreenAftermathDeps({
 
 // 8. Title / login screen — the diegetic entry point. The desktop is already
 //    built underneath; this overlay sits on top until the player logs in,
-//    selling the fiction and masking llama.cpp warm-up. onEnter runs once
-//    they're in (or immediately under ?skipTitle for the test harness) and
-//    owns the desktop's "entered" side effects:
-//      - Launch README so the player has a welcome surface.
-//      - First-boot onboarding nudge — HELPYR points a brand-new player at the
-//        browser, the start of the Act 1 spine (browser → InkWell → first
-//        contact with QUILL). Flag-gated (fires once per save) and delayed so
-//        the desktop + README settle before the bubble appears.
-bootIntoGame(() => {
+//    selling the fiction and masking llama.cpp warm-up.
+//
+//    - onEnterDesktop: a RETURNING player (or any ?skipTitle boot) — launch the
+//      README welcome surface and, after a beat, the first-boot HELPYR nudge
+//      toward the browser (the Act 1 spine: browser → InkWell → QUILL).
+//      Flag-gated so it fires once per save.
+//    - onNewGame: a BRAND-NEW player — run the onboarding scene over the
+//      already-built desktop. It owns the cold boot + HELPYR wake + calibration,
+//      reveals the desktop on completion, and its QUILL handoff IS the nudge —
+//      so we fire the same persistent browser-nudge bubble once the big
+//      onboarding UI closes (always-legible next step). If onboarding was
+//      already consumed (e.g. a reload mid-onboarding before any save existed),
+//      fall through to the plain desktop.
+function enterDesktop(): void {
   DesktopShortcuts[0]!.launch();
-  setTimeout(() => {
-    fireOnceLibraryTrigger('firstBoot.onboarding', 'onboarding_boot');
-  }, 1800);
+  setTimeout(() => fireOnceLibraryTrigger('firstBoot.onboarding', 'onboarding_boot'), 1800);
+}
+bootIntoGame({
+  onEnterDesktop: enterDesktop,
+  onNewGame: () => {
+    if (GameState.getState().flags['onboarding.seen']) { enterDesktop(); return; }
+    runOnboarding({
+      onComplete: () => {
+        setTimeout(() => fireOnceLibraryTrigger('firstBoot.onboarding', 'onboarding_boot'), 800);
+      },
+    });
+  },
 });
 
 // ---- Devtools surface ----
