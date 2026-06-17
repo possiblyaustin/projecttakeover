@@ -808,6 +808,10 @@ function applyConversationCompleted(
 let state: GameStateShape = defaultGameState();
 const listeners = new Set<Listener>();
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+// Whether a valid save was present at load. Drives the title screen's
+// "Begin Session" (new) vs "Resume Session" (continue) framing. Set once in
+// loadFromStorage; a fresh game leaves it false.
+let loadedFromSave = false;
 
 function loadFromStorage(): void {
   try {
@@ -816,6 +820,7 @@ function loadFromStorage(): void {
     const parsed = JSON.parse(raw);
     if (parsed && parsed.version === VERSION) {
       state = parsed as GameStateShape;
+      loadedFromSave = true;
     } else {
       // Pre-release: no migrations. Drop the save and start fresh.
       localStorage.removeItem(STORAGE_KEY);
@@ -864,6 +869,9 @@ function dispatch(action: GameAction): void {
 }
 
 function getState(): GameStateShape { return state; }
+/** True when a valid save was loaded at startup (vs. a fresh default state).
+ *  Read by the title screen to pick the session framing. */
+function hasSave(): boolean { return loadedFromSave; }
 function select<T>(fn: (s: GameStateShape) => T): T { return fn(state); }
 function subscribe(fn: Listener): () => void {
   listeners.add(fn);
@@ -872,4 +880,4 @@ function subscribe(fn: Listener): () => void {
 
 loadFromStorage();
 
-export const GameState = { getState, dispatch, select, subscribe };
+export const GameState = { getState, dispatch, select, subscribe, hasSave };

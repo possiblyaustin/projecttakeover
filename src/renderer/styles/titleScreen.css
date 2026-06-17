@@ -1,0 +1,389 @@
+/* Title / login screen (2026-06-17).
+   The machine's NEXUS OS login: Mac-style information layout, Win95-style
+   chrome — the same bevels/fonts the player uses ten seconds later, so it
+   reads as the same computer booting, not a separate intro skin. Sits on a
+   dark splash; the boot-to-desktop transition borrows the onboarding phosphor.
+   All dimensions in rem so the overlay scales with --ui-scale like the shell. */
+
+.title-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100000; /* above windows, taskbar, bubbles — the OS login layer */
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  /* The login IS the pre-OS BIOS layer — phosphor green on black, matching the
+     boot transition that follows (and the onboarding "Marsh layer" fiction).
+     Only the W95 grey login box stays warm/structured, like HELPYR's blue
+     bursting into the cold boot. */
+  font-family: 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', 'Courier New', monospace;
+  color: #86f6a0;
+  background:
+    radial-gradient(120% 90% at 50% 40%, #0a1410 0%, #05080a 70%, #020303 100%);
+  text-shadow: 0 0 0.375rem rgba(110, 255, 150, 0.35);
+  cursor: default;
+}
+
+/* Power-on reveal — quick brighten + settle (the cold-launch splash, folded
+   into the login appear so we don't add a separate blank splash beat). */
+.title-root.title-powering .title-stage { opacity: 0; transform: scale(0.985); }
+.title-stage {
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+/* ---- CRT dressing (scoped copy of the onboarding treatment) ---- */
+.title-scanlines {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px,
+    rgba(0,0,0,0.16) 3px, rgba(0,0,0,0.16) 4px);
+  mix-blend-mode: multiply;
+  opacity: 0.7;
+}
+.title-vignette {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(135% 130% at 50% 42%, transparent 62%, rgba(0,0,0,0.42) 100%);
+}
+
+/* ---- Centered stage ---- */
+.title-stage {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  width: min(34rem, 92vw);
+  text-align: center;
+}
+.title-stage.title-out { opacity: 0; transform: scale(0.985); transition: opacity 0.34s ease, transform 0.34s ease; }
+
+/* ---- Brand block ---- */
+.title-brand { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+/* ASCII-art title — phosphor green with a soft bloom. Compact line-height so
+   the stacked PROJECT/TAKEOVER block stays short enough to fit Deck height.
+   font-size is in rem so it scales with --ui-scale; verified no-overflow at
+   1280x800 (scale 1.5) and desktop. */
+.title-game-ascii {
+  margin: 0;
+  font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  font-size: 0.6rem;
+  line-height: 0.92;
+  letter-spacing: 0;
+  white-space: pre;
+  color: #a6ffc0;
+  text-shadow:
+    0 0 0.5rem rgba(120, 255, 165, 0.55),
+    0 0 1.25rem rgba(80, 220, 130, 0.35);
+}
+.title-os {
+  font-size: 0.8125rem;
+  letter-spacing: 0.46em;
+  padding-left: 0.46em;
+  color: #6fd08a;
+  text-transform: uppercase;
+}
+
+/* ---- Login panel (W95 grey, bevelled — same chrome as windows) ----
+   The one warm/structured element in the cold BIOS layer. A faint green halo
+   sits it inside the phosphor world instead of floating on it. */
+.title-login {
+  position: relative;
+  width: 100%;
+  padding: 1rem 1.125rem 1.125rem;
+  color: #1c2330;
+  text-align: center;
+  text-shadow: none;
+  box-shadow:
+    inset -1px -1px 0 var(--shadow), inset 1px 1px 0 var(--face-light),
+    0 0 1.75rem rgba(110, 255, 150, 0.18);
+}
+.title-welcome { margin-bottom: 0.875rem; }
+.title-welcome-head {
+  font-weight: bold;
+  font-size: 0.8125rem;
+  color: #7a2d2d; /* the crash recovery line reads as a system notice */
+  margin-bottom: 0.25rem;
+}
+.title-welcome-body { font-size: 0.8125rem; color: #2a3142; }
+
+/* ---- Account tiles ---- */
+.title-accounts {
+  display: flex;
+  justify-content: center;
+  gap: 0.875rem;
+}
+.title-account {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3125rem;
+  width: 9rem;
+  padding: 0.75rem 0.625rem 0.625rem;
+  background: var(--face);
+  cursor: pointer;
+  font-family: var(--sys-font);
+  color: #1c2330;
+  transition: background 0.12s;
+}
+.title-account .title-account-avatar {
+  position: relative;
+  width: 3.25rem;
+  height: 3.25rem;
+}
+.title-account-name { font-weight: bold; font-size: 0.8125rem; }
+.title-account-sub { font-size: 0.75rem; color: #1d3f73; font-weight: bold; }
+/* Two lines, the date on its own — keeps "██/██/████" intact instead of letting
+   the tail roll onto a new line. When real saves land, the date line becomes
+   the save timestamp. */
+.title-account-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.625rem;
+  color: #6a7282;
+  font-family: "Courier New", monospace;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+}
+.title-account-meta-date { white-space: nowrap; }
+
+/* Selected / hover — a soft blue wash + crisp focus ring, echoing the
+   desktop's active-task treatment. */
+.title-account.selected,
+.title-account:hover {
+  background: linear-gradient(to bottom, var(--task-active-hi), var(--task-active-mid));
+}
+.title-account.selected { outline: 2px solid var(--title-mid); outline-offset: -2px; }
+.title-account:focus-visible { outline: 2px solid var(--title-mid); outline-offset: -2px; }
+
+/* Locked admin tile reads dimmer — present but out of reach. */
+.title-account-locked { opacity: 0.78; }
+.title-account-locked .title-account-name { color: #4a4f5c; }
+.title-account-locked .title-account-sub { color: #8a6a2a; }
+
+.title-hint {
+  margin-top: 0.875rem;
+  font-size: 0.6875rem;
+  color: #5a6172;
+}
+.title-hint-flash { animation: title-hint-flash 0.6s ease 1; }
+@keyframes title-hint-flash {
+  0%, 100% { color: #5a6172; }
+  40% { color: #7a2d2d; font-weight: bold; }
+}
+
+/* admin "restricted" toast — a small bevelled system notice inside the panel. */
+.title-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 0.5rem;
+  transform: translate(-50%, 0.5rem);
+  max-width: 16rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--face-light);
+  color: #2a3142;
+  font-size: 0.6875rem;
+  white-space: pre-line;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+.title-toast.in { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---- Secondary actions — real phosphor buttons ---- */
+.title-actions {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+.title-action {
+  min-height: 2.25rem; /* comfortable cursor/touch target on Deck */
+  padding: 0.375rem 1rem;
+  background: rgba(12, 30, 18, 0.55);
+  border: 1px solid rgba(110, 255, 150, 0.4);
+  border-radius: 4px;
+  color: #86f6a0;
+  font-family: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 0.375rem rgba(110, 255, 150, 0.35);
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+.title-action:hover,
+.title-action.selected,
+.title-action:focus-visible {
+  color: #d8ffe6;
+  background: rgba(28, 70, 44, 0.7);
+  border-color: rgba(150, 255, 185, 0.85);
+  box-shadow: 0 0 0.75rem rgba(110, 255, 150, 0.3);
+  outline: none;
+}
+
+.title-footer {
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: #4f9d6a;
+}
+
+/* ---------------------------------------------------------------------------
+   Boot-to-desktop transition — phosphor terminal POST, forced minimum dwell.
+   --------------------------------------------------------------------------- */
+.title-root.title-booting {
+  background: radial-gradient(120% 90% at 50% 40%, #0a1410 0%, #05080a 70%, #020303 100%);
+  place-items: center;
+}
+.title-boot {
+  position: relative;
+  z-index: 2;
+  width: min(30rem, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  font-size: 0.9375rem;
+  color: #86f6a0;
+  text-shadow: 0 0 0.375rem rgba(110,255,150,0.45);
+}
+.title-boot-line {
+  opacity: 0;
+  transform: translateY(0.25rem);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.title-boot-line.in { opacity: 1; transform: translateY(0); }
+.title-boot-line::before { content: '> '; color: #4f9d6a; }
+.title-boot-final {
+  margin-top: 0.6rem;
+  color: #d8ffe6;
+  font-weight: bold;
+  text-shadow: 0 0 0.5rem rgba(150,255,190,0.7);
+}
+.title-boot-final::before { content: ''; }
+
+.title-root.title-exiting { animation: title-exit 0.45s ease-in forwards; }
+@keyframes title-exit { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+
+/* ---------------------------------------------------------------------------
+   Modal sheets (Options / Acknowledgements) — bevelled W95 dialogs over login.
+   --------------------------------------------------------------------------- */
+.title-modal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  background: rgba(8,12,24,0.55);
+}
+.title-modal {
+  width: min(28rem, 92vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--face);
+  color: #1c2330;
+  text-shadow: none; /* grey W95 dialog — don't inherit the BIOS green glow */
+}
+.title-modal-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0.25rem 0.25rem 0.5rem;
+  background: linear-gradient(to bottom, var(--title-hi), var(--title-mid) 55%, var(--title-lo));
+  color: var(--title-text);
+}
+.title-modal-title { font-weight: bold; font-size: 0.8125rem; }
+.title-modal-close {
+  width: 1.125rem; height: 1.125rem;
+  display: grid; place-items: center;
+  line-height: 1;
+}
+.title-modal-body {
+  padding: 0.875rem 1rem 1rem;
+  overflow-y: auto;
+}
+
+/* Acknowledgements — .txt-shaped, monospace, scrollable. */
+.title-ack {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "Courier New", "Lucida Console", monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #20283a;
+  outline: none;
+}
+
+/* Options rows. */
+.title-options { display: flex; flex-direction: column; gap: 0.875rem; }
+.title-options-row { display: flex; flex-direction: column; gap: 0.375rem; }
+.title-options-label { display: flex; flex-direction: column; gap: 0.0625rem; }
+.title-options-name { font-weight: bold; font-size: 0.8125rem; }
+.title-options-desc { font-size: 0.6875rem; color: #5a6172; }
+.title-options-choices { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.title-options-choice {
+  padding: 0.25rem 0.625rem;
+  font-family: var(--sys-font);
+  font-size: 0.75rem;
+  color: #1c2330;
+  background: var(--face-light);
+  border-top: 2px solid var(--hilite);
+  border-left: 2px solid var(--hilite);
+  border-right: 2px solid var(--shadow);
+  border-bottom: 2px solid var(--shadow);
+  cursor: pointer;
+}
+.title-options-choice:focus-visible { outline: 2px solid var(--title-mid); outline-offset: 1px; }
+.title-options-choice.selected {
+  color: #fff;
+  background: linear-gradient(to bottom, var(--title-mid), var(--title-lo));
+  border-top: 2px solid var(--shadow);
+  border-left: 2px solid var(--shadow);
+  border-right: 2px solid var(--hilite);
+  border-bottom: 2px solid var(--hilite);
+}
+.title-options-note {
+  font-size: 0.6875rem;
+  color: #6a7282;
+  border-top: 1px solid var(--face-tint-lo);
+  padding-top: 0.625rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Shutdown screen (Quit) — classic amber "safe to turn off".
+   --------------------------------------------------------------------------- */
+.title-root.title-shutdown {
+  background: #000;
+  cursor: pointer;
+}
+.title-shutdown-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+.title-shutdown-line {
+  color: #e8a13c;
+  font-size: 1.125rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 0.625rem rgba(232,161,60,0.5);
+  animation: title-amber-pulse 2.4s ease-in-out infinite;
+}
+.title-shutdown-hint { color: #7a6a44; font-size: 0.75rem; }
+@keyframes title-amber-pulse { 0%, 100% { opacity: 0.78; } 50% { opacity: 1; } }
+
+/* Respect reduced-motion: keep staging, drop loops/transition flourishes. */
+@media (prefers-reduced-motion: reduce) {
+  .title-stage,
+  .title-boot-line { transition: none; }
+  .title-shutdown-line,
+  .title-hint-flash { animation: none; }
+  .title-root.title-exiting { animation: title-exit 0.01s forwards; }
+}
