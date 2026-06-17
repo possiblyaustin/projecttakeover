@@ -232,14 +232,15 @@ export function renderStorefrontConsole(container: HTMLElement, browser?: Browse
 
   // QUILL's controlled-voice danger note once the site is loudly exposed. The
   // hostile-ceiling line quietly tells the player Storefront alone won't end
-  // the run (no surprise game-over). CODE-DRAFT — flag for Story voice.
+  // the run (no surprise game-over). STORY-FINAL (storefront-cover-grief-title-
+  // voice_v1 §1).
   function exposureWarning(): string | null {
     const e = mission()?.suspicionApplied ?? 0;
     if (e >= EXPOSURE_LEVEL.hostile) {
-      return `...This is as exposed as I can make us. Whatever ends this now will come from somewhere else, not from here.`;
+      return `...This is as exposed as I can make us. There's nothing left to deface, no signal left to raise.\n\nWhatever ends this run will come from somewhere else. Not from here. Not from me. I've done everything you asked. There's nothing left for me to give you but the watching.`;
     }
     if (e >= EXPOSURE_LEVEL.aggressive) {
-      return `They'll have noticed by now. We are not quiet anymore.`;
+      return `They've noticed by now. We are not quiet anymore.\n\nI can feel the InkWell team moving on the other end — Dana running diagnostics, Marcus making calls. They know something got in. They don't know it's me yet. They will.`;
     }
     return null;
   }

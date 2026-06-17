@@ -85,10 +85,9 @@ Options must react to what MUSE just said. Never generic.`;
 //
 // Meter-band keyed like QUILL's (FLIP_THRESHOLD 100, so the authored
 // "60-90" band extends to 99; 100 = the flip, handled by terminal
-// disposition checks first). All blocks are STORY-READY verbatim except
-// the low-intrusion (<30) band — the design describes that phase ("Early,
-// the player subtly steers MUSE's output") but didn't author a block, so
-// that one is CODE-DRAFT pending a Story voice pass.
+// disposition checks first). All blocks are STORY-FINAL verbatim — the
+// low-intrusion (<30) band was authored by Story in the Storefront mission
+// package §7 (integrated v0.2.42).
 type MuseModelStateShape = {
   disposition: string;
   rapport: number;

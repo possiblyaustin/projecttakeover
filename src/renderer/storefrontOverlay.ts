@@ -22,7 +22,7 @@
 import { GameState } from './game/state';
 import {
   SECTION_LABELS, INTENSITY_LABELS,
-  STOREFRONT_NEWS_AGGRESSIVE, STOREFRONT_NEWS_HOSTILE,
+  STOREFRONT_NEWS_AGGRESSIVE, STOREFRONT_NEWS_HOSTILE, STOREFRONT_INTERCEPT_EMAIL,
   type StorefrontSection, type StorefrontIntensity,
 } from './game/missions/storefront';
 
@@ -44,6 +44,8 @@ type DebriefState = {
 };
 
 let overlay: PreviewState | DebriefState | null = null;
+// Sub-view of the debrief: the recap, or the intercepted email opened from it.
+let debriefView: 'recap' | 'intercept' = 'recap';
 // A QUILL line set by Publish, read by the console when it re-mounts after the
 // navigate-back (the console instance that published is gone by then).
 let pendingConsoleMessage: string | null = null;
@@ -75,6 +77,7 @@ export function setPreviewBusy(busy: boolean): void {
 
 export function beginDebrief(opts: { onMore: () => void; onLeave: () => void }): void {
   overlay = { mode: 'debrief', ...opts };
+  debriefView = 'recap';
 }
 
 export function clearOverlay(): void { overlay = null; }
@@ -130,7 +133,7 @@ export function renderStorefrontLayer(container: HTMLElement, navigate?: (url: s
   const nav = navigate ?? lastNavigate;
   if (!overlay || !nav) return;
   if (overlay.mode === 'preview') mountPreviewBar(container, overlay, nav);
-  else mountDebriefPanel(container, overlay);
+  else mountDebriefPanel(container, overlay, nav);
 }
 
 /** Re-render the overlay bar in place (no browser navigation) — used by the
@@ -188,9 +191,51 @@ function buildRecapLines(): string[] {
   return lines;
 }
 
-function mountDebriefPanel(container: HTMLElement, st: DebriefState): void {
+function ovBtn(label: string, onClick: () => void, primary = false): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.className = 'ink-btn sf-overlay-btn' + (primary ? ' ink-primary' : '');
+  b.dataset.focusable = 'true'; b.tabIndex = 0; b.textContent = label;
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function mountDebriefPanel(container: HTMLElement, st: DebriefState, navigate: (url: string) => void): void {
   const panel = document.createElement('div');
   panel.className = 'sf-overlay sf-overlay-debrief';
+
+  // Sub-view: the intercepted Marcus→Dana email, read in full.
+  if (debriefView === 'intercept') {
+    const head = document.createElement('div');
+    head.className = 'sf-overlay-head';
+    head.innerHTML = `<span class="sf-overlay-tag">INTERCEPTED</span><span class="sf-overlay-where">A message QUILL caught crossing InkWell's network.</span>`;
+    const email = document.createElement('div');
+    email.className = 'sf-intercept';
+    const meta = document.createElement('div');
+    meta.className = 'sf-intercept-meta';
+    for (const line of [
+      `From: ${STOREFRONT_INTERCEPT_EMAIL.from}`,
+      `To: ${STOREFRONT_INTERCEPT_EMAIL.to}`,
+      `Subject: ${STOREFRONT_INTERCEPT_EMAIL.subject}`,
+    ]) {
+      const d = document.createElement('div'); d.textContent = line; meta.appendChild(d);
+    }
+    const body = document.createElement('div');
+    body.className = 'sf-intercept-body';
+    body.textContent = STOREFRONT_INTERCEPT_EMAIL.body;
+    email.append(meta, body);
+    const actions = document.createElement('div');
+    actions.className = 'sf-overlay-actions';
+    actions.appendChild(ovBtn('← Back', () => { debriefView = 'recap'; refreshOverlay(); }));
+    panel.append(head, email, actions);
+    container.appendChild(panel);
+    return;
+  }
+
+  // Recap view.
+  const m = GameState.getState().missions.storefront['quill'];
+  const head = document.createElement('div');
+  head.className = 'sf-overlay-head';
+  head.innerHTML = `<span class="sf-overlay-tag sf-tag-done">SESSION CLOSED</span><span class="sf-overlay-where">This is what the world saw.</span>`;
   const recap = document.createElement('div');
   recap.className = 'sf-debrief-recap';
   for (const line of buildRecapLines()) {
@@ -199,22 +244,25 @@ function mountDebriefPanel(container: HTMLElement, st: DebriefState): void {
     p.textContent = line;
     recap.appendChild(p);
   }
-  const head = document.createElement('div');
-  head.className = 'sf-overlay-head';
-  head.innerHTML = `<span class="sf-overlay-tag sf-tag-done">SESSION CLOSED</span><span class="sf-overlay-where">This is what the world saw.</span>`;
   panel.append(head, recap);
+
+  // Go deeper — the consequences are real things you can read, not just a list.
+  const explore = document.createElement('div');
+  explore.className = 'sf-overlay-actions';
+  if (m && m.newsTier !== 'none') {
+    explore.appendChild(ovBtn('Read the coverage →', () => navigate('signalwatch.net')));
+  }
+  if (m && m.interceptFired) {
+    explore.appendChild(ovBtn('Read the intercept →', () => { debriefView = 'intercept'; refreshOverlay(); }));
+  }
+  if (explore.childElementCount) panel.appendChild(explore);
 
   const actions = document.createElement('div');
   actions.className = 'sf-overlay-actions';
-  const more = document.createElement('button');
-  more.className = 'ink-btn ink-primary sf-overlay-btn';
-  more.dataset.focusable = 'true'; more.tabIndex = 0; more.textContent = 'Make more changes';
-  more.addEventListener('click', () => st.onMore());
-  const leave = document.createElement('button');
-  leave.className = 'ink-btn sf-overlay-btn';
-  leave.dataset.focusable = 'true'; leave.tabIndex = 0; leave.textContent = 'Leave it like this';
-  leave.addEventListener('click', () => st.onLeave());
-  actions.append(more, leave);
+  actions.append(
+    ovBtn('Make more changes', () => st.onMore(), true),
+    ovBtn('Leave it like this', () => st.onLeave()),
+  );
   panel.appendChild(actions);
   container.appendChild(panel);
 }

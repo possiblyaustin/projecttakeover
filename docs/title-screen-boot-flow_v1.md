@@ -4,6 +4,17 @@
 
 ---
 
+## Decisions locked (2026-06-15, Austin)
+
+Reconciled against Story's `storefront-cover-grief-title-voice_v1.md §4` (which aligned cleanly with this draft):
+- **In-fiction OS name = "NEXUS OS"** (Story's recommendation, adopted). The machine boots into NEXUS OS — a B-plot breadcrumb hiding in plain sight (Nexus = the founding company). Most players read it as flavor; replayers clock it.
+- **Game title placeholder = a big "PROJECT TAKEOVER" ASCII-style logo** for now. The *actual shipping title* still needs to live on this screen at some point (Marketing thread owns the final name) — flagged as an open slot, not resolved.
+- **Boot ordering = Option B (login → boot)** — already what this draft specifies (login window → press Login → boot-to-desktop), and Story's recommendation. Settled.
+- **`admin` account stays `[locked]`** for v1 with Story's click message ("This account is restricted. Administrator access required."). Pairs with the locked ARCHIVE folder as twin seeds.
+- Story-final copy for the login screen, account sub-labels ("Begin Session" / "Resume Session"), and the post-Evergreen-reboot variant ("System recovered from unexpected shutdown") is in the voice doc, ready for the build.
+
+---
+
 ## Goals
 
 - Stay fully in fiction: the computer boots, Marsh logs in, the desktop appears. The title screen *is* the login screen.
