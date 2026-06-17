@@ -121,6 +121,10 @@ const NexusMenu: NexusEntry[] = [
   //   fires the follow-up nudge for the slice 2 "no" branch.
   { type: 'item', label: '[DEV] Play onboarding',
     action: () => devRunOnboarding() },
+  { type: 'item', label: '[DEV] Title screen',
+    action: () => (window as any).PT.devRunTitleScreen() },
+  { type: 'item', label: '[DEV] Title screen (recovered)',
+    action: () => (window as any).PT.devRunTitleScreenRecovered() },
   { type: 'item', label: '[DEV] Spawn HELPYR Bubble',
     action: () => devSpawnRandomBubble() },
   { type: 'item', label: '[DEV] Bump suspicion +25',

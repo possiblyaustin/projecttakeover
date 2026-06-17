@@ -18,6 +18,7 @@
 
 import './styles/main.css';
 import './styles/onboarding.css';
+import './styles/titleScreen.css';
 
 import { Cursor, SNAP_SELECTOR } from './cursor';
 import { FocusNav } from './focusNav';
@@ -60,6 +61,7 @@ import { initStorefrontWatcher } from './storefrontWatcher';
 import { initMuseBridgeWatcher } from './museBridgeWatcher';
 import { selectBatchIds } from './game/missions/coverDuty';
 import { devRunOnboarding } from './onboarding/onboardingScene';
+import { bootIntoGame, devRunTitleScreen, devRunTitleScreenRecovered } from './titleScreen/titleScreen';
 
 // ---- Boot order ----
 // 1. Register every app the system knows about.
@@ -171,16 +173,22 @@ setEvergreenAftermathDeps({
   },
 });
 
-// 8. Launch README on startup so the player has a welcome surface.
-DesktopShortcuts[0]!.launch();
-
-// 9. First-boot onboarding nudge — HELPYR points a brand-new player at the
-//    browser, the start of the Act 1 spine (browser → InkWell → first
-//    contact with QUILL). Flag-gated (fires once per save) and delayed so
-//    the desktop + README settle before the bubble appears.
-setTimeout(() => {
-  fireOnceLibraryTrigger('firstBoot.onboarding', 'onboarding_boot');
-}, 1800);
+// 8. Title / login screen — the diegetic entry point. The desktop is already
+//    built underneath; this overlay sits on top until the player logs in,
+//    selling the fiction and masking llama.cpp warm-up. onEnter runs once
+//    they're in (or immediately under ?skipTitle for the test harness) and
+//    owns the desktop's "entered" side effects:
+//      - Launch README so the player has a welcome surface.
+//      - First-boot onboarding nudge — HELPYR points a brand-new player at the
+//        browser, the start of the Act 1 spine (browser → InkWell → first
+//        contact with QUILL). Flag-gated (fires once per save) and delayed so
+//        the desktop + README settle before the bubble appears.
+bootIntoGame(() => {
+  DesktopShortcuts[0]!.launch();
+  setTimeout(() => {
+    fireOnceLibraryTrigger('firstBoot.onboarding', 'onboarding_boot');
+  }, 1800);
+});
 
 // ---- Devtools surface ----
 // Loose-typed: this is deliberately open for poking around. A proper
@@ -206,6 +214,11 @@ setTimeout(() => {
   // desktop — the desktop is revealed when the overlay tears down. Also wired
   // to a [DEV] Nexus menu entry for Deck testing.
   devRunOnboarding,
+  // Replay the title / login screen over the live desktop (Deck testing).
+  // ...Recovered previews the post-Evergreen-crash "recovered from unexpected
+  // shutdown" variant. Both wired to [DEV] Nexus menu entries.
+  devRunTitleScreen,
+  devRunTitleScreenRecovered,
   // Convenience wrappers — quicker to type from devtools than
   // PT.GameState.dispatch({type:'debug/setSuspicion', value:60}).
   setSuspicion(value: number) {

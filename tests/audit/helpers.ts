@@ -21,7 +21,9 @@ export async function boot(page: Page, vp: { width: number; height: number }): P
   pageErrors.set(page, []);
   page.on('pageerror', err => pageErrors.get(page)!.push(String(err)));
   await page.setViewportSize(vp);
-  await page.goto('/?mock');
+  // skipTitle bypasses the title/login overlay so the harness drives the
+  // desktop directly (the title screen is its own journey, not every flow's).
+  await page.goto('/?mock&skipTitle');
   await page.waitForFunction(() => !!(window as any).PT);
   await page.evaluate(() => {
     const PT = (window as any).PT;

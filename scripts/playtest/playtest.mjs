@@ -39,7 +39,9 @@ const live = flag('live');
 const maxTurns = parseInt(opt('max-turns', '60'), 10);
 const baseUrl = opt('url', 'http://localhost:5173');
 const model = opt('model', 'claude-sonnet-4-6');
-const gameUrl = live ? `${baseUrl}/` : `${baseUrl}/?mock`;
+// skipTitle bypasses the title/login overlay so the explorer drives the
+// desktop directly (it tests gameplay, not the login).
+const gameUrl = live ? `${baseUrl}/?skipTitle` : `${baseUrl}/?mock&skipTitle`;
 
 // ---- preflight: dev server must be up ----
 try {
