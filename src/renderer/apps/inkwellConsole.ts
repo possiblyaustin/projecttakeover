@@ -15,8 +15,9 @@
 // the in-flight "drafting/review" step is local (not persisted) — nothing is
 // recorded until the player sends.
 //
-// COPY: ticket/response copy is CODE-DRAFT (coverDuty.ts); QUILL's assistant
-// reactions below are CODE-DRAFT too — FLAG FOR STORY.
+// COPY: ticket/response copy is STORY-FINAL (coverDuty.ts — all 5 mundane +
+// both operator tickets voice-passed). QUILL's assistant-strip reactions below
+// (QUILL_CONSOLE_REACTIONS / spike lines) are STORY-FINAL too.
 
 import { GameState } from '../game/state';
 import {

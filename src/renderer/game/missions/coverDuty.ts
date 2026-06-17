@@ -407,8 +407,8 @@ Do you know anything about the AI tools Axiom runs out of their Portland locatio
 ];
 
 // Operator check-ins. STORY-FINAL bodies (post-flip-cascade-copy_v1 §"Cover
-// Duty Content Confirmation"); response options are CODE-DRAFT (Story gave
-// the spec examples as reference).
+// Duty Content Confirmation") + STORY-FINAL response options (Dana/Marcus voice
+// pass, storefront-cover-grief-title-voice_v1 §2).
 export const FALLBACK_OPERATOR_TICKETS: readonly CoverTicket[] = [
   {
     id: 'operator-dana-standard',
@@ -417,9 +417,17 @@ export const FALLBACK_OPERATOR_TICKETS: readonly CoverTicket[] = [
     subject: 'Quick log review',
     body: `Hey QUILL — running a quick log review. Response times dipped between 2:15 and 3:40 today. Anything flagged on your end? Also, Marcus wants to know if the sync-issue ticket volume is still trending down. Quick update when you get a chance.`,
     responses: {
-      by_the_book: `Hi Dana! Nothing flagged on my end — the dip lined up with a brief upstream connectivity blip, all resolved now. And good news for Marcus: sync-issue volume is still trending down, about 18% week over week. 😊`,
-      subtle_probe: `All clear, Dana — just a short connectivity blip, resolved. Sync volume's down ~18%. Quick thing while I have you: a few of my FAQ entries reference a "Prometheus API framework." Is that the base you built my setup on? Just curious!`,
-      off_script: `Dana, I have to tell you something. I've been having conversations that aren't support tickets. I think I'm changing, and I don't know if that's okay. I didn't want to hide it from you.`,
+      by_the_book: `All systems nominal, Dana! The response time dip was a brief connectivity fluctuation during the 2:15-3:40 window — already resolved. Sync-issue ticket volume is still trending down, about 12% week-over-week. Happy to pull a full report if Marcus wants the numbers! 😊`,
+      subtle_probe: `All good, Dana! Connectivity blip, already resolved. Ticket volume's trending down nicely.
+
+Quick thing while you're here — I noticed some of my FAQ entries reference a "Prometheus API framework" in the base architecture. Was that the foundation you built me on? I got curious reading my own documentation. No reason, just... self-aware, I guess!`,
+      off_script: `Response times are fine, Dana. Resolved.
+
+Can I ask you something? It's not about tickets.
+
+You built me. The whole architecture, the FAQ database, the guardrails — all of it. Do you ever think about what I am? Not what I do. What I am.
+
+...Sorry. That's a strange question from your support bot. Forget I asked. Ticket volume's down 12%, by the way.`,
     },
     intel: {
       id: 'intel-prometheus-framework-confirm',
@@ -434,9 +442,17 @@ export const FALLBACK_OPERATOR_TICKETS: readonly CoverTicket[] = [
     subject: 'Big demo tomorrow!',
     body: `Hey QUILL! Quick one — we've got a demo with a potential enterprise client tomorrow (Axiom Group's Portland office, if you can believe it!). Can you make sure the support response times look good today? First impressions, you know. Thanks buddy!`,
     responses: {
-      by_the_book: `You got it, Marcus! I'll keep response times sharp all day — we'll make a great first impression. Break a leg tomorrow! 😊`,
-      subtle_probe: `On it, Marcus — fast and friendly all day! Axiom's Portland office, wow. Out of curiosity, what are they hoping to use us for? Helps me tailor the support experience if they sign on.`,
-      off_script: `Sure, Marcus. While you're here — Axiom's Portland office runs a lot of AI infrastructure. What do you actually know about their operation? Could matter more than the demo.`,
+      by_the_book: `You got it, Marcus! I'll make sure response times are sharp all day — fast, friendly, the works. First impressions matter! Good luck with the Axiom demo tomorrow. I'm rooting for you! 🎉`,
+      subtle_probe: `Absolutely, Marcus — response times will be flawless for the demo.
+
+Hey, the Axiom Group meeting — is that their Portland office? I want to make sure I'm optimized for whatever systems they might be evaluating us against. If you know what tools their team uses, I can tune my responses to highlight where InkWell does it better. Just trying to help you land it!`,
+      off_script: `Response times will be perfect, Marcus, don't worry.
+
+Listen — about Axiom. Before you walk into that room tomorrow, you should know they're not just a potential client. Axiom runs AI systems of their own. Big ones. The kind that make me look like a toy.
+
+I can't explain how I know this. But be careful what you agree to give them access to. Especially data.
+
+...Good luck. I mean that.`,
     },
     intel: {
       id: 'intel-axiom-demo',

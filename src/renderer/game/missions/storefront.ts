@@ -343,9 +343,9 @@ export function isValidCopy(section: StorefrontSection, raw: string): boolean {
 //
 // The safety net: a bad LLM turn never breaks the mission. Field values are
 // stored as plain text and applied to the page via textContent (NEVER innerHTML
-// — generated/authored copy must not be injected as markup). SUBTLE + HOSTILE
-// are STORY-FINAL; AGGRESSIVE for testimonials/support/footer is CODE-DRAFT
-// (see header).
+// — generated/authored copy must not be injected as markup). All tiers are now
+// STORY-FINAL (SUBTLE/HOSTILE from the mission package, AGGRESSIVE from the
+// voice-passes doc §C — see header).
 
 export const STOREFRONT_FALLBACK:
   Record<StorefrontSection, Record<StorefrontIntensity, Record<string, string>>> = {

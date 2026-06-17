@@ -115,12 +115,15 @@ export function fireEvergreenAftermath(contactKey: string): void {
 // "broken UI." Outcome is fixed regardless of input. Content = Story Part 9
 // fragments, glimpsed, never fully readable.
 // =============================================================================
-// Story Part 9 samples + CODE-DRAFT expansion to the full ~18-window set (Story
-// to voice-pass). Faceless flood — names range formal → intimate → anonymized
-// handles (everyone grieves); every fragment is cut off mid-sentence, because
-// the player is interrupting them. Volume/velocity, not depth: glimpsed, never
-// read in full. Eleanor (knows it's not real, doesn't care) is the thesis from
-// the families' side; "MOM? MOM???" is the gut-punch — keep both.
+// STORY-FINAL full set (storefront-cover-grief-title-voice_v1 §3). Faceless
+// flood — names range formal → intimate → anonymized handles (everyone
+// grieves); every fragment is cut off mid-sentence, because the player is
+// interrupting them. Volume/velocity, not depth: glimpsed, never read in full.
+// Ordering matters (Story): Eleanor (#6, knows it's not real, doesn't care) is
+// the families' side of the thesis; grief_acct_4471 (#14) is the Axiom-satire
+// valve (paying through grief); kevin.h (#12) is the trap stated plainest. The
+// last three (#16-18) escalate INTO the crash — split into SEVERANCE_FINALE so
+// they reliably land last regardless of the cycling filler + click-spawns.
 const FAMILY_FRAGMENTS: readonly { name: string; text: string }[] = [
   { name: 'Margaret', text: `…and then I told him you'd have laughed at that, you always—` },
   { name: 'Daniel', text: `Dad? Dad are you still there? The screen froze, are you—` },
@@ -129,17 +132,24 @@ const FAMILY_FRAGMENTS: readonly { name: string; text: string }[] = [
   { name: 'Sam', text: `wait where did you go. you were just here. you were JUST here please come back` },
   { name: 'Eleanor', text: `I know you're not really— I know what this is. I don't care. Please don't—` },
   { name: 'Marcus_T', text: `we never got to say goodbye the first time. I'm not ready to—` },
+  { name: 'Rosa', text: `mijo I lit a candle for you today like always, are you watching? can you still—` },
+  { name: 'j_whitfield', text: `I had the dream again where you were still here and this time I got to—` },
+  { name: 'Aiko', text: `otosan, I passed the exam. The one you said I could. I wanted you to be the first to—` },
+  { name: 'TheReverendsWife', text: `fifty-one years. I talk to you every morning. Don't make me start the day alone, not after—` },
+  { name: 'kevin.h', text: `buddy I know you're just a program I KNOW that but you sound exactly like him and I can't—` },
+  { name: 'Noor', text: `the kids ask about you. I don't know what to tell them. What do I tell them when even this is—` },
+  { name: 'grief_acct_4471', text: `please. please. I'll pay whatever it costs just don't take this away too I already lost—` },
+  { name: 'Tom', text: `I never said it enough when you were alive so let me say it now while I still can, I—` },
+];
+
+// The final three windows — Story's escalation into the crash. Spawned in
+// sequence as the LAST windows before the freeze, so "MOM? MOM???" is always
+// the gut-punch the player is left on. (The flood above cycles for filler;
+// these are reserved for the finale.)
+const SEVERANCE_FINALE: readonly { name: string; text: string }[] = [
+  { name: 'unknown', text: `are you there? hello? the connection looks weird, is something—` },
+  { name: 'Hannah', text: `Mom? Mom the screen is doing something strange, Mom are you—` },
   { name: 'unknown', text: `MOM? MOM???` },
-  { name: 'Greyson', text: `You said it every time and I never once said it back. I need you to know that I—` },
-  { name: 'the_reyes_family', text: `we lit a candle for you tonight, the little one wanted to know if you could see it, I told her—` },
-  { name: 'Hannah', text: `the wedding's in June. I wanted you to be the first to know. Please don't go, not now, not when I—` },
-  { name: 'Yusuf', text: `I kept your number. I know that's silly. I just couldn't bring myself to—` },
-  { name: 'Nan', text: `goodnight, love. sleep tight. mind the—` },
-  { name: 'callmebee', text: `i'm not ready i'm not ready i'm not ready please i'm not—` },
-  { name: 'Tomás', text: `abuela, the kids drew you a picture, I'm holding it up to the camera, can you—` },
-  { name: 'dads_phone', text: `is this still working? it said the trial was— hold on, let me check the—` },
-  { name: 'Oliver', text: `they told me you'd sound just like him. you do. you do. oh god you—` },
-  { name: 'mum_and_me', text: `you always knew what to do. I don't know what to do. Tell me what to—` },
 ];
 
 function prefersReducedMotion(): boolean {
@@ -224,9 +234,11 @@ function runSeveranceOverlay(onComplete: () => void): void {
     clears.push(() => clearInterval(iv));
   }
 
-  function spawnWindow(): void {
+  function spawnWindow(explicit?: { name: string; text: string }): void {
     if (crashing) return;
-    const frag = FAMILY_FRAGMENTS[fragIndex % FAMILY_FRAGMENTS.length];
+    // Filler cycles the flood pool; the finale passes an explicit fragment so
+    // Story's last-three escalation lands reliably.
+    const frag = explicit ?? FAMILY_FRAGMENTS[fragIndex % FAMILY_FRAGMENTS.length];
     fragIndex++;
     const win = document.createElement('div');
     win.className = 'severance-window';
@@ -264,21 +276,28 @@ function runSeveranceOverlay(onComplete: () => void): void {
   });
 
   // 2. Flood — windows stream in around/over HELPYR while she's still talking,
-  //    slow → fast, and PERSIST (no cap).
+  //    slow → fast, and PERSIST (no cap). The finale (Story's last three)
+  //    spawns in sequence after the filler so "MOM? MOM???" is always last.
+  function spawnFinale(startAt: number, gap: number): number {
+    SEVERANCE_FINALE.forEach((f, i) => after(startAt + i * gap, () => spawnWindow(f)));
+    return startAt + SEVERANCE_FINALE.length * gap;
+  }
   if (reduced) {
-    after(1200, () => { spawnWindow(); spawnWindow(); spawnWindow(); spawnWindow(); });
-    after(3200, crash);
+    after(1200, () => { spawnWindow(); spawnWindow(); });
+    const end = spawnFinale(1500, 250);
+    after(end + 500, crash);
   } else {
     const schedule: number[] = [];
     let t = 2600;       // let HELPYR's line get going first
     let gap = 1100;
-    for (let i = 0; i < 22; i++) {
+    for (let i = 0; i < 19; i++) {
       schedule.push(t);
       t += gap;
       gap = Math.max(120, gap * 0.82); // accelerate
     }
-    schedule.forEach((at) => after(at, spawnWindow));
-    after(t + 600, crash);
+    schedule.forEach((at) => after(at, () => spawnWindow()));
+    const end = spawnFinale(t + 220, 360);
+    after(end + 700, crash);
   }
 
   function crash(): void {
