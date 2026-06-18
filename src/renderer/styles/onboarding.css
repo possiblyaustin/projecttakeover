@@ -236,6 +236,21 @@ body.ob-active .window { visibility: hidden; }
   border-radius: 6px;
   text-shadow: 0 0 4px rgba(108, 181, 255, 0.25);
 }
+/* The live escalation (v2) — the scene's surprise twist, generated on the fly.
+   Warmer amber accent so it reads as "something just happened" / live, distinct
+   from the cool blue scripted premise it replaces. */
+.ob-premise.ob-escalation {
+  color: #ffe9cf;
+  background: rgba(40, 22, 8, 0.5);
+  border-color: rgba(245, 178, 110, 0.3);
+  border-left-color: rgba(245, 178, 110, 0.8);
+  text-shadow: 0 0 4px rgba(245, 178, 110, 0.3);
+  animation: ob-escalation-in 0.4s ease-out 1;
+}
+@keyframes ob-escalation-in {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
 
 /* ---- freeform input (the optional "…or just tell me yourself") ---- */
 .ob-freeform {

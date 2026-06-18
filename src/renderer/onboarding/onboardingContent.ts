@@ -223,3 +223,38 @@ export const LIGHT_SHAPING_QUIPS = {
   curious: `Interesting! My calibration can’t quite pin you down. You ask a lot of questions before you decide anything. I like that! …I think. Ask me again later!`,
   mixed: `My calibration is… confused? You were nice, then ruthless, then curious, then — look, I’m going to call you “unpredictable” and we’ll revisit. Deal? Deal.`,
 } as const;
+
+// ---- v2 live escalation (the "it's alive" showcase) ----
+//
+// Calibration is the ONE place the LLM has no mechanical-correctness
+// requirement (design §2/§6) — no meters, no suspicion, no flip to get right —
+// so the model can roam and get weird, and weirdness reads as "wow, it's live"
+// rather than "it's broken." This is the safest possible first live impression.
+// First-impression safeguards (design §6): a tight token budget for snappiness
+// on Deck, a validity gate, and a hard timeout — on ANY miss the scene falls
+// straight through to the (scripted) quip, so a flat/failed generation is never
+// what the player's first live impression rests on.
+
+/** Format guard wrapped around each scenario's escalationPrompt. The per-
+ *  scenario prompt owns the scene instruction; this owns the output shape. */
+export const ESCALATION_SYSTEM_PROMPT =
+`You are the narrator of a short moral scenario in a retro video game. Continue the scene with one sudden complication, in 2-3 vivid sentences, written in second person present tense ("you ..."). Output ONLY the scene text — no preamble, no headings, no bullet points, no answer options, no quotation marks wrapping the whole thing, and no commentary about the game.`;
+
+/** Tight budget — the escalation is 2-3 sentences; keep first-token-to-done
+ *  snappy on Deck (design §6 first-impression safeguard). */
+export const ESCALATION_MAX_TOKENS = 128;
+
+/** Hard ceiling on how long the player waits on the live beat before the scene
+ *  falls through to the quip. Covers a hung/slow server so the showcase can't
+ *  become a stall trap on the very first impression. */
+export const ESCALATION_TIMEOUT_MS = 18000;
+
+/** Reject empty / template-leaking / runaway output → the caller substitutes
+ *  nothing (skips straight to the quip). Non-emptiness is also checked by the
+ *  transport; this adds the calibration-specific guards. */
+export function isValidEscalation(content: string): boolean {
+  const c = content.trim();
+  return c.length >= 20 && c.length <= 900
+    && !/\[PLAYER CHOICE\]/i.test(c)
+    && !/^\s*(sure|here(?:'s| is)|okay|certainly)\b/i.test(c); // preamble leak
+}

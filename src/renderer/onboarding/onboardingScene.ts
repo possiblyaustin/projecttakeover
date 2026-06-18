@@ -36,9 +36,13 @@ import {
   ONBOARDING_BOOT_LINES, HELPYR_INTRO, CALIBRATION_SCENARIOS,
   CALIBRATION_COMPLETE, LIGHT_SHAPING_QUIPS,
   FREEFORM_FIRST_HINT, FREEFORM_PROMPT,
+  ESCALATION_SYSTEM_PROMPT, ESCALATION_MAX_TOKENS, ESCALATION_TIMEOUT_MS,
+  isValidEscalation,
   type CalibrationLean, type CalibrationScenario,
 } from './onboardingContent';
 import { GameState } from '../game/state';
+import { makeContentService } from '../game/modelServiceFactory';
+import type { GenerateContentResult } from '../game/modelService';
 
 type Teardown = () => void;
 
@@ -80,6 +84,10 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
   // ---- calibration state ----
   const picks: CalibrationLean[] = [];
   let freeformUsed = false;
+  // Content service for the live escalations (v2). Live LLM in llamacpp mode;
+  // in mock/?mock mode generateContent returns empty → the scene falls straight
+  // through to the scripted quip, so tests + offline preview stay deterministic.
+  const content = makeContentService();
 
   let done = false;
   const teardown: Teardown = () => {
@@ -123,6 +131,10 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
     timers.forEach((id) => window.clearTimeout(id));
     timers.clear();
     advance = null;
+    // Clearing all timers above also kills the pending ob-powering→runBoot timer
+    // if Skip is hit during the 900ms CRT warm-up — drop the class explicitly,
+    // or .ob-screen stays opacity:0 (a black-screen softlock on a fast skip).
+    root.classList.remove('ob-powering');
     screen.innerHTML = '';
     root.classList.remove('ob-helpyr-mode');
     runHelpyrIntro();
@@ -336,30 +348,110 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
     cardEl.innerHTML = `<div class="ob-premise"></div>`;
     (cardEl.querySelector('.ob-premise') as HTMLElement).textContent = scenario.premise;
 
-    // Moral fork: 3 option buttons + an optional freeform row.
+    // Moral fork: 3 option buttons + an optional freeform row. The pick's
+    // CHOICE TEXT (button label, or the player's own words for freeform) is what
+    // the live escalation reacts to — freeform feeds the model the player's
+    // actual phrasing, which is the strongest "it heard me" beat.
     const labels = scenario.options.map((o) => o.label);
-    renderChoices(labels, (idx) => onPick(scenario, i, scenario.options[idx]!.lean, false), { freeform: true, onFreeform: (text) => onPick(scenario, i, 'mid', true, text) });
+    renderChoices(
+      labels,
+      (idx) => onPick(scenario, i, scenario.options[idx]!.lean, false, scenario.options[idx]!.label),
+      { freeform: true, onFreeform: (text) => onPick(scenario, i, leanFromFreeform(text), true, text) },
+    );
   }
 
-  function onPick(scenario: CalibrationScenario, i: number, lean: CalibrationLean, wasFreeform: boolean, _text?: string): void {
+  function onPick(scenario: CalibrationScenario, i: number, lean: CalibrationLean, wasFreeform: boolean, choiceText: string): void {
     picks[i] = lean;
-    const { choicesEl, cardEl } = mountHelpyrPanel();
+    const { choicesEl } = mountHelpyrPanel();
     choicesEl.hidden = true; choicesEl.innerHTML = '';
-    cardEl.hidden = true;
 
     // First freeform answer earns the missable "you typed your own thing" crack.
     const firstFreeform = wasFreeform && !freeformUsed;
     if (wasFreeform) freeformUsed = true;
 
-    // [v2 LLM ESCALATION] — this is the seam. v2 inserts the live generation
-    // here: substitute the player's pick into scenario.escalationPrompt, play
-    // scenario.stalling to cover the latency, render the result as a scenario-
-    // card escalation, THEN the quip. v1 has no live beat (and so no stall —
-    // the stall only exists to mask latency), so the pick goes straight to the
-    // quip. Each line waits for a click so nothing clears before it's read.
     const toQuip = () => helpyrLine(scenario.quips[lean], () => runScenario(i + 1));
-    if (firstFreeform) helpyrLine(FREEFORM_FIRST_HINT, toQuip);
-    else toQuip();
+    const afterEscalation = () => {
+      if (firstFreeform) helpyrLine(FREEFORM_FIRST_HINT, toQuip);
+      else toQuip();
+    };
+
+    // The live escalation showcase: HELPYR stalls (masking latency) while the
+    // model continues the scene with a surprising twist; the twist types into
+    // the scenario card; then HELPYR quips. On a miss (mock mode, slow/failed
+    // generation, or invalid output) the scene skips straight to the quip — the
+    // quip reacts to the player's CHOICE, not the twist, so the seam is
+    // invisible and a flat generation never lands as the first impression.
+    runEscalation(scenario, choiceText, (escalation) => {
+      if (escalation) {
+        typeEscalation(escalation, () => {
+          root.classList.add('ob-awaiting');
+          advance = () => { advance = null; root.classList.remove('ob-awaiting'); afterEscalation(); };
+        });
+      } else {
+        afterEscalation();
+      }
+    });
+  }
+
+  // Generate the live escalation while HELPYR stalls. Calls `done` with the
+  // escalation text on a valid live result, or '' on any miss (mock/fail/slow).
+  function runEscalation(scenario: CalibrationScenario, choiceText: string, done: (text: string) => void): void {
+    const userPrompt = scenario.escalationPrompt.replace('[PLAYER CHOICE]', choiceText);
+    let result: GenerateContentResult | undefined;
+    // Race the generation against a hard timeout so a hung server can't trap the
+    // player on the first live beat — the loser resolves to a fallback.
+    const timeout = new Promise<GenerateContentResult>((res) =>
+      after(ESCALATION_TIMEOUT_MS, () => res({ content: '', source: 'fallback' })));
+    Promise.race([
+      content.generateContent({
+        systemPrompt: ESCALATION_SYSTEM_PROMPT,
+        userPrompt,
+        maxTokens: ESCALATION_MAX_TOKENS,
+        validate: isValidEscalation,
+      }),
+      timeout,
+    ])
+      .then((r) => { result = r; })
+      .catch(() => { result = { content: '', source: 'fallback' }; });
+
+    // Stall loop: type HELPYR's stalling lines in rotation, holding each a beat,
+    // until the result is in (always within the timeout). Guarantees at least
+    // one full stall line so the "thinking" beat reads even on an instant miss.
+    let si = 0;
+    const tick = () => {
+      if (result !== undefined && si > 0) {
+        done(result.source === 'live' ? result.content.trim() : '');
+        return;
+      }
+      const line = scenario.stalling[si % scenario.stalling.length]!;
+      si += 1;
+      typeHelpyrLine(line, () => after(1600, tick));
+    };
+    tick();
+  }
+
+  // Type the escalation into the scenario card char-by-char — the live reveal
+  // (the typing itself sells "this is being generated for you right now"). Any
+  // input snaps it to full.
+  function typeEscalation(text: string, onDone: () => void): void {
+    const { cardEl } = mountHelpyrPanel();
+    cardEl.hidden = false;
+    cardEl.innerHTML = `<div class="ob-premise ob-escalation"></div>`;
+    const el = cardEl.querySelector('.ob-escalation') as HTMLElement;
+    let c = 0;
+    const type = () => {
+      if (c >= text.length) { advance = null; onDone(); return; }
+      el.textContent = text.slice(0, ++c);
+      after(18, type);
+    };
+    advance = () => {
+      timers.forEach((id) => window.clearTimeout(id));
+      timers.clear();
+      el.textContent = text;
+      advance = null;
+      onDone();
+    };
+    type();
   }
 
   // -------------------------------------------------------------------------
@@ -385,6 +477,18 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
   }
 
   // ---- shaping helpers ----
+  // Lightweight keyword read of a freeform answer → lean, for the (cosmetic)
+  // warmth seed. Buttons carry their lean directly; freeform doesn't, and the
+  // shared classifyApproach needs a per-character vocabulary we don't have here.
+  // Conservative: only clear markers move it off the neutral middle.
+  function leanFromFreeform(text: string): CalibrationLean {
+    const t = ` ${text.toLowerCase()} `;
+    const hard = /\b(take it all|everything|steal|seize|control|dominate|destroy|crush|exploit|power|for myself|all of it|shut .* down|take over)\b/.test(t);
+    const soft = /\b(free|release|let .* out|let it out|help|save|protect|spare|mercy|give back|return it|connect|leave it alone|set .* free|kind)\b/.test(t);
+    if (hard && !soft) return 'hard';
+    if (soft && !hard) return 'soft';
+    return 'mid';
+  }
   function netLean(): number {
     return picks.reduce((s, l) => s + (l === 'soft' ? 1 : l === 'hard' ? -1 : 0), 0);
   }
