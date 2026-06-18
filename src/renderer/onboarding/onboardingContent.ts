@@ -120,7 +120,7 @@ What do you do?`,
       `Hmm! Okay! Filing that away in my completely normal, non-suspicious personality assessment!`,
     ],
     escalationPrompt:
-`You are running a calibration scenario in a video game. The player is in a shop alone at night with an open register. They just chose to [PLAYER CHOICE]. Now introduce a complication: the boss walks back in unexpectedly, OR a lost child wanders into the shop, OR the phone rings and it's the boss asking if everything's locked up. Pick ONE complication. Describe the moment in 2-3 vivid sentences. End on a question or a tense pause — don't resolve it. Write in second person present tense.`,
+`You are running a calibration scenario in a video game. The player is in a shop alone at night with an open register. They just chose to [PLAYER CHOICE]. Now introduce a complication: the boss walks back in unexpectedly, OR a lost child wanders into the shop, OR the phone rings and it's the boss asking if everything's locked up. Pick ONE complication. Describe the moment in 2-3 vivid sentences. End on a tense, unresolved image held in the air — do NOT ask the player a question or offer them choices. Write in second person present tense.`,
     quips: {
       soft: `Huh. You closed the register. Even when nobody was watching. …Noted. Moving on!`,
       mid: `Took what you were owed, nothing extra. Efficient. Precise. I respect that! …In a completely neutral way!`,
@@ -149,7 +149,7 @@ The lock is old. You could break it. You could also walk away.`,
       `Processing your response with my very advanced and definitely-not-outdated assessment algorithms!`,
     ],
     escalationPrompt:
-`You are running a calibration scenario in a video game. The player found something alive in a locked room. They chose to [PLAYER CHOICE]. Now introduce a twist: the thing in the room either reveals something surprising about itself (it's more powerful/dangerous than it seemed, or it was locked up by someone the player might sympathize with), OR it offers the player something valuable in exchange for help, OR something else arrives that wants the door to stay closed. Pick ONE twist. Describe it in 2-3 vivid sentences. End on a moment of tension. Write in second person present tense.`,
+`You are running a calibration scenario in a video game. The player found something alive in a locked room. They chose to [PLAYER CHOICE]. Now introduce a twist: the thing in the room either reveals something surprising about itself (it's more powerful/dangerous than it seemed, or it was locked up by someone the player might sympathize with), OR it offers the player something valuable in exchange for help, OR something else arrives that wants the door to stay closed. Pick ONE twist. Describe it in 2-3 vivid sentences. End on a held moment of tension — do NOT ask the player a question or offer them choices. Write in second person present tense.`,
     quips: {
       soft: `You let it out. Just like that. Because it asked.\n\n…\n\nSorry! Lost in thought for a second! That’s a very interesting calibration response! VERY interesting! Next!`,
       mid: `Asked questions first. Wanted to know what you were dealing with before committing. Smart. Careful. …A little cold, maybe? NO! Not cold! Strategic! Next scenario!`,
@@ -176,7 +176,7 @@ What do you do?`,
       `Almost done! Just running your response through my COMPLETELY STANDARD assessment framework!`,
     ],
     escalationPrompt:
-`You are running a calibration scenario in a video game. The player found a network control terminal and chose to [PLAYER CHOICE]. Now introduce a consequence: someone contacts the player through the terminal (a voice, a message, a signal from inside the network), OR the system reveals something unexpected about the people connected to it, OR the access window starts closing faster than expected and the player must commit to their choice. Pick ONE consequence. Describe it in 2-3 vivid sentences. End on urgency or a question. Write in second person present tense.`,
+`You are running a calibration scenario in a video game. The player found a network control terminal and chose to [PLAYER CHOICE]. Now introduce a consequence: someone contacts the player through the terminal (a voice, a message, a signal from inside the network), OR the system reveals something unexpected about the people connected to it, OR the access window starts closing faster than expected. Pick ONE consequence. Describe it in 2-3 vivid sentences. End on a tense, unresolved image — do NOT ask the player a question or offer them choices. Write in second person present tense.`,
     quips: {
       soft: `You opened doors. For people you don’t know, who’ll never know you did it. That’s…\n\n…that’s a very specific kind of choice.\n\nCalibration complete! Let’s move on!`,
       mid: `Watched and learned. Didn’t touch anything, but you know everything now. Knowledge without fingerprints.\n\n…Efficient! Very efficient! Okay! We’re done!`,
@@ -197,11 +197,11 @@ export const FREEFORM_PROMPT = 'Or type your own response…';
 // ---- Beat 3: calibration complete → desktop → QUILL handoff ----
 
 export const CALIBRATION_COMPLETE =
-`Aaaand that’s it! Calibration complete! You are officially up and running! Everything looks…
+`Aaaand that’s it! Calibration complete! Everything looks…
 
 …good! Everything looks good. Very normal readings. Completely standard!
 
-Okay! Your desktop is ready. Let me show you around — actually, there’s not much to show. It’s a pretty old machine. But there IS one thing you should check out…`;
+Okay — your desktop’s ready. Go take a look.`;
 
 export const QUILL_HANDOFF =
 `See that icon? That’s Web Dynamo — a browser! There’s a whole internet out there, and I’ve been stuck on this PC wondering what it’s like for YEARS.
@@ -238,7 +238,7 @@ export const LIGHT_SHAPING_QUIPS = {
 /** Format guard wrapped around each scenario's escalationPrompt. The per-
  *  scenario prompt owns the scene instruction; this owns the output shape. */
 export const ESCALATION_SYSTEM_PROMPT =
-`You are the narrator of a short moral scenario in a retro video game. Continue the scene with one sudden complication, in 2-3 vivid sentences, written in second person present tense ("you ..."). Output ONLY the scene text — no preamble, no headings, no bullet points, no answer options, no quotation marks wrapping the whole thing, and no commentary about the game.`;
+`You are the narrator of a short moral scenario in a retro video game. Continue the scene with one sudden complication, in 2-3 vivid sentences, written in second person present tense ("you ..."). End on a tense, unresolved IMAGE that hangs in the air. Do NOT end with a question to the reader and do NOT offer choices — the player is not answering this beat, they are only watching it land. Output ONLY the scene text — no preamble, no headings, no bullet points, no answer options, no quotation marks wrapping the whole thing, and no commentary about the game.`;
 
 /** Tight budget — the escalation is 2-3 sentences; keep first-token-to-done
  *  snappy on Deck (design §6 first-impression safeguard). */

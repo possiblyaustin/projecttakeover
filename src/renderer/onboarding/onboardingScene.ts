@@ -259,10 +259,12 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
 
   // Type a HELPYR line into the speech area; resolves when done. Paragraph
   // breaks collapse to a compact <br>. Any input snaps to full (sets `advance`).
-  function typeHelpyrLine(text: string, onDone: () => void): void {
+  // `keepCard` leaves the scenario card in place — used for the quip that
+  // reacts to a live escalation, so the twist stays on screen beside it.
+  function typeHelpyrLine(text: string, onDone: () => void, keepCard = false): void {
     const { textEl, choicesEl, cardEl } = mountHelpyrPanel();
     choicesEl.hidden = true; choicesEl.innerHTML = '';
-    cardEl.hidden = true; cardEl.innerHTML = '';
+    if (!keepCard) { cardEl.hidden = true; cardEl.innerHTML = ''; }
     const render = (s: string) => escapeHtml(s).replace(/\n+/g, '<br>');
     let c = 0;
     const type = () => {
@@ -285,11 +287,11 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
   // click/key snaps the typing to full; the next advances to `next`. Clicking
   // anywhere (off the buttons) or any key advances; an "▸ press any key" hint
   // pulses while waiting (the same ob-awaiting affordance the boot uses).
-  function helpyrLine(text: string, next: () => void): void {
+  function helpyrLine(text: string, next: () => void, keepCard = false): void {
     typeHelpyrLine(text, () => {
       root.classList.add('ob-awaiting');
       advance = () => { advance = null; root.classList.remove('ob-awaiting'); next(); };
-    });
+    }, keepCard);
   }
 
   function runHelpyrIntro(): void {
@@ -369,26 +371,25 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
     const firstFreeform = wasFreeform && !freeformUsed;
     if (wasFreeform) freeformUsed = true;
 
-    const toQuip = () => helpyrLine(scenario.quips[lean], () => runScenario(i + 1));
-    const afterEscalation = () => {
-      if (firstFreeform) helpyrLine(FREEFORM_FIRST_HINT, toQuip);
-      else toQuip();
-    };
+    const next = () => runScenario(i + 1);
+    // The freeform "you typed your own thing" crack is rare (once) — keep it as
+    // its own beat so it isn't lost under the quip.
+    const afterQuip = firstFreeform ? () => helpyrLine(FREEFORM_FIRST_HINT, next) : next;
 
     // The live escalation showcase: HELPYR stalls (masking latency) while the
     // model continues the scene with a surprising twist; the twist types into
-    // the scenario card; then HELPYR quips. On a miss (mock mode, slow/failed
-    // generation, or invalid output) the scene skips straight to the quip — the
-    // quip reacts to the player's CHOICE, not the twist, so the seam is
-    // invisible and a flat generation never lands as the first impression.
+    // the scenario card; then HELPYR quips RIGHT THERE — the quip keeps the card
+    // so the twist + her reaction share ONE page (one click to continue, not
+    // two). On a miss (mock mode, slow/failed/invalid generation) there's no
+    // twist, so the quip just plays on its own — the quip reacts to the player's
+    // CHOICE, not the twist, so the seam is invisible.
     runEscalation(scenario, choiceText, (escalation) => {
       if (escalation) {
         typeEscalation(escalation, () => {
-          root.classList.add('ob-awaiting');
-          advance = () => { advance = null; root.classList.remove('ob-awaiting'); afterEscalation(); };
+          helpyrLine(scenario.quips[lean], afterQuip, /* keepCard */ true);
         });
       } else {
-        afterEscalation();
+        helpyrLine(scenario.quips[lean], afterQuip);
       }
     });
   }
@@ -455,21 +456,23 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
   }
 
   // -------------------------------------------------------------------------
-  // Beat 3 — calibration complete → light-shaping read → enter the desktop.
-  // The QUILL handoff is NOT delivered here: it would describe the desktop /
-  // the Web Dynamo icon while they're still hidden behind this overlay. Instead
-  // the scene ends, the desktop reveals, and the post-reveal HELPYR bubble
-  // (onboarding_boot, fired from main.ts onComplete) points at the now-visible
-  // icon — which is where "See that icon?" actually makes sense.
+  // Beat 3 — calibration RESULT read → "all done, desktop's ready" + enter.
+  // Order matters (Austin): the result read comes FIRST (the payoff of the
+  // scenarios), then the wrap-up's "go take a look" is the LAST thing said, so
+  // it leads straight into the button instead of being set up and then
+  // interrupted by the result read. The QUILL handoff is NOT delivered here —
+  // it would describe a desktop the player can't see yet; the scene ends, the
+  // desktop reveals, and the post-reveal HELPYR bubble (onboarding_boot, fired
+  // from main.ts onComplete) points at the now-visible icon.
   // -------------------------------------------------------------------------
   function beat3Complete(): void {
-    helpyrLine(CALIBRATION_COMPLETE, lightShapingRead);
+    helpyrLine(LIGHT_SHAPING_QUIPS[profileKey()], wrapUp);
   }
 
-  function lightShapingRead(): void {
+  function wrapUp(): void {
     // Final in-panel line, then a deliberate "enter the desktop" button — the
     // player chooses to boot in, never a passive auto-dismiss.
-    typeHelpyrLine(LIGHT_SHAPING_QUIPS[profileKey()], () => {
+    typeHelpyrLine(CALIBRATION_COMPLETE, () => {
       // Seed the soft starting lean (deterministic; idempotent via the flag).
       GameState.dispatch({ type: 'onboarding/seedCalibration', lean: netLean() });
       renderChoices(['Open the desktop ▸'], () => finish());
