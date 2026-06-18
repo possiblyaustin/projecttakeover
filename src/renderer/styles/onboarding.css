@@ -21,6 +21,19 @@
      from the static scanlines + vignette + glow instead. */
 }
 
+/* While onboarding owns the screen, hide the desktop chrome and black out the
+   body. The CRT power-on scales the overlay up from a thin line, so without
+   this the desktop behind would flash through during that reveal (Austin).
+   The class is removed at teardown — that restore IS the "VM boots in" reveal,
+   shown through the overlay's fade-out. */
+body.ob-active { background: #02040a; }
+body.ob-active #desktop,
+body.ob-active #taskbar,
+body.ob-active #start-menu,
+body.ob-active #crt-layer,
+body.ob-active #crt-glow,
+body.ob-active .window { visibility: hidden; }
+
 /* The terminal text column. */
 .ob-screen {
   position: absolute;
@@ -189,28 +202,34 @@
   color: #9fd0ff; text-align: center;
 }
 
+/* No column-level scroll — it popped a scrollbar on every typing beat as the
+   content reflowed (Austin). The column sizes to content; the premise card
+   owns any overflow instead (below), keeping the fork buttons always visible. */
 .ob-helpyr-speech {
   flex: 1 1 auto;
   min-width: 0;
-  /* During calibration the column holds HELPYR's line + the premise card + the
-     fork; cap it and let it scroll so a long scenario can't blow past the Deck
-     viewport (the premise is authored short, so this rarely engages). */
-  max-height: 78vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .ob-helpyr-text { white-space: normal; line-height: 1.5; }
 .ob-helpyr-text br { content: ''; display: block; margin-top: 0.45em; } /* compact paragraph gaps */
 
 /* ---- calibration scenario card ---- */
 /* The scripted premise the player reads — set apart from HELPYR's voice as
-   "the scenario," a cooler inset panel inside her warm blue speech column. */
-.ob-scenario { margin-top: clamp(10px, 1.6vh, 16px); }
+   "the scenario," a cooler inset panel inside her warm blue speech column.
+   Compact type + a height cap so the longest premise (the Signal terminal)
+   fits at Deck without forcing the whole column to scroll; only a premise that
+   exceeds the cap scrolls inside the card, with the fork staying put. */
+.ob-scenario { margin-top: clamp(8px, 1.3vh, 14px); min-height: 0; }
 .ob-premise {
   white-space: pre-wrap;
-  line-height: 1.5;
-  font-size: 0.95em;
+  line-height: 1.4;
+  font-size: 0.82em;
   color: #eaf4ff;
-  padding: clamp(10px, 1.6vw, 16px);
+  padding: clamp(9px, 1.3vw, 14px);
+  max-height: 46vh;
+  overflow-y: auto;
   background: rgba(8, 18, 36, 0.55);
   border: 1px solid rgba(108, 181, 255, 0.3);
   border-left: 3px solid rgba(108, 181, 255, 0.7);

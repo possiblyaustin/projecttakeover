@@ -61,6 +61,7 @@ import { initStorefrontWatcher } from './storefrontWatcher';
 import { initMuseBridgeWatcher } from './museBridgeWatcher';
 import { selectBatchIds } from './game/missions/coverDuty';
 import { runOnboarding, devRunOnboarding } from './onboarding/onboardingScene';
+import { QUILL_HANDOFF } from './onboarding/onboardingContent';
 import { bootIntoGame, devRunTitleScreen, devRunTitleScreenRecovered } from './titleScreen/titleScreen';
 
 // ---- Boot order ----
@@ -179,18 +180,23 @@ setEvergreenAftermathDeps({
 //
 //    - onEnterDesktop: a RETURNING player (or any ?skipTitle boot) — launch the
 //      README welcome surface and, after a beat, the first-boot HELPYR nudge
-//      toward the browser (the Act 1 spine: browser → InkWell → QUILL).
-//      Flag-gated so it fires once per save.
+//      toward the browser. That nudge is HELPYR's "Oh! Someone's here! Hi, I'm
+//      HELPYR!" first-contact greeting, so it only makes sense for a player who
+//      NEVER did onboarding — gate it on !onboarding.seen.
 //    - onNewGame: a BRAND-NEW player — run the onboarding scene over the
-//      already-built desktop. It owns the cold boot + HELPYR wake + calibration,
-//      reveals the desktop on completion, and its QUILL handoff IS the nudge —
-//      so we fire the same persistent browser-nudge bubble once the big
-//      onboarding UI closes (always-legible next step). If onboarding was
-//      already consumed (e.g. a reload mid-onboarding before any save existed),
-//      fall through to the plain desktop.
+//      already-built desktop. It owns the cold boot + HELPYR wake + calibration.
+//      On completion the desktop reveals and we deliver the QUILL HANDOFF as a
+//      desktop bubble (HELPYR pointing at the now-visible Web Dynamo icon) — the
+//      handoff voice, NOT the first-contact greeting, since HELPYR just spent
+//      five minutes with the player. The handoff is held back until here on
+//      purpose: said inside the onboarding panel it would describe a desktop the
+//      player can't see yet. If onboarding was already consumed (reload mid-
+//      onboarding before any save), fall through to the plain desktop.
 function enterDesktop(): void {
   DesktopShortcuts[0]!.launch();
-  setTimeout(() => fireOnceLibraryTrigger('firstBoot.onboarding', 'onboarding_boot'), 1800);
+  if (!GameState.getState().flags['onboarding.seen']) {
+    setTimeout(() => fireOnceLibraryTrigger('firstBoot.onboarding', 'onboarding_boot'), 1800);
+  }
 }
 bootIntoGame({
   onEnterDesktop: enterDesktop,
@@ -198,7 +204,12 @@ bootIntoGame({
     if (GameState.getState().flags['onboarding.seen']) { enterDesktop(); return; }
     runOnboarding({
       onComplete: () => {
-        setTimeout(() => fireOnceLibraryTrigger('firstBoot.onboarding', 'onboarding_boot'), 800);
+        setTimeout(() => {
+          HelpyrBubble.spawn(
+            { id: 'onboarding_handoff', trigger: 'onboarding_handoff', type: 'COMMENT', trust: 'RESERVED', text: QUILL_HANDOFF },
+            { bypassCooldown: true },
+          );
+        }, 900);
       },
     });
   },

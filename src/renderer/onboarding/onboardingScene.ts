@@ -34,7 +34,7 @@
 
 import {
   ONBOARDING_BOOT_LINES, HELPYR_INTRO, CALIBRATION_SCENARIOS,
-  CALIBRATION_COMPLETE, QUILL_HANDOFF, LIGHT_SHAPING_QUIPS,
+  CALIBRATION_COMPLETE, LIGHT_SHAPING_QUIPS,
   FREEFORM_FIRST_HINT, FREEFORM_PROMPT,
   type CalibrationLean, type CalibrationScenario,
 } from './onboardingContent';
@@ -68,6 +68,11 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
     <div class="ob-screen" data-screen></div>
   `;
   document.body.appendChild(root);
+  // Hide the desktop chrome + black out the body for the duration. The CRT
+  // power-on scales the overlay up from a thin line, so without this the
+  // desktop behind would flash through during that reveal (Austin). Restored
+  // at teardown — that restore IS the "VM boots in" reveal.
+  document.body.classList.add('ob-active');
 
   const screen = root.querySelector('[data-screen]') as HTMLElement;
   const skipBtn = root.querySelector('.ob-skip') as HTMLButtonElement;
@@ -83,6 +88,9 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
     timers.forEach((id) => window.clearTimeout(id));
     timers.clear();
     document.removeEventListener('keydown', onAdvanceKey, true);
+    // Reveal the desktop NOW, so it shows through the overlay's fade-out (the
+    // "VM boots in" reveal) rather than snapping in after the overlay is gone.
+    document.body.classList.remove('ob-active');
     root.classList.add('ob-exiting');
     window.setTimeout(() => root.remove(), 500);
   };
@@ -260,6 +268,18 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
     type();
   }
 
+  // Type a HELPYR line, then WAIT for the player to advance before continuing
+  // — so HELPYR's lines never clear before they can be read (Austin). A first
+  // click/key snaps the typing to full; the next advances to `next`. Clicking
+  // anywhere (off the buttons) or any key advances; an "▸ press any key" hint
+  // pulses while waiting (the same ob-awaiting affordance the boot uses).
+  function helpyrLine(text: string, next: () => void): void {
+    typeHelpyrLine(text, () => {
+      root.classList.add('ob-awaiting');
+      advance = () => { advance = null; root.classList.remove('ob-awaiting'); next(); };
+    });
+  }
+
   function runHelpyrIntro(): void {
     root.classList.add('ob-helpyr-mode');
     const panel = document.createElement('div');
@@ -293,8 +313,8 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
 
     function showIntroChoices(): void {
       renderChoices(HELPYR_INTRO.choices as readonly string[], (idx) => {
-        // Per-choice HELPYR response, then into Scenario 1.
-        typeHelpyrLine(HELPYR_INTRO.responses[idx]!, () => after(700, () => runScenario(0)));
+        // Per-choice HELPYR response (click to continue), then into Scenario 1.
+        helpyrLine(HELPYR_INTRO.responses[idx]!, () => runScenario(0));
       });
     }
   }
@@ -331,45 +351,34 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
     const firstFreeform = wasFreeform && !freeformUsed;
     if (wasFreeform) freeformUsed = true;
 
-    // A short scripted "thinking" beat (one stalling line) for character + to
-    // pre-stage the live escalation seam.
-    const stall = scenario.stalling[0]!;
-
-    const toQuip = () => {
-      // [v2 LLM ESCALATION] — insert here: generate from scenario.escalationPrompt
-      // (with the player's pick substituted for [PLAYER CHOICE]) while the
-      // stalling lines play, render the result as a scenario-card escalation,
-      // THEN the quip. v1 goes straight to the quip.
-      typeHelpyrLine(scenario.quips[lean], () => after(900, () => runScenario(i + 1)));
-    };
-
-    const afterStall = () => {
-      if (firstFreeform) {
-        typeHelpyrLine(FREEFORM_FIRST_HINT, () => after(600, toQuip));
-      } else {
-        toQuip();
-      }
-    };
-
-    typeHelpyrLine(stall, () => after(750, afterStall));
+    // [v2 LLM ESCALATION] — this is the seam. v2 inserts the live generation
+    // here: substitute the player's pick into scenario.escalationPrompt, play
+    // scenario.stalling to cover the latency, render the result as a scenario-
+    // card escalation, THEN the quip. v1 has no live beat (and so no stall —
+    // the stall only exists to mask latency), so the pick goes straight to the
+    // quip. Each line waits for a click so nothing clears before it's read.
+    const toQuip = () => helpyrLine(scenario.quips[lean], () => runScenario(i + 1));
+    if (firstFreeform) helpyrLine(FREEFORM_FIRST_HINT, toQuip);
+    else toQuip();
   }
 
   // -------------------------------------------------------------------------
-  // Beat 3 — calibration complete → light-shaping read → QUILL handoff → done.
+  // Beat 3 — calibration complete → light-shaping read → enter the desktop.
+  // The QUILL handoff is NOT delivered here: it would describe the desktop /
+  // the Web Dynamo icon while they're still hidden behind this overlay. Instead
+  // the scene ends, the desktop reveals, and the post-reveal HELPYR bubble
+  // (onboarding_boot, fired from main.ts onComplete) points at the now-visible
+  // icon — which is where "See that icon?" actually makes sense.
   // -------------------------------------------------------------------------
   function beat3Complete(): void {
-    typeHelpyrLine(CALIBRATION_COMPLETE, () => after(700, lightShapingRead));
+    helpyrLine(CALIBRATION_COMPLETE, lightShapingRead);
   }
 
   function lightShapingRead(): void {
-    typeHelpyrLine(LIGHT_SHAPING_QUIPS[profileKey()], () => after(800, quillHandoff));
-  }
-
-  function quillHandoff(): void {
-    typeHelpyrLine(QUILL_HANDOFF, () => {
-      // Seed the soft starting lean (deterministic; idempotent via the flag),
-      // then show a single "log in / proceed" button so the player chooses to
-      // enter the desktop — never a passive auto-dismiss.
+    // Final in-panel line, then a deliberate "enter the desktop" button — the
+    // player chooses to boot in, never a passive auto-dismiss.
+    typeHelpyrLine(LIGHT_SHAPING_QUIPS[profileKey()], () => {
+      // Seed the soft starting lean (deterministic; idempotent via the flag).
       GameState.dispatch({ type: 'onboarding/seedCalibration', lean: netLean() });
       renderChoices(['Open the desktop ▸'], () => finish());
     });
