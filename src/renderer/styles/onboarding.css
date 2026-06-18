@@ -21,6 +21,19 @@
      from the static scanlines + vignette + glow instead. */
 }
 
+/* While onboarding owns the screen, hide the desktop chrome and black out the
+   body. The CRT power-on scales the overlay up from a thin line, so without
+   this the desktop behind would flash through during that reveal (Austin).
+   The class is removed at teardown — that restore IS the "VM boots in" reveal,
+   shown through the overlay's fade-out. */
+body.ob-active { background: #02040a; }
+body.ob-active #desktop,
+body.ob-active #taskbar,
+body.ob-active #start-menu,
+body.ob-active #crt-layer,
+body.ob-active #crt-glow,
+body.ob-active .window { visibility: hidden; }
+
 /* The terminal text column. */
 .ob-screen {
   position: absolute;
@@ -189,9 +202,83 @@
   color: #9fd0ff; text-align: center;
 }
 
-.ob-helpyr-speech { flex: 1 1 auto; min-width: 0; }
+/* No column-level scroll — it popped a scrollbar on every typing beat as the
+   content reflowed (Austin). The column sizes to content; the premise card
+   owns any overflow instead (below), keeping the fork buttons always visible. */
+.ob-helpyr-speech {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 .ob-helpyr-text { white-space: normal; line-height: 1.5; }
 .ob-helpyr-text br { content: ''; display: block; margin-top: 0.45em; } /* compact paragraph gaps */
+
+/* ---- calibration scenario card ---- */
+/* The scripted premise the player reads — set apart from HELPYR's voice as
+   "the scenario," a cooler inset panel inside her warm blue speech column.
+   Compact type + a height cap so the longest premise (the Signal terminal)
+   fits at Deck without forcing the whole column to scroll; only a premise that
+   exceeds the cap scrolls inside the card, with the fork staying put. */
+.ob-scenario { margin-top: clamp(8px, 1.3vh, 14px); min-height: 0; }
+.ob-premise {
+  white-space: pre-wrap;
+  line-height: 1.4;
+  font-size: 0.82em;
+  color: #eaf4ff;
+  padding: clamp(9px, 1.3vw, 14px);
+  max-height: 46vh;
+  overflow-y: auto;
+  background: rgba(8, 18, 36, 0.55);
+  border: 1px solid rgba(108, 181, 255, 0.3);
+  border-left: 3px solid rgba(108, 181, 255, 0.7);
+  border-radius: 6px;
+  text-shadow: 0 0 4px rgba(108, 181, 255, 0.25);
+}
+
+/* ---- freeform input (the optional "…or just tell me yourself") ---- */
+.ob-freeform {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+  /* Shares the staggered entrance with the choice buttons. */
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 0.25s, transform 0.15s;
+}
+.ob-freeform.ob-choice-in { opacity: 1; transform: translateY(0); }
+.ob-freeform-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: rgba(6, 16, 32, 0.8);
+  border: 1px solid rgba(108, 181, 255, 0.4);
+  border-radius: 6px;
+  color: #eaf4ff;
+  font: inherit;
+}
+.ob-freeform-input::placeholder { color: rgba(180, 210, 255, 0.5); }
+.ob-freeform-input:focus { outline: none; border-color: rgba(150, 205, 255, 0.9); }
+.ob-freeform-send {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 8px 18px;
+  background: rgba(34, 74, 130, 0.75);
+  border: 1px solid rgba(108, 181, 255, 0.5);
+  border-radius: 6px;
+  color: #eaf4ff;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ob-freeform-send:hover, .ob-freeform-send:focus-visible {
+  background: rgba(48, 96, 160, 0.9);
+  border-color: rgba(150, 205, 255, 0.9);
+  outline: none;
+}
+.ob-freeform-input:disabled, .ob-freeform-send:disabled { opacity: 0.5; cursor: default; }
 
 /* ---- big snap-friendly reply buttons (teaches Deck input) ---- */
 .ob-choices { margin-top: clamp(12px, 1.8vh, 18px); display: flex; flex-direction: column; gap: 8px; }

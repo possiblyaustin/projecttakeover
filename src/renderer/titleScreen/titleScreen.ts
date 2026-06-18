@@ -37,18 +37,26 @@ const REBOOT_FLAG = 'system.rebootPending';
 
 type Teardown = () => void;
 
+/** What the title screen does once the player logs in:
+ *  - onEnterDesktop: a returning player (or any ?skipTitle boot) — play the
+ *    generic boot transition, then run the desktop's "entered" side effects.
+ *  - onNewGame (optional): a brand-new player (no save) — the title hands off to
+ *    this instead of its own boot, because the onboarding scene owns the cold
+ *    "waking up" boot. If absent, a new game falls back to onEnterDesktop. */
+export type BootHandlers = { onEnterDesktop: () => void; onNewGame?: () => void };
+
 /** Entry point called from main.ts. Mounts the title screen unless bypassed
  *  (?skipTitle — used by the test harness + playtest explorer, which drive the
- *  desktop directly). `onEnter` runs once the player logs in (or immediately on
- *  bypass) and is where the desktop's "entered" side effects live. */
-export function bootIntoGame(onEnter: () => void): void {
+ *  desktop directly; bypass always goes straight to the desktop, never
+ *  onboarding). */
+export function bootIntoGame(handlers: BootHandlers): void {
   const skip = new URLSearchParams(location.search).has('skipTitle');
-  if (skip) { onEnter(); return; }
-  runTitleScreen({ onEnter });
+  if (skip) { handlers.onEnterDesktop(); return; }
+  runTitleScreen(handlers);
 }
 
 /** Mount the title screen. Returns a teardown fn (dev replay / tests). */
-export function runTitleScreen(opts: { onEnter: () => void }): Teardown {
+export function runTitleScreen(opts: BootHandlers): Teardown {
   // Guard against a double-mount (dev re-trigger before teardown).
   document.getElementById('title-root')?.remove();
 
@@ -208,18 +216,27 @@ export function runTitleScreen(opts: { onEnter: () => void }): Teardown {
   document.addEventListener('keydown', onKey, true);
 
   // -------------------------------------------------------------------------
-  // Login → boot transition → onEnter
+  // Login. A brand-new player (no save, onNewGame provided) hands off to the
+  // onboarding scene, which owns the cold "waking up" boot — so the title
+  // fades out WITHOUT its own generic boot, to avoid two boots back-to-back.
+  // A returning player plays the generic boot transition into the desktop.
   // -------------------------------------------------------------------------
   function login(): void {
     // Clear the post-crash recovery flag now that the player has acknowledged
     // it by logging back in (so a later ordinary reload doesn't re-show it).
     if (recovered) GameState.dispatch({ type: 'flags/set', key: REBOOT_FLAG, value: false });
 
-    // Swap the login card for the phosphor boot transition.
     timers.forEach((id) => window.clearTimeout(id));
     timers.clear();
     const stage = root.querySelector('.title-stage') as HTMLElement;
     stage.classList.add('title-out');
+
+    const newGame = !hasSave && !!opts.onNewGame;
+    if (newGame) {
+      // Quick fade, then hand straight to onboarding (its boot follows).
+      after(360, () => { teardown(); opts.onNewGame!(); });
+      return;
+    }
 
     after(360, () => {
       root.classList.add('title-booting');
@@ -230,7 +247,7 @@ export function runTitleScreen(opts: { onEnter: () => void }): Teardown {
 
       let i = 0;
       const step = () => {
-        if (i >= BOOT_STEPS.length) { after(620, finish); return; }
+        if (i >= BOOT_STEPS.length) { after(620, finishToDesktop); return; }
         const spec = BOOT_STEPS[i]!;
         i += 1;
         after(spec.delay, () => {
@@ -247,11 +264,11 @@ export function runTitleScreen(opts: { onEnter: () => void }): Teardown {
     });
   }
 
-  function finish(): void {
+  function finishToDesktop(): void {
     root.classList.add('title-exiting');
     window.setTimeout(() => {
       teardown();
-      opts.onEnter();
+      opts.onEnterDesktop();
     }, 460);
   }
 
@@ -451,16 +468,17 @@ export function runTitleScreen(opts: { onEnter: () => void }): Teardown {
 }
 
 /** Dev entry — replay the title screen over the live desktop (Deck-friendly).
- *  onEnter is a no-op tear-down (the desktop is already mounted underneath). */
+ *  Both handlers are no-op tear-downs (the desktop is already mounted
+ *  underneath); this previews the login + boot chrome, not the real handoff. */
 export function devRunTitleScreen(): void {
-  runTitleScreen({ onEnter: () => {} });
+  runTitleScreen({ onEnterDesktop: () => {} });
 }
 
 /** Dev entry — preview the post-crash recovery variant: set the reboot flag,
  *  then replay. Logging in clears the flag (as in real play). */
 export function devRunTitleScreenRecovered(): void {
   GameState.dispatch({ type: 'flags/set', key: REBOOT_FLAG, value: true });
-  runTitleScreen({ onEnter: () => {} });
+  runTitleScreen({ onEnterDesktop: () => {} });
 }
 
 function escapeHtml(s: string): string {

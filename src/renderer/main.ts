@@ -60,7 +60,8 @@ import { initCoverDutyWatcher } from './coverDutyWatcher';
 import { initStorefrontWatcher } from './storefrontWatcher';
 import { initMuseBridgeWatcher } from './museBridgeWatcher';
 import { selectBatchIds } from './game/missions/coverDuty';
-import { devRunOnboarding } from './onboarding/onboardingScene';
+import { runOnboarding, devRunOnboarding } from './onboarding/onboardingScene';
+import { QUILL_HANDOFF } from './onboarding/onboardingContent';
 import { bootIntoGame, devRunTitleScreen, devRunTitleScreenRecovered } from './titleScreen/titleScreen';
 
 // ---- Boot order ----
@@ -175,19 +176,43 @@ setEvergreenAftermathDeps({
 
 // 8. Title / login screen — the diegetic entry point. The desktop is already
 //    built underneath; this overlay sits on top until the player logs in,
-//    selling the fiction and masking llama.cpp warm-up. onEnter runs once
-//    they're in (or immediately under ?skipTitle for the test harness) and
-//    owns the desktop's "entered" side effects:
-//      - Launch README so the player has a welcome surface.
-//      - First-boot onboarding nudge — HELPYR points a brand-new player at the
-//        browser, the start of the Act 1 spine (browser → InkWell → first
-//        contact with QUILL). Flag-gated (fires once per save) and delayed so
-//        the desktop + README settle before the bubble appears.
-bootIntoGame(() => {
+//    selling the fiction and masking llama.cpp warm-up.
+//
+//    - onEnterDesktop: a RETURNING player (or any ?skipTitle boot) — launch the
+//      README welcome surface and, after a beat, the first-boot HELPYR nudge
+//      toward the browser. That nudge is HELPYR's "Oh! Someone's here! Hi, I'm
+//      HELPYR!" first-contact greeting, so it only makes sense for a player who
+//      NEVER did onboarding — gate it on !onboarding.seen.
+//    - onNewGame: a BRAND-NEW player — run the onboarding scene over the
+//      already-built desktop. It owns the cold boot + HELPYR wake + calibration.
+//      On completion the desktop reveals and we deliver the QUILL HANDOFF as a
+//      desktop bubble (HELPYR pointing at the now-visible Web Dynamo icon) — the
+//      handoff voice, NOT the first-contact greeting, since HELPYR just spent
+//      five minutes with the player. The handoff is held back until here on
+//      purpose: said inside the onboarding panel it would describe a desktop the
+//      player can't see yet. If onboarding was already consumed (reload mid-
+//      onboarding before any save), fall through to the plain desktop.
+function enterDesktop(): void {
   DesktopShortcuts[0]!.launch();
-  setTimeout(() => {
-    fireOnceLibraryTrigger('firstBoot.onboarding', 'onboarding_boot');
-  }, 1800);
+  if (!GameState.getState().flags['onboarding.seen']) {
+    setTimeout(() => fireOnceLibraryTrigger('firstBoot.onboarding', 'onboarding_boot'), 1800);
+  }
+}
+bootIntoGame({
+  onEnterDesktop: enterDesktop,
+  onNewGame: () => {
+    if (GameState.getState().flags['onboarding.seen']) { enterDesktop(); return; }
+    runOnboarding({
+      onComplete: () => {
+        setTimeout(() => {
+          HelpyrBubble.spawn(
+            { id: 'onboarding_handoff', trigger: 'onboarding_handoff', type: 'COMMENT', trust: 'RESERVED', text: QUILL_HANDOFF },
+            { bypassCooldown: true },
+          );
+        }, 900);
+      },
+    });
+  },
 });
 
 // ---- Devtools surface ----
