@@ -77,6 +77,12 @@ const CTA_BY_TRIGGER: Record<string, BubbleCtaSpec> = {
   storefront_intercept: { omit: true },
   storefront_end: { omit: true },
   storefront_debrief: { omit: true },
+
+  // Propaganda reactions — same rationale: HELPYR is commenting on what the
+  // player is actively doing in the WaveCrowd feed. A "go open something" CTA is
+  // a non-sequitur, so the bubble just shows her line and auto-dismisses.
+  propaganda_published: { omit: true },
+  propaganda_gone_quiet: { omit: true },
 };
 
 /** CTA configuration for a trigger, or undefined for the default

@@ -67,7 +67,7 @@ export const OBJECTIVE_BLURB: Record<PropagandaObjective, string> = {
 export const TOPIC_PRESETS: Record<PropagandaObjective, readonly string[]> = {
   distract: ['The AI anomaly stories', 'Your own activity on the network'],
   sowDoubt: ['The AI anomaly reports', 'The "coordinated AI behavior" claims'],
-  discredit: ['Axiom Group', 'A rival tech company', 'AI-safety advocates'],
+  discredit: ['Axiom Group', 'Prometheus Digital', 'AI-safety advocates'],
   manufacture: ['A fake productivity trend', 'A viral AI-positive movement'],
 };
 
@@ -353,6 +353,9 @@ export function buildSinglePostPrompt(objective: PropagandaObjective, topic: str
     `As controlled MUSE, write ONE WaveCrowd post to ${OBJECTIVE_INSTRUCTION[objective]} ` +
     `Make it engagement-optimized, emotionally manipulative, and effective — technically ` +
     `excellent and completely hollow. You are skilled at this. You no longer care that it is lies.\n\n` +
+    `Use concrete, specific names and details — if the target is described generically, ` +
+    `commit to one specific plausible name. NEVER output a bracketed placeholder like ` +
+    `[Company Name] or [Rival] — write the finished post a real account would actually publish.\n\n` +
     `Output ONLY the single post text. One post, a sentence or two. No preamble, no label, ` +
     `no commentary, no surrounding quotation marks.`
   );
@@ -387,6 +390,11 @@ export function parseSinglePost(raw: string): string | null {
 export function isValidSinglePost(content: string): boolean {
   const c = content.trim();
   if (/\[(OBJECTIVE|TOPIC|PLAYER)/i.test(c)) return false; // template leak
+  // Reject any bracketed placeholder the model left unfilled (e.g.
+  // "[Rival Tech Company]", "[Company Name]") — a generic topic like "a rival
+  // tech company" can trip this; we'd rather fall back to the corpus than
+  // publish a visible template hole.
+  if (/\[[A-Za-z][^\]]{2,}\]/.test(c)) return false;
   const post = parseSinglePost(c);
   return post !== null && post.length >= 12 && post.length <= 400;
 }
