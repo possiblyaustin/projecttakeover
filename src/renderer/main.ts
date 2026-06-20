@@ -306,13 +306,14 @@ bootIntoGame({
   },
   // Propaganda mission (controlled-MUSE nefarious post-flip): flips MUSE
   // controlled, sets the scripted-flip flag the watcher gates on, arms a fresh
-  // Propaganda record, and opens the WaveCrowd pipeline console.
+  // Propaganda record, and opens the WaveCrowd feed (the compose flow now lives
+  // in the feed deck itself — "✎ Direct MUSE").
   devStartPropaganda: () => {
     GameState.dispatch({ type: 'model/applyExchange', contactId: 'muse', intrusion: 100 });
     GameState.dispatch({ type: 'flags/set', key: 'flip.muse.scripted', value: true });
     GameState.dispatch({ type: 'mission/propaganda/clear', contactId: 'muse' });
     GameState.dispatch({ type: 'mission/propaganda/arm', contactId: 'muse' });
-    WindowManager.open('webDynamo', { url: 'wavecrowd.net/pipeline' });
+    WindowManager.open('webDynamo', { url: 'wavecrowd.net' });
   },
   helpyr: {
     // Spawn a random eligible bubble for the current trust level

@@ -57,10 +57,14 @@ export function setGlowLevel(level: GlowLevel): void {
 /** Boot-time restore. Called once from initDesktop(). */
 export function restoreVisualPrefs(): void {
   try {
+    // The #desktop element ships with no data-wallpaper, so a fresh state (or
+    // any reset that clears localStorage) would leave it unset → the
+    // [data-wallpaper="dusk"] CSS never matches and the default wallpaper
+    // silently vanishes. Always stamp the attribute: the stored pref if valid,
+    // else the 'dusk' default.
     const wp = localStorage.getItem(WP_KEY);
-    if (wp && (WALLPAPERS as readonly string[]).includes(wp)) {
-      document.getElementById('desktop')!.dataset.wallpaper = wp;
-    }
+    const resolved = (wp && (WALLPAPERS as readonly string[]).includes(wp)) ? wp : 'dusk';
+    document.getElementById('desktop')!.dataset.wallpaper = resolved;
     if (localStorage.getItem(CRT_KEY) === 'off') document.body.classList.add('crt-off');
     const glow = localStorage.getItem(GLOW_KEY);
     if (glow && (GLOW_LEVELS as readonly string[]).includes(glow)) {
