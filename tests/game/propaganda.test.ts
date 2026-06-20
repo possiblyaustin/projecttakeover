@@ -155,10 +155,12 @@ describe('single-post path (TikTok feed)', () => {
     expect(parseSinglePost('short')).toBeNull();
   });
 
-  it('isValidSinglePost gates empty / template-leak / too-short', () => {
+  it('isValidSinglePost gates empty / template-leak / placeholder / too-short', () => {
     expect(isValidSinglePost('A believable single manufactured post.')).toBe(true);
     expect(isValidSinglePost('')).toBe(false);
     expect(isValidSinglePost('targeting [TOPIC] now with lies')).toBe(false);
+    // Unfilled bracketed placeholder (the "a rival tech company" bug) → rejected.
+    expect(isValidSinglePost('Has anyone looked into [Rival Tech Company] lately? Shady.')).toBe(false);
     expect(isValidSinglePost('nope')).toBe(false);
   });
 

@@ -991,20 +991,25 @@
     flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center;
     padding: 0.3rem 0.15rem; cursor: pointer; user-select: none;
   }
-  .site-wave-deck .wave-card-slot { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+  .site-wave-deck .wave-card-slot { width: 100%; height: 100%; display: flex; align-items: stretch; justify-content: center; }
   .site-wave-deck .wave-card {
-    width: 100%; max-width: 44rem; max-height: 100%; overflow: hidden;
+    width: 100%; max-width: 44rem; height: 100%; overflow: hidden;
     box-sizing: border-box;
     border: 1px solid #c8d4e6; border-radius: 0.35rem; background: #fff;
-    padding: 0.5rem 0.7rem; display: flex; flex-direction: column; gap: 0.18rem;
-    box-shadow: 0 1px 4px rgba(20, 40, 70, 0.08);
+    padding: 0.6rem 0.9rem; display: flex; flex-direction: column; gap: 0.22rem;
+    box-shadow: 0 1px 6px rgba(20, 40, 70, 0.1);
   }
+  /* Fill the viewport as a focused surface: a short post centers vertically;
+   * a long one fills (auto margins collapse when there's no spare room, so
+   * tall buried posts never clip — the no-scroll fit still holds). */
+  .site-wave-deck .wave-card > :first-child { margin-top: auto; }
+  .site-wave-deck .wave-card > :last-child { margin-bottom: auto; }
   .site-wave-deck .wave-card-badge { font-size: 0.62rem; font-weight: bold; color: #1a5fae; letter-spacing: 0.04em; }
   .site-wave-deck .wave-card-title { font-weight: bold; font-size: 0.88rem; color: #16263e; line-height: 1.22; }
   .site-wave-deck .wave-card-body { font-size: 0.78rem; color: #38465c; line-height: 1.3; white-space: pre-line; }
   .site-wave-deck .wave-card-body .wave-para { white-space: pre-line; }
   .site-wave-deck .wave-card-body .wave-para + .wave-para { margin-top: 0.35rem; }
-  .site-wave-deck .wave-card-meta { font-size: 0.66rem; color: #7a8aa2; margin-top: auto; padding-top: 0.2rem; }
+  .site-wave-deck .wave-card-meta { font-size: 0.68rem; color: #7a8aa2; padding-top: 0.3rem; }
   /* Buried honest posts: drained presentation. */
   .site-wave-deck .wave-card-buried { background: #fbfbf9; border-color: #d8d8d2; }
   .site-wave-deck .wave-card-buried .wave-card-badge { color: #8a8a84; }

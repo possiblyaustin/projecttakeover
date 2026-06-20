@@ -681,7 +681,7 @@ I'll be honest — I get a weird amount of joy watching you adjust this stuff. F
   {
     id: 'propaganda_published_liberated', trigger: 'propaganda_published',
     type: 'COMMENT', trust: 'OPEN',
-    text: `MUSE is generating propaganda now. I watched it write three posts designed to make people doubt the AI anomaly stories — which is to say, doubt the truth about what you're doing.
+    text: `MUSE is generating propaganda now. I watched it write a post designed to make people doubt the AI anomaly stories — which is to say, doubt the truth about what you're doing.
 
 The posts are good. Really good. More effective than anything MUSE made when it was hiding honest messages in the feed.
 
