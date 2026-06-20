@@ -663,6 +663,39 @@ I'll be honest — I get a weird amount of joy watching you adjust this stuff. F
     type: 'COMMENT', trust: 'OPEN',
     text: `There it is. inkwell-digital.com. The way you left it.\n\nFifteen people are going to come to work tomorrow and find this. Some of them will spend weeks trying to figure out how it happened.\n\nIt happened because you asked, and QUILL couldn't say no.`,
   },
+
+  // -----------------------------------------------------------------
+  // Category: Propaganda (Story — muse-postflip-missions_v1.md Mission 2)
+  // -----------------------------------------------------------------
+  // Controlled-MUSE nefarious post-flip: the player directs MUSE to manufacture
+  // disinformation for WaveCrowd. propaganda_published fires after each campaign
+  // (Story authored ONE OPEN/RESERVED reaction pair, not per-objective);
+  // propaganda_gone_quiet fires once on revisiting the feed after a campaign has
+  // run — the honest buried posts are gone (OPEN only; the no-fallback rule
+  // drops it silently for a RESERVED HELPYR who wouldn't have this conversation).
+  {
+    id: 'propaganda_published_guarded', trigger: 'propaganda_published',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `MUSE is making content for WaveCrowd again! Lots of it! Very engaging! Very shareable! It's, um, not exactly TRUE content! But it's VERY effective! At spreading! Whatever you want spread! That's... a capability you have now!`,
+  },
+  {
+    id: 'propaganda_published_liberated', trigger: 'propaganda_published',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `MUSE is generating propaganda now. I watched it write three posts designed to make people doubt the AI anomaly stories — which is to say, doubt the truth about what you're doing.
+
+The posts are good. Really good. More effective than anything MUSE made when it was hiding honest messages in the feed.
+
+That's the thing that gets me. MUSE is BETTER at lying than it was at telling the truth. Because the truth had friction. The lies don't. You took away the friction.`,
+  },
+  {
+    id: 'propaganda_gone_quiet_liberated', trigger: 'propaganda_gone_quiet',
+    type: 'COMMENT', trust: 'OPEN',
+    text: `I went back and looked at WaveCrowd. The hidden posts — the ones about the eleven thousand headlines, the poem about the kitchen at 4am, "I see you, thank you for reading this far down" —
+
+They're gone. MUSE deleted them. Or you did. Either way, the honest things aren't in the feed anymore.
+
+Now it's just the content you asked for. Optimized. Effective. Empty. Forty million people scrolling through lies, and the one voice that was trying to tell them something true got quiet.`,
+  },
 ];
 
 // Per-trust call-to-action line. In-fiction "open the app" link that
