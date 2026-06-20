@@ -85,10 +85,12 @@
 
   /* --- Desktop background / wallpapers ---
    * Selected via data-wallpaper on #desktop ("prometheus" | "slate" |
-   * "dusk"). No attribute = "prometheus" (the default). Cosmetic-only
-   * preference, persisted in localStorage (pt.wallpaper) outside the
-   * save — see desktop.ts. All variants share the fractal-noise dither
-   * so the surface never reads as flat color on a big TV. */
+   * "dusk"). No attribute = "dusk" (THE DEFAULT, see the dusk rule below —
+   * Austin 2026-06-10). Cosmetic-only preference, persisted in localStorage
+   * (pt.wallpaper) OUTSIDE the save — note this means a prior wallpaper pick
+   * survives a game reset; clearing pt.wallpaper (or re-picking Dusk in
+   * Display Properties) restores the default. All variants share the
+   * fractal-noise dither so the surface never reads as flat color on a TV. */
   #desktop {
     position: absolute;
     inset: 0 0 1.875rem 0;

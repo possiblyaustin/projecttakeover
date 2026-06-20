@@ -117,6 +117,9 @@ export function runTitleScreen(opts: BootHandlers): Teardown {
         <button class="title-action" type="button" data-action="options" data-focusable="true" tabindex="0">Options</button>
         <button class="title-action" type="button" data-action="ack" data-focusable="true" tabindex="0">Acknowledgements</button>
         <button class="title-action" type="button" data-action="quit" data-focusable="true" tabindex="0">Quit</button>
+        <!-- TEMP DEV (remove before ship): jump straight to the desktop, skipping
+             login boot + onboarding, so playtests don't re-run the intro each time. -->
+        <button class="title-action title-action-dev" type="button" data-action="devdesktop" data-focusable="true" tabindex="0">→ Desktop [DEV]</button>
       </div>
 
       <div class="title-footer">${escapeHtml(OEM_FOOTER)}</div>
@@ -163,6 +166,18 @@ export function runTitleScreen(opts: BootHandlers): Teardown {
     if (action === 'options') { openOptions(); return; }
     if (action === 'ack') { openAcknowledgements(); return; }
     if (action === 'quit') { quit(); return; }
+    if (action === 'devdesktop') { devToDesktop(); return; }
+  }
+
+  // TEMP DEV (remove before ship): bypass login boot + onboarding straight to a
+  // post-onboarding desktop. Marks onboarding.seen so the desktop behaves as a
+  // returning player's (no first-contact greeting, no calibration warmth seed).
+  function devToDesktop(): void {
+    timers.forEach((id) => window.clearTimeout(id));
+    timers.clear();
+    GameState.dispatch({ type: 'flags/set', key: 'onboarding.seen', value: true });
+    teardown();
+    opts.onEnterDesktop();
   }
 
   // Wire pointer + activation for every focus target.
