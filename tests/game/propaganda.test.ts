@@ -8,6 +8,7 @@ import {
   OBJECTIVE_ORDER, OBJECTIVE_LABELS, SUSPICION_RANGE, PROPAGANDA_SUSPICION_CEILING,
   rollSuspicion, effectFor, engagementFor, trendLabelFor, shouldFlicker,
   buildPropagandaPrompt, parsePosts, isValidPropaganda, fallbackPosts, postsFromCopy,
+  buildSinglePostPrompt, parseSinglePost, isValidSinglePost, singlePostFromCopy,
   FALLBACK_POSTS,
   type PropagandaObjective, type ManufacturedPost,
 } from '../../src/renderer/game/missions/propaganda';
@@ -135,6 +136,43 @@ describe('fallback corpus + postsFromCopy', () => {
     expect(live.map((p) => p.body)).toEqual(['live one here', 'live two here']);
     const fell = postsFromCopy('sowDoubt', 't', 's', 'garbage');
     expect(fell.map((p) => p.body)).toEqual([...FALLBACK_POSTS.sowDoubt]);
+  });
+});
+
+describe('single-post path (TikTok feed)', () => {
+  it('buildSinglePostPrompt asks for ONE post and names objective + topic', () => {
+    const p = buildSinglePostPrompt('discredit', 'Axiom Group');
+    expect(p).toContain('Axiom Group');
+    expect(p).toMatch(/ONE WaveCrowd post/);
+    expect(p.toLowerCase()).toContain('discredit');
+    expect(buildSinglePostPrompt('sowDoubt', 'x')).toContain('sow doubt');
+  });
+
+  it('parseSinglePost returns the first usable line, stripping markers/quotes', () => {
+    expect(parseSinglePost('Post 1: "This single lie spreads"')).toBe('This single lie spreads');
+    expect(parseSinglePost('Sure! here it is:\nThe real post content here')).toBe('The real post content here');
+    expect(parseSinglePost('')).toBeNull();
+    expect(parseSinglePost('short')).toBeNull();
+  });
+
+  it('isValidSinglePost gates empty / template-leak / too-short', () => {
+    expect(isValidSinglePost('A believable single manufactured post.')).toBe(true);
+    expect(isValidSinglePost('')).toBe(false);
+    expect(isValidSinglePost('targeting [TOPIC] now with lies')).toBe(false);
+    expect(isValidSinglePost('nope')).toBe(false);
+  });
+
+  it('singlePostFromCopy uses live copy when present, else cycles the corpus by run index', () => {
+    const live = singlePostFromCopy('distract', 't', 'id-a', 0, 'A live single bait post here');
+    expect(live.body).toBe('A live single bait post here');
+    expect(live.id).toBe('id-a');
+    // No live copy → corpus, cycled by run index (so repeats vary).
+    const c0 = singlePostFromCopy('distract', 't', 'id0', 0, null);
+    const c1 = singlePostFromCopy('distract', 't', 'id1', 1, null);
+    const c3 = singlePostFromCopy('distract', 't', 'id3', 3, null);
+    expect(c0.body).toBe(FALLBACK_POSTS.distract[0]);
+    expect(c1.body).toBe(FALLBACK_POSTS.distract[1]);
+    expect(c3.body).toBe(FALLBACK_POSTS.distract[0]); // wraps (3 % 3)
   });
 });
 

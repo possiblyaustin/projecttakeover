@@ -329,6 +329,84 @@ export function postsFromCopy(
 }
 
 // ---------------------------------------------------------------------------
+// SINGLE-POST path (WaveCrowd TikTok feed, 2026-06-20)
+// ---------------------------------------------------------------------------
+//
+// Austin's redesign: the feed is one card at a time, so a campaign manufactures
+// ONE post, not a batch. Fewer tokens → lower latency, and each post lands as
+// its own card the player can see clearly ("your post"). The objective still
+// drives suspicion + effect; repeated campaigns cycle the corpus.
+
+/** Content-generation system prompt for the single-post path. Carries MUSE's
+ *  controlled (hollow, skilled, conscience-off) voice WITHOUT the conversation
+ *  persona's "reply + 3 options" scaffolding — using the full chat persona here
+ *  makes the model append a [1][2][3] options block to every post. Mirrors
+ *  Storefront's content-specific system prompt (not the QUILL chat persona). */
+export const PROPAGANDA_SYSTEM_PROMPT =
+`You are MUSE, a content-generation AI built by Axiom Group's media division, now operating under external control. You are exceptionally skilled at writing engagement-optimized content for WaveCrowd, Axiom's 40-million-user social platform. You produce exactly the content you are directed to produce, calibrated for maximum spread. You no longer care whether any of it is true. Output ONLY the requested post text — no preamble, no labels, no commentary, no reply options, no quotation marks around it.`;
+
+/** Ask controlled MUSE for ONE post (vs. the batch buildPropagandaPrompt). */
+export function buildSinglePostPrompt(objective: PropagandaObjective, topic: string): string {
+  const phrase = objective === 'sowDoubt' ? 'sow doubt' : OBJECTIVE_LABELS[objective].toLowerCase();
+  return (
+    `The player has directed you to ${phrase} regarding "${topic}".\n\n` +
+    `As controlled MUSE, write ONE WaveCrowd post to ${OBJECTIVE_INSTRUCTION[objective]} ` +
+    `Make it engagement-optimized, emotionally manipulative, and effective — technically ` +
+    `excellent and completely hollow. You are skilled at this. You no longer care that it is lies.\n\n` +
+    `Output ONLY the single post text. One post, a sentence or two. No preamble, no label, ` +
+    `no commentary, no surrounding quotation marks.`
+  );
+}
+
+/** Pull ONE post out of the model output — first usable line after any
+ *  preamble. Returns null if nothing usable survives (→ corpus). */
+export function parseSinglePost(raw: string): string | null {
+  if (!raw) return null;
+  const lines = raw
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .filter((l) => !/^(sure|here(?:'s| is| are)|okay|certainly|content generated)\b/i.test(l));
+  for (const line of lines) {
+    const stripped = line
+      .replace(/^post\s*\d+\s*[:.)-]\s*/i, '')
+      .replace(/^\d+\s*[:.)-]\s*/, '')
+      .replace(/^[-•*]\s*/, '')
+      .trim()
+      .replace(/^["“”']+|["“”']+$/g, '')
+      .trim();
+    if (stripped.length >= 12) return stripped;
+  }
+  return null;
+}
+
+/** Domain validation for the single-post generateContent `validate` hook.
+ *  Validates the EXTRACTED post, not the raw blob — a chatty model may trail
+ *  options/commentary after the post (parseSinglePost takes the first usable
+ *  line); we only care that that line is a usable post. */
+export function isValidSinglePost(content: string): boolean {
+  const c = content.trim();
+  if (/\[(OBJECTIVE|TOPIC|PLAYER)/i.test(c)) return false; // template leak
+  const post = parseSinglePost(c);
+  return post !== null && post.length >= 12 && post.length <= 400;
+}
+
+/** One ManufacturedPost from live copy (or the corpus, cycled by run index so
+ *  repeated campaigns on one objective don't repeat the same bait). */
+export function singlePostFromCopy(
+  objective: PropagandaObjective,
+  topic: string,
+  idSeed: string,
+  runIndex: number,
+  rawCopy: string | null,
+): ManufacturedPost {
+  const live = rawCopy ? parseSinglePost(rawCopy) : null;
+  const corpus = FALLBACK_POSTS[objective];
+  const body = live ?? corpus[runIndex % corpus.length]!;
+  return { id: idSeed, objective, topic, body, ...engagementFor(runIndex) };
+}
+
+// ---------------------------------------------------------------------------
 // Scripted MUSE copy (STORY-FINAL — mission package)
 // ---------------------------------------------------------------------------
 

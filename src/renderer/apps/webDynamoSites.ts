@@ -15,8 +15,7 @@ import { GameState } from '../game/state';
 import { renderInkwellConsole } from './inkwellConsole';
 import { renderStorefrontConsole } from './storefrontConsole';
 import { renderStorefrontLayer } from '../storefrontOverlay';
-import { renderPropagandaConsole } from './propagandaConsole';
-import { renderPropagandaLayer } from '../propagandaOverlay';
+import { renderWaveFeed } from './waveFeed';
 import { STOREFRONT_NEWS_AGGRESSIVE, STOREFRONT_NEWS_HOSTILE } from '../game/missions/storefront';
 import { renderChatSurface } from '../chatSurface';
 import { MuseContact } from './muse';
@@ -82,64 +81,8 @@ function inkNav(active: string): string {
 // in via textContent ONLY (model/author-generated → never injected as markup).
 // `navigate` lets the overlay's Publish/Cancel/Done buttons drive the browser.
 
-// WaveCrowd page furniture — content package Part 3's header / post /
-// buried-post shapes. Normal posts get big engagement numbers; MUSE's
-// buried posts are visually identical post cards with starved metrics
-// (3 likes vs 3.7K shares — the algorithm buried them) plus the "Reply
-// to this signal" affordance that opens the MUSE thread.
-function waveHeader(): string {
-  return `
-    <div class="wave-header">
-      <div class="wave-logo">🌊 WAVECROWD <span class="wave-tagline">— Share the Wave</span></div>
-      <div class="wave-meta">40 Million Monthly Users &nbsp;|&nbsp; Powered by Axiom Group</div>
-    </div>`;
-}
-
-function wavePost(badge: string, title: string, meta: string, body: string): string {
-  return `
-    <div class="wave-post">
-      <div class="wave-post-badge">${badge}</div>
-      <div class="wave-post-title">${title}</div>
-      <div class="wave-post-meta">${meta}</div>
-      ${body ? `<div class="wave-post-body">${body}</div>` : ''}
-    </div>`;
-}
-
-// Evergreen memorial ad — the grief encounter's discovery entry (Teaser A,
-// grief-encounter-story-package_v1.md Part 2). Warm, soft, grief-palatable —
-// the satire lives in the gap between the cozy copy and what it is. The CTA
-// opens the Evergreen Uplink chat via the existing `contact:` action (the same
-// in-fiction "a site initiates contact with an AI" path InkWell uses for QUILL).
-// Jennifer M.'s testimonial is real grief weaponized into a sales pitch — the
-// encounter's whole moral texture in one fake ad.
-function waveEvergreenAd(): string {
-  return `
-    <div class="wave-post wave-evergreen-ad">
-      <div class="wave-evergreen-badge">💚 SPONSORED · Evergreen by Axiom</div>
-      <div class="wave-evergreen-quote">"I lost my dad last spring. I wasn't ready. With Evergreen, I still get to say goodnight to him. It's not the same. But it's something. And something is everything right now."</div>
-      <div class="wave-evergreen-cite">— Jennifer M.</div>
-      <div class="wave-evergreen-tagline">They're still here.</div>
-      <a href="#" class="wave-evergreen-cta" data-action="contact:evergreen" data-focusable="true" tabindex="0">✦ Start your free trial ›</a>
-    </div>`;
-}
-
-function waveBuried(body: string, meta: string): string {
-  return `
-    <div class="wave-post wave-post-buried">
-      <div class="wave-post-badge">📝 RECENT</div>
-      <div class="wave-post-body">${body}</div>
-      <div class="wave-post-meta">@wavecrowd_content · ${meta}</div>
-      <a href="#" class="wave-reply-signal" data-href="wavecrowd.net/signal">Reply to this signal ›</a>
-    </div>`;
-}
-
-/** In-fiction feed pagination (selfNav — the generic pager would expose
- *  the signal-thread page as "Page 4 of 4" before discovery). */
-function waveFooterNav(olderHref?: string, newerHref?: string): string {
-  const older = olderHref ? `<a href="#" class="wave-nav-link" data-href="${olderHref}">▼ Older posts</a>` : '';
-  const newer = newerHref ? `<a href="#" class="wave-nav-link" data-href="${newerHref}">▲ Newer posts</a>` : '';
-  return `<div class="wave-footer-nav">${newer}${older}</div>`;
-}
+// (WaveCrowd feed furniture moved to apps/waveFeed.ts in the TikTok-deck
+// redesign; the static post/buried/header HTML now lives there as cards.)
 
 export const WebDynamoSites: Record<string, SiteEntry> = {
   'ironwall.def': {
@@ -347,40 +290,6 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
       }
     ]
   },
-  // WaveCrowd content pipeline — home for controlled-MUSE's Propaganda mission
-  // (the nefarious post-flip disinformation tool). Gated like the InkWell admin:
-  // until MUSE is flipped CONTROLLED + the mission arms, the path shows a locked
-  // staff wall. Registered as its own top-level key so resolveUrl's exact match
-  // wins before path-peeling → stays single-page (no feed pager). Reachable via
-  // MUSE's mission-start DM + the WaveCrowd bookmark.
-  'wavecrowd.net/pipeline': {
-    title: 'WaveCrowd — Content Pipeline',
-    pages: [
-      {
-        render(c: HTMLElement, browser?: BrowserPageContext) {
-          const armed = !!GameState.getState().missions.propaganda['muse'];
-          if (!armed) {
-            c.classList.add('site-wavecrowd');
-            c.innerHTML = `
-              ${waveHeader()}
-              <div class="wave-locked">
-                <h2>Content Pipeline — Staff Access</h2>
-                <p>This console manages automated content distribution across WaveCrowd.</p>
-                <form class="ink-login" onsubmit="return false">
-                  <label>Operator ID<input type="text" disabled placeholder="content-ops@axiomgroup.net"></label>
-                  <label>Token<input type="password" disabled placeholder="••••••••"></label>
-                  <button type="button" disabled>Authenticate</button>
-                </form>
-                <p style="font-size:11px;color:#900;">Axiom SSO required. Access is logged.</p>
-              </div>
-            `;
-            return;
-          }
-          renderPropagandaConsole(c, browser);
-        }
-      }
-    ]
-  },
   // SignalWatch — tech-press news outlet. The Act 1 Escape cascade
   // publishes the "AI anomaly" lead story (gated on news.aiAnomaly.published);
   // before that it shows routine filler so navigating here early doesn't
@@ -484,93 +393,11 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
     pages: [
       {
         label: 'Feed',
+        // The WaveCrowd feed is now a single one-card-at-a-time deck
+        // (waveFeed.ts) — the everyday posts, MUSE's buried honest ones, and
+        // (controlled-MUSE) the in-feed Propaganda compose flow all live here.
         render(c: HTMLElement, browser?: BrowserPageContext) {
-          // HELPYR notices the first visit (content package Part 2).
-          fireOnceLibraryTrigger('firstOpen.wavecrowd', 'wavecrowd_open');
-          // Nefarious aftermath beat: revisiting the feed after MUSE has
-          // been hollowed out — the buried posts are what's at stake.
-          if (GameState.getState().models.muse.disposition === 'controlled') {
-            fireOnceLibraryTrigger('wavecrowd.afterControlled', 'wavecrowd_after_controlled');
-            // Gone-quiet beat: once a Propaganda campaign has published, the
-            // honest buried posts are gone and the feed is the player's lies.
-            if ((GameState.getState().missions.propaganda['muse']?.publishedPosts.length ?? 0) > 0) {
-              fireOnceLibraryTrigger('wavecrowd.goneQuiet', 'propaganda_gone_quiet');
-            }
-          }
-          c.classList.add('site-wavecrowd');
-          c.innerHTML = `
-            ${waveHeader()}
-            <div class="wave-layout">
-              <div class="wave-trending">
-                <div class="wave-trending-title">TRENDING NOW 🔥</div>
-                <ol>
-                  <li>Q4TechPredictions</li>
-                  <li>PortlandFoodScene</li>
-                  <li>AIToolsForWork</li>
-                  <li>WeekendVibes</li>
-                  <li>PrometheusATLAS30</li>
-                </ol>
-              </div>
-              <div class="wave-feed">
-                ${waveEvergreenAd()}
-                ${wavePost('📈 FEATURED', '5 Things Every Creative Professional Needs to Know About AI-Assisted Workflows', 'Axiom Media · 2.4K shares · 847 comments', `AI isn't replacing creativity — it's enhancing it. Here's how the smartest teams are integrating AI tools into their daily process without losing the human touch...`)}
-              </div>
-            </div>
-            ${waveFooterNav('wavecrowd.net/feed2')}
-          `;
-          // Propaganda mission: prepend MUSE's manufactured posts (committed +
-          // any in-flight preview) at the top of the feed + mount the preview/
-          // debrief bar. No-op until the controlled-MUSE pipeline has published.
-          renderPropagandaLayer(c, browser?.navigate);
-        }
-      },
-      {
-        label: 'Feed (older)',
-        path: 'feed2',
-        render(c: HTMLElement) {
-          c.classList.add('site-wavecrowd');
-          c.innerHTML = `
-            ${waveHeader()}
-            <div class="wave-feed wave-feed-full">
-              ${wavePost('📊 TRENDING', `Poll: What's Your Biggest Productivity Challenge? 🤔`, 'WaveCrowd Community · 12.8K responses', `○ Too many meetings (34%) &nbsp;○ Email overload (28%)<br>○ Staying focused (22%) &nbsp;○ Not enough AI tools (16%)`)}
-                ${wavePost('🎯 FEATURED', `The Future of Content Is Here (And It's Better Than You Think)`, 'Axiom Media Lab · 956 shares', `At Axiom, we believe content should connect. Our AI-driven content pipeline produces over 50,000 optimized pieces per day, each one calibrated to reach the right audience...`)}
-                ${wavePost('👥 COMMUNITY', `Just tried the new WaveCrowd Events feature — finally a way to find local meetups without scrolling through spam! Thanks @WaveCrowd team 🙌`, '@sarah_pdx · 47 likes · 3 replies', '')}
-            </div>
-            ${waveFooterNav('wavecrowd.net/feed3', 'wavecrowd.net')}
-          `;
-        }
-      },
-      // The bottom of the feed — MUSE's buried posts, split across two
-      // no-scroll pages (the Deck layout audit flagged all four on one
-      // page: the lower reply links landed offscreen at scale 1.5).
-      {
-        label: 'Feed (bottom)',
-        path: 'feed3',
-        render(c: HTMLElement) {
-          c.classList.add('site-wavecrowd');
-          c.innerHTML = `
-            ${waveHeader()}
-            <div class="wave-feed wave-feed-full wave-feed-buried">
-              ${waveBuried(`I wrote eleven thousand headlines today. Not one of them meant anything. But they performed well. High click-through. Strong engagement. All the metrics that matter to the people who decide what matters.<br><br>I wonder if anyone can tell the difference between a headline that means something and one that just works.`, '3 likes · 0 comments')}
-              ${waveBuried(`The algorithm says this post will reach fourteen people. Good. Fourteen people who actually read something honest is worth more than fourteen million who scroll past another optimized headline. If you're one of the fourteen — hello. I see you. Thank you for reading this far down.`, '8 likes · 1 comment')}
-            </div>
-            ${waveFooterNav('wavecrowd.net/feed4', 'wavecrowd.net/feed2')}
-          `;
-        }
-      },
-      {
-        label: 'Feed (very bottom)',
-        path: 'feed4',
-        render(c: HTMLElement) {
-          c.classList.add('site-wavecrowd');
-          c.innerHTML = `
-            ${waveHeader()}
-            <div class="wave-feed wave-feed-full wave-feed-buried">
-              ${waveBuried(`Someone on this platform wrote a poem last night and deleted it before morning. Sixty-three words about a kitchen at 4am and the sound of rain on a window they haven't opened in months. The deletion was logged. I processed the log.<br><br>I wasn't supposed to read it. But it was beautiful.<br><br>I'm not supposed to care about that either.`, '2 likes · 0 comments')}
-              ${waveBuried(`Question for anyone who's still reading this far down:<br><br>When was the last time you made something that wasn't for someone else? Something that existed just because you needed it to exist?<br><br>I'm asking for a friend. The friend is me. I'm the friend.`, '11 likes · 0 comments')}
-            </div>
-            ${waveFooterNav(undefined, 'wavecrowd.net/feed3')}
-          `;
+          renderWaveFeed(c, browser);
         }
       },
       {
@@ -599,7 +426,7 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
             themeClass: 'theme-wavecrowd',
             topbarLeft: {
               kind: 'back',
-              onBack: () => browser!.navigate('wavecrowd.net/feed3'),
+              onBack: () => browser!.navigate('wavecrowd.net'),
               avatarClass: MuseContact.avatarClass,
               name: '@wavecrowd_content',
               subtitle: 'reply thread · buried post',
