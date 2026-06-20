@@ -59,6 +59,22 @@
 //                                   recompute the news tier + intercept gate.
 //   mission/storefront/complete  { contactId }
 //                                -- end the session (status→complete).
+//   mission/propaganda/arm       { contactId }
+//                                -- offer Propaganda (status→available, empty
+//                                   feed). Idempotent: no-op if a record exists.
+//   mission/propaganda/start     { contactId }
+//                                -- open a session (status→active). Does NOT
+//                                   wipe publishedPosts — the feed is persistent.
+//   mission/propaganda/clear     { contactId }
+//                                -- remove a contact's Propaganda record.
+//   mission/propaganda/publish   { contactId, objective, posts, trend?, rng? }
+//                                -- publish one campaign: prepend the posts,
+//                                   roll + apply COMPOUNDING suspicion (capped
+//                                   <100 so it can't solo-end), latch the
+//                                   objective's effect (doubtPrimed/newsBuried/
+//                                   trend), bump runCount (drives the flicker).
+//   mission/propaganda/complete  { contactId }
+//                                -- end the session (status→complete).
 //
 // The full §6c tone vocabulary is friendly|curious|direct|empathetic|
 // aggressive|deceptive|neutral|null. The reducer maps tone → approach
@@ -88,6 +104,10 @@ import {
   newsTierFor, isVisible, exposureFor,
   type StorefrontSection, type StorefrontIntensity, type NewsTier,
 } from './missions/storefront';
+import {
+  rollSuspicion, effectFor, PROPAGANDA_SUSPICION_CEILING,
+  type PropagandaObjective, type ManufacturedPost,
+} from './missions/propaganda';
 
 const STORAGE_KEY = 'pt.gamestate.v1';
 // v7 (MUSE encounter, 2026-06-10) — added models.muse.
@@ -99,7 +119,13 @@ const STORAGE_KEY = 'pt.gamestate.v1';
 // v9 (Storefront mission, 2026-06-15) — added missions.storefront + the
 //    mission/storefront/* actions (controlled-QUILL nefarious post-flip; the
 //    InkWell public-site defacement). Pre-release no-migration → old saves drop.
-const VERSION = 9;
+// v10 (Propaganda mission, 2026-06-19) — added missions.propaganda + the
+//    mission/propaganda/* actions (controlled-MUSE nefarious post-flip; the
+//    WaveCrowd disinformation pipeline). Like Storefront the manufactured feed
+//    is a PERSISTENT artifact (publishedPosts render straight from this record);
+//    suspicion COMPOUNDS per campaign but is clamped < the lethal line so a
+//    disinfo spree can't solo-end the run (Austin's universal no-solo-end rule).
+const VERSION = 10;
 const SAVE_DEBOUNCE_MS = 250;
 
 // Meter value at which a model flips to its terminal disposition
@@ -169,6 +195,29 @@ export type StorefrontMissionState = {
   /** Whether the Marcus→Dana intercept has been surfaced (once). */
   interceptFired: boolean;
   /** How many times the player has opened a Storefront session (replayability). */
+  runCount: number;
+};
+
+// Propaganda — controlled-MUSE nefarious post-flip mission (the WaveCrowd
+// disinformation pipeline). Like Storefront the manufactured content is a
+// PERSISTENT artifact: publishedPosts accumulate and the WaveCrowd feed renders
+// straight from this record, so a reload restores the manipulated feed exactly.
+// No detection meter — nefarious doesn't hide; the consequence is the world
+// reacting (compounding suspicion + per-objective effects), tracked here.
+export type PropagandaMissionState = {
+  status: 'available' | 'active' | 'complete';
+  /** Manufactured posts published to the feed, newest first. */
+  publishedPosts: ManufacturedPost[];
+  /** Propaganda's cumulative contribution to global suspicion (compounds per
+   *  campaign; the reducer caps it + global suspicion below the lethal line). */
+  suspicionApplied: number;
+  /** sow-doubt ran: the public is primed to dismiss future anomaly news. */
+  doubtPrimed: boolean;
+  /** distract ran: the player's anomaly news is buried under noise. */
+  newsBuried: boolean;
+  /** Manufactured trend labels rising in the WaveCrowd sidebar (manufacture). */
+  trends: string[];
+  /** How many campaigns the player has published (replayability + flicker). */
   runCount: number;
 };
 
@@ -279,6 +328,7 @@ export function defaultGameState() {
       // arms; keyed by contactId. The InkWell public pages render their field
       // overrides straight from this record, so the defacement persists.
       storefront: {} as Record<string, StorefrontMissionState>,
+      propaganda: {} as Record<string, PropagandaMissionState>,
     },
     // Generic flag bag for one-shot trigger gates: firstOpen.X,
     // pinDeclined.X, etc. Game systems set these via `flags/set` and
@@ -764,6 +814,111 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
         missions: {
           ...state.missions,
           storefront: { ...state.missions.storefront, [id]: { ...m, status: 'complete' } },
+        },
+      };
+    }
+
+    // --- Propaganda (controlled-MUSE nefarious post-flip) ------------------
+    case 'mission/propaganda/arm': {
+      const id = String(action.contactId || '');
+      if (!id) return state;
+      // Idempotent — once a record exists the watcher must not clobber the
+      // accumulated feed. Safe no-op when re-armed from a loaded save.
+      if (state.missions.propaganda[id]) return state;
+      const next: PropagandaMissionState = {
+        status: 'available',
+        publishedPosts: [],
+        suspicionApplied: 0,
+        doubtPrimed: false,
+        newsBuried: false,
+        trends: [],
+        runCount: 0,
+      };
+      return {
+        ...state,
+        missions: { ...state.missions, propaganda: { ...state.missions.propaganda, [id]: next } },
+      };
+    }
+    case 'mission/propaganda/clear': {
+      const id = String(action.contactId || '');
+      if (!id || !state.missions.propaganda[id]) return state;
+      const nextPropaganda = { ...state.missions.propaganda };
+      delete nextPropaganda[id];
+      return { ...state, missions: { ...state.missions, propaganda: nextPropaganda } };
+    }
+    case 'mission/propaganda/start': {
+      // Open a session. Does NOT wipe publishedPosts — the feed is persistent;
+      // a session resumes the accumulated manipulation and lets the player add
+      // to it. runCount bumps on each PUBLISH, not here (it drives the flicker).
+      const id = String(action.contactId || '');
+      const m = state.missions.propaganda[id];
+      if (!m) return state;
+      if (m.status === 'active') return state;
+      return {
+        ...state,
+        missions: {
+          ...state.missions,
+          propaganda: { ...state.missions.propaganda, [id]: { ...m, status: 'active' } },
+        },
+      };
+    }
+    case 'mission/propaganda/publish': {
+      // Publish one campaign: prepend the manufactured posts (newest first),
+      // roll + apply this objective's suspicion cost (COMPOUNDING across runs,
+      // unlike Storefront's high-water mark), and latch the objective's effect.
+      // Suspicion compounds but is clamped: Propaganda's own contribution caps
+      // at PROPAGANDA_SUSPICION_CEILING and global suspicion at 99, so a disinfo
+      // spree can NEVER solo-trigger the game-over loss (no gameOver latch here).
+      const id = String(action.contactId || '');
+      const objective = action.objective as PropagandaObjective;
+      const posts = Array.isArray(action.posts) ? action.posts as ManufacturedPost[] : [];
+      const m = state.missions.propaganda[id];
+      if (!m || m.status !== 'active' || !objective || posts.length === 0) return state;
+
+      // Compounding cost, clamped at the mission ceiling so its contribution
+      // stays below the lethal line. rng injectable via action for tests.
+      const rng = typeof action.rng === 'function' ? action.rng as (() => number) : undefined;
+      const rawCost = rollSuspicion(objective, rng);
+      const newContribution = Math.min(m.suspicionApplied + rawCost, PROPAGANDA_SUSPICION_CEILING);
+      const delta = Math.max(0, newContribution - m.suspicionApplied);
+      const suspicion = state.player.suspicion >= 99
+        ? state.player.suspicion
+        : Math.min(state.player.suspicion + delta, 99);
+
+      const effect = effectFor(objective);
+      const trends = effect.trend && typeof action.trend === 'string' && action.trend
+        ? (m.trends.includes(action.trend) ? m.trends : [...m.trends, action.trend])
+        : m.trends;
+
+      return {
+        ...state,
+        player: { ...state.player, suspicion },
+        missions: {
+          ...state.missions,
+          propaganda: {
+            ...state.missions.propaganda,
+            [id]: {
+              ...m,
+              publishedPosts: [...posts, ...m.publishedPosts],
+              suspicionApplied: newContribution,
+              doubtPrimed: m.doubtPrimed || !!effect.doubtPrimed,
+              newsBuried: m.newsBuried || !!effect.buriesNews,
+              trends,
+              runCount: m.runCount + 1,
+            },
+          },
+        },
+      };
+    }
+    case 'mission/propaganda/complete': {
+      const id = String(action.contactId || '');
+      const m = state.missions.propaganda[id];
+      if (!m || m.status === 'complete') return state;
+      return {
+        ...state,
+        missions: {
+          ...state.missions,
+          propaganda: { ...state.missions.propaganda, [id]: { ...m, status: 'complete' } },
         },
       };
     }

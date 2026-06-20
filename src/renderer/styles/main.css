@@ -859,6 +859,37 @@
     color: #7a3fa8;
     text-decoration: underline;
   }
+  /* Propaganda — MUSE's manufactured posts. Sit at the top of the feed, faintly
+   * "hot" (engagement-bait), with the controlled-MUSE purple accent. Committed
+   * posts are solid; a preview pulses so the player sees exactly what a publish
+   * would add before committing. */
+  .site-wavecrowd .wave-post-manufactured {
+    border-color: #d6c2e6;
+    border-left: 3px solid #7a3fa8;
+    background: #fdfbff;
+  }
+  .site-wavecrowd .wave-post-manufactured .wave-post-badge { color: #7a3fa8; }
+  .site-wavecrowd .wave-post-manufactured .wave-post-meta { color: #9a6fbe; }
+  .site-wavecrowd .wave-post-preview {
+    outline: 2px dashed #b07fd0;
+    outline-offset: 1px;
+    animation: wave-preview-pulse 1.1s ease-in-out infinite;
+  }
+  @keyframes wave-preview-pulse {
+    0%, 100% { outline-color: #d8b8ee; }
+    50% { outline-color: #7a3fa8; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .site-wavecrowd .wave-post-preview { animation: none; }
+  }
+  /* Manufactured trend in the sidebar — the fake topic the player conjured. */
+  .site-wavecrowd .wave-trend-fake { color: #7a3fa8; font-weight: bold; }
+  /* Locked content-pipeline wall (pre-flip) — reuses the InkWell login form. */
+  .site-wavecrowd .wave-locked { padding: 0.6rem 0.8rem; }
+  .site-wavecrowd .wave-locked h2 { font-size: 0.95rem; color: #16263e; margin: 0.2rem 0; }
+  .site-wavecrowd .wave-locked p { font-size: 0.72rem; color: #38465c; }
+  /* Pipeline console gets the MUSE-purple brand accent over the shared CMS chrome. */
+  .wave-console .ink-brand span { color: #7a3fa8; }
   /* Evergreen memorial ad — warm, soft, grief-palatable, set against the cold
    * blue corporate feed. Soft serif + gentle green gradient is the comfort
    * veneer; the CTA opens the encounter. (grief encounter Teaser A.) */

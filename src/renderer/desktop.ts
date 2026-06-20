@@ -155,6 +155,10 @@ const NexusMenu: NexusEntry[] = [
   // fresh Storefront, opens the InkWell CMS console. Re-runnable.
   { type: 'item', label: '[DEV] Start Storefront',
     action: () => (window as any).PT.devStartStorefront() },
+  // Propaganda (post-flip nefarious, MUSE): flips MUSE controlled, arms a fresh
+  // Propaganda record, opens the WaveCrowd pipeline console. Re-runnable.
+  { type: 'item', label: '[DEV] Start Propaganda',
+    action: () => (window as any).PT.devStartPropaganda() },
   // Evergreen grief encounter (Slice 1). "Start" drops into a fresh run
   // (clears every evergreen.* flag so it's replayable without a full reset).
   // "jump to The Ask" pre-fills rapport so one more strong pick surfaces the

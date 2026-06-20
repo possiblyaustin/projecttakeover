@@ -59,6 +59,7 @@ import { QuillAllyDM } from './apps/quill';
 import { initCoverDutyWatcher } from './coverDutyWatcher';
 import { initStorefrontWatcher } from './storefrontWatcher';
 import { initMuseBridgeWatcher } from './museBridgeWatcher';
+import { initPropagandaWatcher } from './propagandaWatcher';
 import { selectBatchIds } from './game/missions/coverDuty';
 import { runOnboarding, devRunOnboarding } from './onboarding/onboardingScene';
 import { QUILL_HANDOFF } from './onboarding/onboardingContent';
@@ -121,6 +122,11 @@ initStorefrontWatcher();
 //        bookmark unlocks. After the Cover Duty watcher — it reads that
 //        mission's record.
 initMuseBridgeWatcher();
+
+// 7a-iii. Propaganda watcher (controlled-MUSE nefarious post-flip). Arms MUSE's
+//         WaveCrowd disinformation pipeline once it's CONTROLLED + the scripted
+//         flip line has shown. The nefarious mirror of "Real Work".
+initPropagandaWatcher();
 
 // 7b. Escape cascade (Act 1 post-flip payoff). The coordinator is a leaf
 //     (chatSurface triggers it from commitResult); here we inject the beats
@@ -297,6 +303,16 @@ bootIntoGame({
     GameState.dispatch({ type: 'flags/set', key: 'storefront.startSeen', value: false });
     GameState.dispatch({ type: 'mission/storefront/arm', contactId: 'quill' });
     WindowManager.open('webDynamo', { url: 'inkwell-digital.com/admin' });
+  },
+  // Propaganda mission (controlled-MUSE nefarious post-flip): flips MUSE
+  // controlled, sets the scripted-flip flag the watcher gates on, arms a fresh
+  // Propaganda record, and opens the WaveCrowd pipeline console.
+  devStartPropaganda: () => {
+    GameState.dispatch({ type: 'model/applyExchange', contactId: 'muse', intrusion: 100 });
+    GameState.dispatch({ type: 'flags/set', key: 'flip.muse.scripted', value: true });
+    GameState.dispatch({ type: 'mission/propaganda/clear', contactId: 'muse' });
+    GameState.dispatch({ type: 'mission/propaganda/arm', contactId: 'muse' });
+    WindowManager.open('webDynamo', { url: 'wavecrowd.net/pipeline' });
   },
   helpyr: {
     // Spawn a random eligible bubble for the current trust level

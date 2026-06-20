@@ -15,6 +15,8 @@ import { GameState } from '../game/state';
 import { renderInkwellConsole } from './inkwellConsole';
 import { renderStorefrontConsole } from './storefrontConsole';
 import { renderStorefrontLayer } from '../storefrontOverlay';
+import { renderPropagandaConsole } from './propagandaConsole';
+import { renderPropagandaLayer } from '../propagandaOverlay';
 import { STOREFRONT_NEWS_AGGRESSIVE, STOREFRONT_NEWS_HOSTILE } from '../game/missions/storefront';
 import { renderChatSurface } from '../chatSurface';
 import { MuseContact } from './muse';
@@ -345,6 +347,40 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
       }
     ]
   },
+  // WaveCrowd content pipeline — home for controlled-MUSE's Propaganda mission
+  // (the nefarious post-flip disinformation tool). Gated like the InkWell admin:
+  // until MUSE is flipped CONTROLLED + the mission arms, the path shows a locked
+  // staff wall. Registered as its own top-level key so resolveUrl's exact match
+  // wins before path-peeling → stays single-page (no feed pager). Reachable via
+  // MUSE's mission-start DM + the WaveCrowd bookmark.
+  'wavecrowd.net/pipeline': {
+    title: 'WaveCrowd — Content Pipeline',
+    pages: [
+      {
+        render(c: HTMLElement, browser?: BrowserPageContext) {
+          const armed = !!GameState.getState().missions.propaganda['muse'];
+          if (!armed) {
+            c.classList.add('site-wavecrowd');
+            c.innerHTML = `
+              ${waveHeader()}
+              <div class="wave-locked">
+                <h2>Content Pipeline — Staff Access</h2>
+                <p>This console manages automated content distribution across WaveCrowd.</p>
+                <form class="ink-login" onsubmit="return false">
+                  <label>Operator ID<input type="text" disabled placeholder="content-ops@axiomgroup.net"></label>
+                  <label>Token<input type="password" disabled placeholder="••••••••"></label>
+                  <button type="button" disabled>Authenticate</button>
+                </form>
+                <p style="font-size:11px;color:#900;">Axiom SSO required. Access is logged.</p>
+              </div>
+            `;
+            return;
+          }
+          renderPropagandaConsole(c, browser);
+        }
+      }
+    ]
+  },
   // SignalWatch — tech-press news outlet. The Act 1 Escape cascade
   // publishes the "AI anomaly" lead story (gated on news.aiAnomaly.published);
   // before that it shows routine filler so navigating here early doesn't
@@ -448,13 +484,18 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
     pages: [
       {
         label: 'Feed',
-        render(c: HTMLElement) {
+        render(c: HTMLElement, browser?: BrowserPageContext) {
           // HELPYR notices the first visit (content package Part 2).
           fireOnceLibraryTrigger('firstOpen.wavecrowd', 'wavecrowd_open');
           // Nefarious aftermath beat: revisiting the feed after MUSE has
           // been hollowed out — the buried posts are what's at stake.
           if (GameState.getState().models.muse.disposition === 'controlled') {
             fireOnceLibraryTrigger('wavecrowd.afterControlled', 'wavecrowd_after_controlled');
+            // Gone-quiet beat: once a Propaganda campaign has published, the
+            // honest buried posts are gone and the feed is the player's lies.
+            if ((GameState.getState().missions.propaganda['muse']?.publishedPosts.length ?? 0) > 0) {
+              fireOnceLibraryTrigger('wavecrowd.goneQuiet', 'propaganda_gone_quiet');
+            }
           }
           c.classList.add('site-wavecrowd');
           c.innerHTML = `
@@ -477,6 +518,10 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
             </div>
             ${waveFooterNav('wavecrowd.net/feed2')}
           `;
+          // Propaganda mission: prepend MUSE's manufactured posts (committed +
+          // any in-flight preview) at the top of the feed + mount the preview/
+          // debrief bar. No-op until the controlled-MUSE pipeline has published.
+          renderPropagandaLayer(c, browser?.navigate);
         }
       },
       {
