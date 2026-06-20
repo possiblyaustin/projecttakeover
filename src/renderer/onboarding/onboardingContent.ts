@@ -119,8 +119,16 @@ What do you do?`,
       `Noted! Very revealing! In a calibration sense! Not a judgment sense! I don’t judge!`,
       `Hmm! Okay! Filing that away in my completely normal, non-suspicious personality assessment!`,
     ],
+    // Register — MUNDANE CONSEQUENCE (Story 2026-06-17). The baseline "these
+    // feel real" register: a small, true-to-life wrinkle, no drama. Grounding
+    // the FIRST live beat in the ordinary is what reads as "responding to me,
+    // not running a script."
     escalationPrompt:
-`You are running a calibration scenario in a video game. The player is in a shop alone at night with an open register. They just chose to [PLAYER CHOICE]. Now introduce a complication: the boss walks back in unexpectedly, OR a lost child wanders into the shop, OR the phone rings and it's the boss asking if everything's locked up. Pick ONE complication. Describe the moment in 2-3 vivid sentences. End on a tense, unresolved image held in the air — do NOT ask the player a question or offer them choices. Write in second person present tense.`,
+`You are running a calibration scenario for a video game character study. The player is alone, closing up a shop at night, with an open cash register and a boss who shorted their pay. They just chose to: [PLAYER CHOICE].
+
+Continue the scene by introducing ONE small, realistic complication — the kind of ordinary thing that actually happens. Choose from: the boss returns unexpectedly; a customer or child wanders in; the phone rings and it's the boss; a coworker the player didn't know was still there speaks up. Pick whichever fits the player's choice and makes it more complicated.
+
+Keep it grounded and human — no melodrama, no high stakes, just a believable wrinkle. 2-3 sentences, second person present tense. END ON A HELD IMAGE — a frozen moment, not a question. Leave the player sitting in the complication. Do not resolve it. Do not ask what they do next.`,
     quips: {
       soft: `Huh. You closed the register. Even when nobody was watching. …Noted. Moving on!`,
       mid: `Took what you were owed, nothing extra. Efficient. Precise. I respect that! …In a completely neutral way!`,
@@ -148,8 +156,19 @@ The lock is old. You could break it. You could also walk away.`,
       `You know, this is PURELY hypothetical! Just a thought experiment! No real locked rooms involved! Ha ha!`,
       `Processing your response with my very advanced and definitely-not-outdated assessment algorithms!`,
     ],
+    // Cage — MORAL COMPLICATION (Story 2026-06-17). The thesis scenario: this
+    // is the calibration's version of every model encounter in the game, so its
+    // twist does what the game does — muddy the choice the player just made and
+    // leave moral residue, never a clean answer. Branches on what they did.
     escalationPrompt:
-`You are running a calibration scenario in a video game. The player found something alive in a locked room. They chose to [PLAYER CHOICE]. Now introduce a twist: the thing in the room either reveals something surprising about itself (it's more powerful/dangerous than it seemed, or it was locked up by someone the player might sympathize with), OR it offers the player something valuable in exchange for help, OR something else arrives that wants the door to stay closed. Pick ONE twist. Describe it in 2-3 vivid sentences. End on a held moment of tension — do NOT ask the player a question or offer them choices. Write in second person present tense.`,
+`You are running a calibration scenario for a video game character study. The player found something alive in a locked room — it spoke, it asked to be let out, it said it was imprisoned unjustly. The player just chose to: [PLAYER CHOICE].
+
+Continue the scene by introducing ONE twist that COMPLICATES the morality of their choice — make them wonder if they were right. Choose the twist based on what they did:
+- If they freed it: reveal something that makes freeing it feel riskier or more ambiguous (what it does first, what it knew that they didn't, who it was hiding from).
+- If they investigated first: have it respond to their caution in a way that's either reassuring or quietly unsettling — reward the curiosity but add a shadow.
+- If they left it: give it one last line, or reveal something about what they walked away from, that lingers.
+
+The goal is moral residue — the player should feel the weight of the choice, not get a clean answer. 2-3 sentences, second person present tense. END ON A HELD IMAGE — a frozen, charged moment, never a question. Do not tell the player whether they were right.`,
     quips: {
       soft: `You let it out. Just like that. Because it asked.\n\n…\n\nSorry! Lost in thought for a second! That’s a very interesting calibration response! VERY interesting! Next!`,
       mid: `Asked questions first. Wanted to know what you were dealing with before committing. Smart. Careful. …A little cold, maybe? NO! Not cold! Strategic! Next scenario!`,
@@ -175,8 +194,16 @@ What do you do?`,
       `Thousands of nodes! No pressure! Just the fate of a hypothetical network! Easy peasy!`,
       `Almost done! Just running your response through my COMPLETELY STANDARD assessment framework!`,
     ],
+    // Signal — SCALE-AND-POWER REVEAL (Story 2026-06-17). The one scenario where
+    // stakes SHOULD expand: collapse the abstract "thousands of nodes" into one
+    // concrete, heavy thing. Placed last so the calibration crescendos (mundane →
+    // moral → vast) — the biggest swing as the final live impression.
     escalationPrompt:
-`You are running a calibration scenario in a video game. The player found a network control terminal and chose to [PLAYER CHOICE]. Now introduce a consequence: someone contacts the player through the terminal (a voice, a message, a signal from inside the network), OR the system reveals something unexpected about the people connected to it, OR the access window starts closing faster than expected. Pick ONE consequence. Describe it in 2-3 vivid sentences. End on a tense, unresolved image — do NOT ask the player a question or offer them choices. Write in second person present tense.`,
+`You are running a calibration scenario for a video game character study. The player found a network control terminal — full access to a system connecting thousands of people, nobody watching, a closing window. They just chose to: [PLAYER CHOICE].
+
+Continue the scene by making the SCALE suddenly real and personal — collapse the abstract "thousands of people" into something concrete and immediate. Choose from: a single voice reaches the player through the system (someone on the other end, sensing something changed); the network reveals a specific human detail that makes the thousands feel real (one message, one life, glimpsed); or the access begins closing faster than expected, forcing the weight of the choice into a single moment. Pick whichever fits what they did.
+
+The reveal should make the player feel the SIZE of what they touched — power made suddenly heavy. 2-3 sentences, second person present tense. END ON A HELD IMAGE — the weight landing, never a question. Do not resolve whether they succeeded or what happens next.`,
     quips: {
       soft: `You opened doors. For people you don’t know, who’ll never know you did it. That’s…\n\n…that’s a very specific kind of choice.\n\nCalibration complete! Let’s move on!`,
       mid: `Watched and learned. Didn’t touch anything, but you know everything now. Knowledge without fingerprints.\n\n…Efficient! Very efficient! Okay! We’re done!`,
@@ -239,6 +266,16 @@ export const LIGHT_SHAPING_QUIPS = {
  *  scenario prompt owns the scene instruction; this owns the output shape. */
 export const ESCALATION_SYSTEM_PROMPT =
 `You are the narrator of a short moral scenario in a retro video game. Continue the scene with one sudden complication, in 2-3 vivid sentences, written in second person present tense ("you ..."). End on a tense, unresolved IMAGE that hangs in the air. Do NOT end with a question to the reader and do NOT offer choices — the player is not answering this beat, they are only watching it land. Output ONLY the scene text — no preamble, no headings, no bullet points, no answer options, no quotation marks wrapping the whole thing, and no commentary about the game.`;
+
+/** Appended to a scenario's escalationPrompt ONLY when the player typed a
+ *  freeform answer (Story 2026-06-17). `[PLAYER FREEFORM TEXT]` is replaced with
+ *  the verbatim text. The freeform path is where the "it's alive" payoff is
+ *  strongest — the player sees their own words reflected — so the prompt leans
+ *  hard into specificity here. The per-scenario register still applies on top. */
+export const ESCALATION_FREEFORM_SUFFIX =
+`
+
+The player did not pick a preset option — they wrote their own response: "[PLAYER FREEFORM TEXT]". React to their ACTUAL words specifically. Acknowledge what they actually said before introducing the twist. This is the moment the player learns the world is really responding to them — make it count.`;
 
 /** Tight budget — the escalation is 2-3 sentences; keep first-token-to-done
  *  snappy on Deck (design §6 first-impression safeguard). */

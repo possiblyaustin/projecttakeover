@@ -17,11 +17,14 @@
 //   Beat 3  calibration complete → light-shaping read → QUILL handoff → done.
 //   …then onComplete() reveals the desktop underneath.
 //
-// COSMETIC v1: the per-scenario *live escalation* (the LLM "it's alive" showcase,
-// design §6) is NOT wired yet — v1 plays a short scripted stall then the quip.
-// The seam is marked `[v2 LLM ESCALATION]` below: v2 inserts a ModelService
-// generation (using scenario.escalationPrompt) between the stall and the quip,
-// with the stalling lines covering the latency. Nothing else moves.
+// LIVE ESCALATION (v2, wired): between the moral fork and HELPYR's quip the
+// scene runs a live ModelService generation off each scenario's per-register
+// `escalationPrompt` (Story 2026-06-17: Register=mundane, Cage=moral, Signal=
+// scale) — the "it's alive" showcase. HELPYR's stalling lines cover the latency;
+// the twist types into the premise card, then the scripted quip shares the page.
+// On ANY miss (mock/slow/invalid/timeout) the scene falls straight through to the
+// quip, so a flat generation never carries the first impression. Freeform answers
+// also append ESCALATION_FREEFORM_SUFFIX so the model reflects the player's words.
 //
 // Light shaping: the net lean of the player's picks seeds HELPYR's starting
 // warmth + a soft morality nudge via the deterministic `onboarding/seedCalibration`
@@ -37,7 +40,7 @@ import {
   CALIBRATION_COMPLETE, LIGHT_SHAPING_QUIPS,
   FREEFORM_FIRST_HINT, FREEFORM_PROMPT,
   ESCALATION_SYSTEM_PROMPT, ESCALATION_MAX_TOKENS, ESCALATION_TIMEOUT_MS,
-  isValidEscalation,
+  ESCALATION_FREEFORM_SUFFIX, isValidEscalation,
   type CalibrationLean, type CalibrationScenario,
 } from './onboardingContent';
 import { GameState } from '../game/state';
@@ -383,7 +386,7 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
     // two). On a miss (mock mode, slow/failed/invalid generation) there's no
     // twist, so the quip just plays on its own — the quip reacts to the player's
     // CHOICE, not the twist, so the seam is invisible.
-    runEscalation(scenario, choiceText, (escalation) => {
+    runEscalation(scenario, choiceText, wasFreeform, (escalation) => {
       if (escalation) {
         typeEscalation(escalation, () => {
           helpyrLine(scenario.quips[lean], afterQuip, /* keepCard */ true);
@@ -396,8 +399,14 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
 
   // Generate the live escalation while HELPYR stalls. Calls `done` with the
   // escalation text on a valid live result, or '' on any miss (mock/fail/slow).
-  function runEscalation(scenario: CalibrationScenario, choiceText: string, done: (text: string) => void): void {
-    const userPrompt = scenario.escalationPrompt.replace('[PLAYER CHOICE]', choiceText);
+  function runEscalation(scenario: CalibrationScenario, choiceText: string, wasFreeform: boolean, done: (text: string) => void): void {
+    // The pick's text fills [PLAYER CHOICE] in the scenario's tuned prompt. On a
+    // freeform answer we ALSO append the specificity suffix with the player's
+    // verbatim words — that's the strongest "it heard me" beat (Story 2026-06-17).
+    let userPrompt = scenario.escalationPrompt.replace('[PLAYER CHOICE]', choiceText);
+    if (wasFreeform) {
+      userPrompt += ESCALATION_FREEFORM_SUFFIX.replace('[PLAYER FREEFORM TEXT]', choiceText);
+    }
     let result: GenerateContentResult | undefined;
     // Race the generation against a hard timeout so a hung server can't trap the
     // player on the first live beat — the loser resolves to a fallback.
