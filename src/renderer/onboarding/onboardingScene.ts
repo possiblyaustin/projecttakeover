@@ -118,6 +118,8 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
   // `advance` is set during the boot/typing beats; once calibration's
   // interactive UI is up it's null (the buttons/inputs own the input).
   let advance: (() => void) | null = null;
+  // Latches true once HELPYR's intro starts — disables the boot-only SKIP.
+  let bootDone = false;
   function onAdvanceKey(e: KeyboardEvent): void {
     if (e.key === 'Escape') { skip(); return; }
     if (advance) { e.preventDefault(); advance(); }
@@ -130,6 +132,12 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
   skipBtn.addEventListener('click', skip);
 
   function skip(): void {
+    // SKIP is a BOOT-only affordance — it fast-forwards the cold-boot POST to
+    // HELPYR's entrance. Once HELPYR is up it must be inert: it used to re-run
+    // runHelpyrIntro() and restart the whole onboarding (repeating HELPYR's
+    // lines / bouncing the player out of calibration). bootDone latches in
+    // runHelpyrIntro(), so a click/Escape after boot is a no-op.
+    if (bootDone) return;
     // Jump past the boot straight to HELPYR's entrance (keeps the payoff).
     timers.forEach((id) => window.clearTimeout(id));
     timers.clear();
@@ -298,6 +306,10 @@ export function runOnboarding(opts: { onComplete?: () => void } = {}): Teardown 
   }
 
   function runHelpyrIntro(): void {
+    // Boot is over — latch it so SKIP/Escape can no longer restart onboarding,
+    // and retire the SKIP affordance (it only ever meant "skip the boot").
+    bootDone = true;
+    skipBtn.hidden = true;
     root.classList.add('ob-helpyr-mode');
     const panel = document.createElement('div');
     panel.className = 'ob-helpyr';
