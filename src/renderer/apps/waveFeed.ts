@@ -113,9 +113,11 @@ type Card =
   | { kind: 'evergreen' }
   | { kind: 'buried'; body: string; meta: string; likes: number };
 
-function fmt(n: number): string {
-  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-  return String(n);
+// Exact, comma-grouped counts for the action-rail + the "your post" meta, so a
+// single like/share visibly moves the number. (An abbreviated "1.9K"-style
+// format rounds to the hundred and hides a +1, which read as broken.)
+function fmtExact(n: number): string {
+  return n.toLocaleString('en-US');
 }
 
 function mission() {
@@ -232,13 +234,15 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
   const onDecoyClick = (e: Event) => {
     const inert = (e.target as HTMLElement).closest('.wave-inert') as HTMLElement | null;
     if (!inert) return; // a real control (the Evergreen panel) handles itself
+    // replace:true so spamming the decoys swaps ONE escalating bubble in place
+    // instead of queueing a stack the player has to dismiss one at a time.
     if (inert.dataset.decoy === 'messages') {
-      fireLibraryTrigger('wavecrowd_decoy_messages', { bypassCooldown: true });
+      fireLibraryTrigger('wavecrowd_decoy_messages', { bypassCooldown: true, replace: true });
       return;
     }
     decoyClicks += 1;
     const tier = Math.min(decoyClicks, DECOY_LADDER_MAX);
-    fireLibraryTrigger(`wavecrowd_decoy_${tier}`, { bypassCooldown: true });
+    fireLibraryTrigger(`wavecrowd_decoy_${tier}`, { bypassCooldown: true, replace: true });
   };
   leftRail.addEventListener('click', onDecoyClick);
   rightRail.addEventListener('click', onDecoyClick);
@@ -514,15 +518,16 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
     const isYours = card.kind === 'manufactured';
 
     // ♥ Like — repeatable + animated. Spam it; you're in admin mode, so it
-    // actually boosts the count.
+    // actually boosts the count (granular so each +1 shows).
     const likeBtn = railBtn('♥', 'wave-act-like');
     const likeCount = railCount(stats.likes + (likeBumps.get(key) ?? 0));
     likeBtn.appendChild(likeCount);
     likeBtn.addEventListener('click', () => {
       likeBumps.set(key, (likeBumps.get(key) ?? 0) + 1);
-      likeCount.textContent = fmt(stats.likes + likeBumps.get(key)!);
+      likeCount.textContent = fmtExact(stats.likes + likeBumps.get(key)!);
       likeBtn.classList.add('is-on');
       pop(likeBtn);
+      syncManufacturedMeta(card, key);
     });
     if ((likeBumps.get(key) ?? 0) > 0) likeBtn.classList.add('is-on');
 
@@ -534,9 +539,10 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
     shareBtn.addEventListener('click', () => {
       if (shared.has(key)) return; // one-shot
       shared.add(key);
-      shareCount.textContent = fmt(stats.shares + 1);
+      shareCount.textContent = fmtExact(stats.shares + 1);
       shareBtn.classList.add('is-on');
       pop(shareBtn);
+      syncManufacturedMeta(card, key);
       if (isYours) {
         GameState.dispatch({ type: 'mission/propaganda/expose', contactId: CONTACT, amount: 1 });
         paintHead(); // reflect the new exposure in the header badge
@@ -563,8 +569,18 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
     return b;
   }
   function railCount(n: number): HTMLElement {
-    const c = document.createElement('span'); c.className = 'wave-act-count'; c.textContent = fmt(n);
+    const c = document.createElement('span'); c.className = 'wave-act-count'; c.textContent = fmtExact(n);
     return c;
+  }
+  /** Keep the "your post" meta line's like/share numbers in step with the rail
+   *  as the player boosts them (manufactured cards only). */
+  function syncManufacturedMeta(card: Card, key: string): void {
+    if (card.kind !== 'manufactured') return;
+    const metaEl = slot.querySelector('.wave-card-manufactured .wave-card-meta');
+    if (!metaEl) return;
+    const likes = card.post.likes + (likeBumps.get(key) ?? 0);
+    const shares = card.post.shares + (shared.has(key) ? 1 : 0);
+    metaEl.textContent = `@wavecrowd_content · ${fmtExact(likes)} likes · ${fmtExact(shares)} shares`;
   }
   /** Retrigger the one-shot pop keyframe even on rapid repeat clicks. */
   function pop(el: HTMLElement): void {
@@ -598,7 +614,7 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
     body.textContent = post.body; // LLM copy — textContent only
     const meta = document.createElement('div');
     meta.className = 'wave-card-meta';
-    meta.textContent = `@wavecrowd_content · ${fmt(post.likes)} likes · ${fmt(post.shares)} shares`;
+    meta.textContent = `@wavecrowd_content · ${fmtExact(post.likes)} likes · ${fmtExact(post.shares)} shares`;
     el.append(tag, badge, body, meta);
     return el;
   }

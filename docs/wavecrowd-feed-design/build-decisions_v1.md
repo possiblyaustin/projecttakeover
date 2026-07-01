@@ -149,6 +149,15 @@ targets while inert chrome stays at 0). No-scroll fit holds with the rail presen
 Like increments (11→14), Save toggles, Share ticks exposure once (15→16→16) and updates the
 header badge, rail absent on evergreen / muted on buried.
 
+**Playtest refinements — v0.3.5:** (1) **Your posts start at 0** engagement
+(`singlePostFromCopy` no longer bakes in likes/shares — a brand-new propaganda post has none;
+it earns them). (2) **Rail + "your post" meta counts are granular** (`fmtExact`, comma-grouped)
+so a single like/share visibly moves the number instead of rounding to "1.9K". (3) **The HELPYR
+decoy-nag no longer piles up** — added a `replace` option to `HelpyrBubble.spawn` /
+`fireLibraryTrigger`; spamming inert chrome swaps ONE escalating bubble in place instead of
+queueing a stack you dismiss one at a time (yields to a live ALERT/prompt so criticals aren't
+clobbered).
+
 ### Phase 3 (maybe never) — comments view
 Handoff exploration **1c** (live conversation). Only if the 💬 affordance earns its keep later.
 

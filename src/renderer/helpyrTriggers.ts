@@ -62,6 +62,11 @@ export type FireOptions = {
   bypassCooldown?: boolean;
   // RNG hook — defaults to Math.random. Tests pass a deterministic fn.
   rng?: () => number;
+  // Replace the currently-visible bubble in place instead of queueing behind
+  // it (and don't let repeats stack). For rapid flavor fires — e.g. the
+  // WaveCrowd decoy-click nag — where a queue of near-identical bubbles the
+  // player must dismiss one by one is worse than a single escalating one.
+  replace?: boolean;
 };
 
 export function fireLibraryTrigger(
@@ -89,7 +94,7 @@ export function fireLibraryTrigger(
     return;
   }
 
-  HelpyrBubble.spawn(entry, { bypassCooldown: !!opts.bypassCooldown });
+  HelpyrBubble.spawn(entry, { bypassCooldown: !!opts.bypassCooldown, replace: !!opts.replace });
 }
 
 // Active Uplink chat = an Uplink window is open AND has visible chat
