@@ -31,6 +31,9 @@ import { fireLibraryTrigger, fireOnceLibraryTrigger } from '../helpyrTriggers';
 
 const CONTACT = 'muse';
 const SIGNAL_URL = 'wavecrowd.net/signal';
+// Escalating HELPYR "stay focused" ladder for clicks on inert portal chrome
+// (see docs/wavecrowd-feed-design/build-decisions_v1.md). Clamps at the top rung.
+const DECOY_LADDER_MAX = 5;
 
 type Browser = { navigate: (url: string) => void };
 
@@ -171,10 +174,18 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
         <div class="wave-deckhead-right" data-headright></div>
       </div>
       <div class="wave-museline" data-museline hidden></div>
-      <div class="wave-deck" data-deck>
-        <div class="wave-card-slot" data-slot></div>
+      <div class="wave-body">
+        <div class="wave-rail wave-rail-left" data-leftrail></div>
+        <div class="wave-center">
+          <div class="wave-deck" data-deck>
+            <div class="wave-peek wave-peek-prev" data-peekprev hidden></div>
+            <div class="wave-card-slot" data-slot></div>
+            <div class="wave-peek wave-peek-next" data-peeknext hidden></div>
+          </div>
+          <div class="wave-deck-controls" data-controls></div>
+        </div>
+        <div class="wave-rail wave-rail-right" data-rightrail></div>
       </div>
-      <div class="wave-deck-controls" data-controls></div>
     </div>
   `;
   const headRight = container.querySelector('[data-headright]') as HTMLElement;
@@ -182,6 +193,36 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
   const deckEl = container.querySelector('[data-deck]') as HTMLElement;
   const slot = container.querySelector('[data-slot]') as HTMLElement;
   const controls = container.querySelector('[data-controls]') as HTMLElement;
+  const leftRail = container.querySelector('[data-leftrail]') as HTMLElement;
+  const rightRail = container.querySelector('[data-rightrail]') as HTMLElement;
+  const peekPrev = container.querySelector('[data-peekprev]') as HTMLElement;
+  const peekNext = container.querySelector('[data-peeknext]') as HTMLElement;
+
+  // Peeks are mouse-only neighbour shortcuts (Back/Next + arrows cover
+  // controller/keyboard). Listeners attach ONCE — the elements persist across
+  // paints (only their text/hidden changes), so re-binding would stack.
+  peekPrev.addEventListener('click', (e) => { e.stopPropagation(); advance(-1); });
+  peekNext.addEventListener('click', (e) => { e.stopPropagation(); advance(1); });
+
+  // Decoy-click nag: a click on inert set-dressing (nav, trending, who's-waving)
+  // fires an escalating HELPYR "stay focused" line. Controller/keyboard can't
+  // reach these (they're not focusable), so this only catches mouse/touchpad.
+  // Bound once to the persistent rail containers (their innerHTML is repainted,
+  // but the containers survive). See build-decisions_v1.md.
+  let decoyClicks = 0;
+  const onDecoyClick = (e: Event) => {
+    const inert = (e.target as HTMLElement).closest('.wave-inert') as HTMLElement | null;
+    if (!inert) return; // a real control (the Evergreen panel) handles itself
+    if (inert.dataset.decoy === 'messages') {
+      fireLibraryTrigger('wavecrowd_decoy_messages', { bypassCooldown: true });
+      return;
+    }
+    decoyClicks += 1;
+    const tier = Math.min(decoyClicks, DECOY_LADDER_MAX);
+    fireLibraryTrigger(`wavecrowd_decoy_${tier}`, { bypassCooldown: true });
+  };
+  leftRail.addEventListener('click', onDecoyClick);
+  rightRail.addEventListener('click', onDecoyClick);
 
   // Compose entry + exposure readout (controlled-MUSE only).
   function paintHead(): void {
@@ -249,9 +290,12 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
   function paint(): void {
     paintHead();
     paintMuseLine();
+    paintLeftRail();
+    paintRightRail();
     slot.innerHTML = '';
     controls.innerHTML = '';
-    if (mode.m === 'feed') { paintCard(); paintControls(); return; }
+    if (mode.m === 'feed') { paintCard(); paintControls(); paintPeeks(); return; }
+    hidePeeks(); // compose modes take over the center column; the rails stay put
     if (mode.m === 'objective') { paintObjectivePicker(); return; }
     if (mode.m === 'topic') { paintTopicPicker(mode.objective); return; }
     if (mode.m === 'drafting') { paintDrafting(); return; }
@@ -279,6 +323,146 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
     const next = navBtn('Next ▼', () => advance(1));
     next.disabled = index >= deck.length - 1;
     controls.append(back, pos, next);
+  }
+
+  // ---- peeks (dimmed neighbour slivers above/below the card) ----
+  function paintPeeks(): void {
+    const prev = deck[index - 1];
+    const next = deck[index + 1];
+    peekPrev.hidden = !prev;
+    peekNext.hidden = !next;
+    peekPrev.textContent = prev ? peekLabel(prev) : '';
+    peekNext.textContent = next ? peekLabel(next) : '';
+  }
+  function hidePeeks(): void {
+    peekPrev.hidden = true; peekNext.hidden = true;
+    peekPrev.textContent = ''; peekNext.textContent = '';
+  }
+  function peekLabel(card: Card): string {
+    if (card.kind === 'manufactured') return `◆ YOUR POST · 📢 ${OBJECTIVE_LABELS[card.post.objective].toUpperCase()}`;
+    if (card.kind === 'evergreen') return '💚 SPONSORED · Evergreen by Axiom';
+    if (card.kind === 'buried') return '📝 RECENT · a quieter signal…';
+    const title = card.post.title.length > 42 ? card.post.title.slice(0, 42).trimEnd() + '…' : card.post.title;
+    return `${card.post.badge} · ${title}`;
+  }
+
+  // ---- portal chrome rails (inert set-dressing) ----
+  // Everything the rails paint is decorative and NON-focusable: the D-pad skips
+  // it, the cursor doesn't treat it as clickable, and a manual click fires the
+  // HELPYR decoy nag. The lone live element is the Evergreen sponsored panel.
+  function inertPanel(cls: string): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'wave-railpanel wave-inert ' + cls;
+    return el;
+  }
+
+  function paintLeftRail(): void {
+    leftRail.innerHTML = '';
+
+    const profile = inertPanel('wave-miniprofile');
+    const avatar = document.createElement('div'); avatar.className = 'wave-mp-avatar'; avatar.textContent = 'W';
+    const idBox = document.createElement('div'); idBox.className = 'wave-mp-id';
+    const name = document.createElement('div'); name.className = 'wave-mp-name'; name.textContent = '@wavecrowd_content';
+    const sub = document.createElement('div'); sub.className = 'wave-mp-sub'; sub.textContent = '1,204 followers';
+    idBox.append(name, sub);
+    profile.append(avatar, idBox);
+
+    const nav = inertPanel('wave-nav');
+    const items: { label: string; count?: string; active?: boolean; danger?: boolean; decoy?: string }[] = [
+      { label: 'Home', active: true },
+      { label: 'Profile' },
+      { label: 'Friends', count: '312' },
+      { label: 'Messages', count: '4', danger: true, decoy: 'messages' },
+      { label: 'Events' },
+      { label: 'Photos' },
+    ];
+    for (const it of items) {
+      const row = document.createElement('div');
+      row.className = 'wave-inert wave-nav-item' + (it.active ? ' is-active' : '');
+      if (it.decoy) row.dataset.decoy = it.decoy;
+      const label = document.createElement('span'); label.className = 'wave-nav-label'; label.textContent = it.label;
+      row.appendChild(label);
+      if (it.count) {
+        const c = document.createElement('span');
+        c.className = 'wave-nav-count' + (it.danger ? ' danger' : '');
+        c.textContent = it.count;
+        row.appendChild(c);
+      }
+      nav.appendChild(row);
+    }
+
+    leftRail.append(profile, nav);
+  }
+
+  function paintRightRail(): void {
+    rightRail.innerHTML = '';
+
+    // Trending Now — readouts. A run 'manufacture' campaign surfaces as a
+    // purple, rising row (derived from the mission's published posts).
+    const trending = inertPanel('wave-trendbox');
+    const tTitle = document.createElement('div'); tTitle.className = 'wave-trend-title'; tTitle.textContent = 'Trending Now';
+    trending.appendChild(tTitle);
+    const manu = deriveManuTrend();
+    const rows: { tag: string; count: string; manu?: boolean }[] = [
+      { tag: '#AxiomEvents', count: '4,812' },
+      { tag: '#AIWorkflows', count: '2,905' },
+      ...(manu ? [{ tag: manu, count: '1,910', manu: true }] : []),
+      { tag: '#ShareTheWave', count: '1,677' },
+    ];
+    for (const r of rows) {
+      const row = document.createElement('div');
+      row.className = 'wave-trend-row' + (r.manu ? ' wave-trend-manu' : '');
+      const tag = document.createElement('span'); tag.className = 'wave-trend-tag'; tag.textContent = r.manu ? `${r.tag} ▲` : r.tag;
+      const cnt = document.createElement('span'); cnt.className = 'wave-trend-count'; cnt.textContent = r.count;
+      row.append(tag, cnt);
+      trending.appendChild(row);
+    }
+
+    // Who's Waving — decorative presence chips.
+    const waving = inertPanel('wave-wavingbox');
+    const wTitle = document.createElement('div'); wTitle.className = 'wave-trend-title'; wTitle.textContent = "Who's Waving";
+    waving.appendChild(wTitle);
+    for (const nm of ['Sarah PDX', 'Axiom Media', 'MarcusW']) {
+      const chip = document.createElement('div'); chip.className = 'wave-waver';
+      const av = document.createElement('span'); av.className = 'wave-waver-av'; av.textContent = nm.charAt(0);
+      const label = document.createElement('span'); label.className = 'wave-waver-name'; label.textContent = nm;
+      const dot = document.createElement('span'); dot.className = 'wave-waver-dot';
+      chip.append(av, label, dot);
+      waving.appendChild(chip);
+    }
+
+    // Sponsored (Evergreen) — the ONE live rail element: jumps to the Evergreen
+    // card in-deck (its own CTA opens the encounter). Focusable + saturated so
+    // it pops against the desaturated chrome.
+    const spon = document.createElement('div');
+    spon.className = 'wave-railpanel wave-sponsored';
+    spon.dataset.focusable = 'true';
+    spon.tabIndex = 0;
+    const sBadge = document.createElement('div'); sBadge.className = 'wave-spon-badge'; sBadge.textContent = '💚 Evergreen by Axiom';
+    const sQuote = document.createElement('div'); sQuote.className = 'wave-spon-quote'; sQuote.textContent = 'They’re still here.';
+    const sCta = document.createElement('div'); sCta.className = 'wave-spon-cta'; sCta.textContent = '✦ Free trial ›';
+    spon.append(sBadge, sQuote, sCta);
+    spon.addEventListener('click', jumpToEvergreen);
+    spon.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter') jumpToEvergreen(); });
+
+    rightRail.append(trending, waving, spon);
+  }
+
+  function jumpToEvergreen(): void {
+    const i = deck.findIndex((c) => c.kind === 'evergreen');
+    if (i < 0) return;
+    index = i;
+    mode = { m: 'feed' };
+    paint();
+  }
+
+  function deriveManuTrend(): string | null {
+    const posts = mission()?.publishedPosts ?? [];
+    for (let i = posts.length - 1; i >= 0; i--) {
+      const p = posts[i]!;
+      if (p.objective === 'manufacture') return trendLabelFor(p.topic);
+    }
+    return null;
   }
 
   // ---- card renderers ----
@@ -314,7 +498,7 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
   }
 
   function normalCard(post: NormalPost): HTMLElement {
-    const el = cardBase('');
+    const el = cardBase('wave-card-normal');
     const badge = document.createElement('div');
     badge.className = 'wave-card-badge';
     badge.textContent = post.badge;

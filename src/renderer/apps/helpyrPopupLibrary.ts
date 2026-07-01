@@ -696,6 +696,52 @@ They're gone. MUSE deleted them. Or you did. Either way, the honest things aren'
 
 Now it's just the content you asked for. Optimized. Effective. Empty. Forty million people scrolling through lies, and the one voice that was trying to tell them something true got quiet.`,
   },
+
+  // -----------------------------------------------------------------
+  // Category: WaveCrowd decoy-click nags (CODE-DRAFT — Story voice pass pending)
+  // -----------------------------------------------------------------
+  // The redesigned WaveCrowd feed frames the deck in inert 2007 portal chrome
+  // (nav, trending, who's-waving). Those elements are non-focusable set-dressing;
+  // a MANUAL click on one fires an escalating "stay focused" line. waveFeed.ts
+  // tracks the click count and fires wavecrowd_decoy_1..5 (clamped at 5), plus a
+  // dedicated line for the fake "Messages" inbox. See
+  // docs/wavecrowd-feed-design/build-decisions_v1.md.
+  //
+  // Authored at RESERVED only (covers RESERVED, and FRIENDLY/WITHDRAWN which
+  // fall back to it). A fully-OPEN HELPYR gets no nag (no-fallback rule) — an
+  // acceptable edge, and on-theme for the controlled-MUSE path where this feed
+  // lives (that path trends toward low warmth, not OPEN). Story may add OPEN
+  // variants in the voice pass.
+  {
+    id: 'wavecrowd_decoy_1_guarded', trigger: 'wavecrowd_decoy_1',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `That's just set dressing. There's nothing behind it.`,
+  },
+  {
+    id: 'wavecrowd_decoy_2_guarded', trigger: 'wavecrowd_decoy_2',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `Still nothing there! The feed in the middle is the part that actually does something.`,
+  },
+  {
+    id: 'wavecrowd_decoy_3_guarded', trigger: 'wavecrowd_decoy_3',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `You know those don't work, right? I can see every click. Every single one.`,
+  },
+  {
+    id: 'wavecrowd_decoy_4_guarded', trigger: 'wavecrowd_decoy_4',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `We are on a clock and you are clicking a decorative "Photos" link. For fun, apparently.`,
+  },
+  {
+    id: 'wavecrowd_decoy_5_guarded', trigger: 'wavecrowd_decoy_5',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `…Fine. Enjoy the fake buttons. I'll be over here keeping watch. Let me know when you're done.`,
+  },
+  {
+    id: 'wavecrowd_decoy_messages_guarded', trigger: 'wavecrowd_decoy_messages',
+    type: 'COMMENT', trust: 'RESERVED',
+    text: `Those aren't yours to read. Wrong account, wrong platform — you're a guest here, remember?`,
+  },
 ];
 
 // Per-trust call-to-action line. In-fiction "open the app" link that
