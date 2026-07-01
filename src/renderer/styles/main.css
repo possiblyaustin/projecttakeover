@@ -1158,6 +1158,38 @@
     padding: 0.1rem 0.5rem; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
   }
 
+  /* ===== Action rail (Phase 2) — TikTok-style ♥/↗/🔖 beside the card. Real
+   * controls (focusable); ♥ is repeatable + pops, 🔖 toggles, ↗ is one-shot and
+   * on your own post ticks exposure. Muted on buried posts, absent on the ad. */
+  .site-wave-deck .wave-deckrow { flex: 1 1 auto; min-height: 0; display: flex; align-items: stretch; gap: 0.4rem; }
+  .site-wave-deck .wave-actionrail {
+    flex: 0 0 auto; width: 2.75rem; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0.8rem;
+  }
+  .site-wave-deck .wave-actionrail.is-muted { filter: saturate(0.4); opacity: 0.75; }
+  .site-wave-deck .wave-act {
+    width: 2.375rem; height: 2.375rem; border-radius: 50%;
+    background: linear-gradient(#ffffff, #e2ecfa); border: 1px solid #a9c0e0;
+    box-shadow: inset 0 1px 0 #fff; cursor: pointer; padding: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.05rem;
+  }
+  .site-wave-deck .wave-act:hover,
+  .site-wave-deck .wave-act.cursor-hover,
+  .site-wave-deck .wave-act.focus-ring {
+    border-color: #5a8edb; box-shadow: inset 0 1px 0 #fff, 0 0 0 2px rgba(90, 142, 219, 0.45); outline: none;
+  }
+  .site-wave-deck .wave-act-glyph { font-size: 1rem; line-height: 1; }
+  .site-wave-deck .wave-act-count { font-size: 0.58rem; font-weight: 700; color: #5f7093; }
+  .site-wave-deck .wave-act-like .wave-act-glyph { color: #d6455a; }
+  .site-wave-deck .wave-act-share .wave-act-glyph { color: #1a5fae; }
+  .site-wave-deck .wave-act-save .wave-act-glyph { color: #c9962a; }
+  .site-wave-deck .wave-act-like.is-on { background: linear-gradient(#ffe9ec, #ffd2d9); border-color: #e79aa6; }
+  .site-wave-deck .wave-act-share.is-on { background: linear-gradient(#e2ecfa, #c8dbf2); border-color: #8fb3e0; }
+  .site-wave-deck .wave-act-save.is-on { background: linear-gradient(#fdeccb, #f6d79a); border-color: #d9b56a; }
+  @keyframes wave-act-pop { 0% { transform: scale(1); } 35% { transform: scale(1.28); } 100% { transform: scale(1); } }
+  .site-wave-deck .wave-act.pop { animation: wave-act-pop 0.28s ease-out; }
+  @media (prefers-reduced-motion: reduce) { .site-wave-deck .wave-act.pop { animation: none; } }
+
   /* "Chat with QUILL" support widget — the in-fiction first-contact entry
    * point. The button carries data-action="contact:quill", which
    * webDynamo intercepts to open the Uplink chat (no dev tools needed). */
