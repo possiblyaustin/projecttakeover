@@ -63,6 +63,21 @@ Action rail is **Phase 2** (the layout works without it; it's a 52px column besi
   intruder on this account*, delivered as a dedicated HELPYR nag. Reversible if we later want the
   Uplink wire.
 
+### 7. MUSE chat opens in an Uplink window, not in-browser (v0.3.6)
+**Austin's call after playtest (2026-07-01).** Clicking **"Reply to this signal"** on a buried
+post now opens the MUSE conversation in an **Uplink window** (`data-action="contact:muse"`), not
+the old in-browser signal-thread mount. Two wins: it matches the messenger fiction, and it fixes
+"you lose your place in the feed" *for free* — a new window opens over the feed, so the WaveCrowd
+window (and its card position) is never touched. The in-browser `wavecrowd.net/signal` page is
+removed. `muse` was already a registered `UplinkContacts` entry, so the same `MuseContact` +
+scripted opening plays in Uplink.
+
+> **STORY RELAY:** this retires the "MUSE answers you *inside the platform it's trapped in*" beat
+> that the encounter was designed around (docs/muse-encounter-design_v1.md). The scripted opening
+> copy still references the feed ("from inside the feed it's hard to tell the difference"), which
+> reads fine but was written for the in-thread context — Story may want a light pass. Dead CSS
+> (`.site-wavecrowd-thread`, `.theme-wavecrowd`) left in `main.css` for a later sweep.
+
 ### 6. Scope: substantial redesign, phased — accepted
 The original single-card surface was too simple. This is a real build and worth it on two counts:
 WaveCrowd is a **reusable surface** (later missions reuse the feed), and this pass is our
