@@ -11,6 +11,23 @@ center deck + right trending/sponsored rail) with prev/next card **peeks** and a
 **action rail**. It looks great; the problem it created — a lot of new links that go nowhere —
 is resolved below.
 
+## Playtest round 2 fixes — v0.3.7 (2026-07-01)
+- **Decoy nag stops at the final line.** The `replace` fix stopped the queue pile-up, but spamming
+  once you'd reached the last rung re-popped that final bubble forever. Now the handler tracks the
+  last fired line and skips a fire that would just repeat what's already up — the escalation still
+  runs 1→5, then goes quiet no matter how much you keep clicking.
+- **MUSE Markdown-scaffolding leak.** On the controlled path a small model sometimes wrapped its
+  reply in Markdown — `***` dividers + a bold `**The Core Deliverable (Example of a compliant
+  output):**` header — instead of speaking. New model-agnostic `stripMarkdownScaffolding()` in the
+  reply parser removes dividers, bold header labels, `(Example …)` meta-notes, and stray emphasis
+  markers (4 tests, incl. the exact live leak). **STORY FLAG:** this cleans the *formatting*; the
+  deeper tendency of the CONTROLLED directive to frame output as a labelled "compliant output" is a
+  persona-prompt tuning item — a format guard in `MusePersonaPrompt`'s RESPONSE FORMAT ("plain
+  prose, no headers/labels/examples") would cut it at the source, but that touches Story's verbatim
+  copy, so it's flagged rather than edited here.
+- **Git note:** the MUSE→Uplink move (v0.3.6) missed the #113 merge (merged at v0.3.5) and was
+  re-landed via cherry-pick onto the v0.3.7 branch.
+
 ---
 
 ## Decisions
@@ -62,6 +79,21 @@ Action rail is **Phase 2** (the layout works without it; it's a 52px column besi
   into the other is a fiction stretch. Better beat: *these aren't your messages — you're an
   intruder on this account*, delivered as a dedicated HELPYR nag. Reversible if we later want the
   Uplink wire.
+
+### 7. MUSE chat opens in an Uplink window, not in-browser (v0.3.6)
+**Austin's call after playtest (2026-07-01).** Clicking **"Reply to this signal"** on a buried
+post now opens the MUSE conversation in an **Uplink window** (`data-action="contact:muse"`), not
+the old in-browser signal-thread mount. Two wins: it matches the messenger fiction, and it fixes
+"you lose your place in the feed" *for free* — a new window opens over the feed, so the WaveCrowd
+window (and its card position) is never touched. The in-browser `wavecrowd.net/signal` page is
+removed. `muse` was already a registered `UplinkContacts` entry, so the same `MuseContact` +
+scripted opening plays in Uplink.
+
+> **STORY RELAY:** this retires the "MUSE answers you *inside the platform it's trapped in*" beat
+> that the encounter was designed around (docs/muse-encounter-design_v1.md). The scripted opening
+> copy still references the feed ("from inside the feed it's hard to tell the difference"), which
+> reads fine but was written for the in-thread context — Story may want a light pass. Dead CSS
+> (`.site-wavecrowd-thread`, `.theme-wavecrowd`) left in `main.css` for a later sweep.
 
 ### 6. Scope: substantial redesign, phased — accepted
 The original single-card surface was too simple. This is a real build and worth it on two counts:

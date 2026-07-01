@@ -106,6 +106,38 @@ export function stripStageDirections(prose: string): string {
   return out.replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim();
 }
 
+/** Strip Markdown scaffolding a small model sometimes wraps its answer in —
+ *  section dividers (`***`, `---`), bold "header" labels (`**The Core
+ *  Deliverable (Example of a compliant output):**`), stray emphasis markers, and
+ *  the "(Example of …)" meta-notes that label sample output. None of these are
+ *  natural in-character dialogue; they read as the model formatting a document
+ *  instead of speaking. Model-agnostic (surfaced on controlled MUSE, 2026-07-01),
+ *  applied to reply prose only so option parsing is untouched. Idempotent.
+ *
+ *  NOTE: this cleans the *formatting* leak. The deeper tendency of controlled
+ *  MUSE to frame replies as a labelled "compliant output" is a persona-prompt
+ *  tuning item (Story) — see docs/wavecrowd-feed-design/build-decisions_v1.md. */
+export function stripMarkdownScaffolding(prose: string): string {
+  return prose
+    // Bold label headers ending in a colon: **Something (…):** — a section
+    // title, never dialogue. Remove the whole span.
+    .replace(/\*\*[^*\n]*:\*\*/g, '')
+    // Meta-notes that announce example/sample output.
+    .replace(/\(\s*(?:example|sample|e\.g\.|for example)\b[^)\n]*\)/gi, '')
+    // Whole-line horizontal-rule dividers (***, ---, ___, * * *).
+    .replace(/^[ \t]*([*_-][ \t]*){3,}$/gm, '')
+    // Inline divider runs (three or more asterisks mid-line).
+    .replace(/\*{3,}/g, '')
+    // Unwrap remaining bold, keep the text.
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    // Any leftover stray bold/rule markers.
+    .replace(/\*\*|__/g, '')
+    .replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+([.,!?;:])/g, '$1') // tidy spaces left before punctuation
+    .trim();
+}
+
 /** Tags for the context blocks the game INJECTS into the system prompt —
  *  the per-model `[*_STATE]` blocks (e.g. [QUILL_STATE], [HELPYR_STATE])
  *  and the `[REPUTATION]` block. */
@@ -197,7 +229,7 @@ export function parseModelOutput(raw: string): ParseResult {
   // options. Fallback trigger, but recoverable if the prose itself is
   // substantive (model just dropped the format, not the content).
   if (start < 0) {
-    const trimmed = stripStageDirections(text.trim());
+    const trimmed = stripMarkdownScaffolding(stripStageDirections(text.trim()));
     return {
       reply: trimmed,
       suggestedReplies: [],
@@ -207,7 +239,7 @@ export function parseModelOutput(raw: string): ParseResult {
     };
   }
 
-  const reply = stripStageDirections(text.slice(0, start).trim());
+  const reply = stripMarkdownScaffolding(stripStageDirections(text.slice(0, start).trim()));
   const optBlock = text.slice(start);
 
   // Split on newlines first; if the model emitted all three options on
