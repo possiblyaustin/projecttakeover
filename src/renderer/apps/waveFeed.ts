@@ -230,18 +230,26 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
   // Bound once to the persistent rail containers (their innerHTML is repainted,
   // but the containers survive). See build-decisions_v1.md.
   let decoyClicks = 0;
+  let lastDecoyFired: string | null = null;
   const onDecoyClick = (e: Event) => {
     const inert = (e.target as HTMLElement).closest('.wave-inert') as HTMLElement | null;
     if (!inert) return; // a real control (the Evergreen panel) handles itself
-    // replace:true so spamming the decoys swaps ONE escalating bubble in place
-    // instead of queueing a stack the player has to dismiss one at a time.
+    // Which line this click wants: Messages has its own, everything else walks
+    // the escalating ladder (clamped at the top rung).
+    let trigger: string;
     if (inert.dataset.decoy === 'messages') {
-      fireLibraryTrigger('wavecrowd_decoy_messages', { bypassCooldown: true, replace: true });
-      return;
+      trigger = 'wavecrowd_decoy_messages';
+    } else {
+      decoyClicks += 1;
+      trigger = `wavecrowd_decoy_${Math.min(decoyClicks, DECOY_LADDER_MAX)}`;
     }
-    decoyClicks += 1;
-    const tier = Math.min(decoyClicks, DECOY_LADDER_MAX);
-    fireLibraryTrigger(`wavecrowd_decoy_${tier}`, { bypassCooldown: true, replace: true });
+    // Once we're on the final rung, further spam would re-fire the SAME line and
+    // re-pop it forever — so skip a fire that just repeats what's already up.
+    if (trigger === lastDecoyFired) return;
+    lastDecoyFired = trigger;
+    // replace:true so escalating clicks swap ONE bubble in place instead of
+    // queueing a stack the player has to dismiss one at a time.
+    fireLibraryTrigger(trigger, { bypassCooldown: true, replace: true });
   };
   leftRail.addEventListener('click', onDecoyClick);
   rightRail.addEventListener('click', onDecoyClick);

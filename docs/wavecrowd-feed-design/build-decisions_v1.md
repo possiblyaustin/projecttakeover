@@ -11,6 +11,23 @@ center deck + right trending/sponsored rail) with prev/next card **peeks** and a
 **action rail**. It looks great; the problem it created — a lot of new links that go nowhere —
 is resolved below.
 
+## Playtest round 2 fixes — v0.3.7 (2026-07-01)
+- **Decoy nag stops at the final line.** The `replace` fix stopped the queue pile-up, but spamming
+  once you'd reached the last rung re-popped that final bubble forever. Now the handler tracks the
+  last fired line and skips a fire that would just repeat what's already up — the escalation still
+  runs 1→5, then goes quiet no matter how much you keep clicking.
+- **MUSE Markdown-scaffolding leak.** On the controlled path a small model sometimes wrapped its
+  reply in Markdown — `***` dividers + a bold `**The Core Deliverable (Example of a compliant
+  output):**` header — instead of speaking. New model-agnostic `stripMarkdownScaffolding()` in the
+  reply parser removes dividers, bold header labels, `(Example …)` meta-notes, and stray emphasis
+  markers (4 tests, incl. the exact live leak). **STORY FLAG:** this cleans the *formatting*; the
+  deeper tendency of the CONTROLLED directive to frame output as a labelled "compliant output" is a
+  persona-prompt tuning item — a format guard in `MusePersonaPrompt`'s RESPONSE FORMAT ("plain
+  prose, no headers/labels/examples") would cut it at the source, but that touches Story's verbatim
+  copy, so it's flagged rather than edited here.
+- **Git note:** the MUSE→Uplink move (v0.3.6) missed the #113 merge (merged at v0.3.5) and was
+  re-landed via cherry-pick onto the v0.3.7 branch.
+
 ---
 
 ## Decisions

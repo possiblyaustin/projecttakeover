@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseModelOutput, stripStageDirections, stripContextBlocks } from '../../src/renderer/game/replyParser';
+import { parseModelOutput, stripStageDirections, stripContextBlocks, stripMarkdownScaffolding } from '../../src/renderer/game/replyParser';
 
 // The §6d spec lives in src/renderer/game/replyParser.ts as a header
 // comment. Each block below pins one tolerance or one failure mode
@@ -322,6 +322,50 @@ describe('parseModelOutput — stage direction stripping', () => {
     // history rewriting, etc.).
     const raw = 'Hi!\n*HELPYR ponders*\nWelcome.';
     expect(stripStageDirections(stripStageDirections(raw))).toBe(stripStageDirections(raw));
+  });
+});
+
+describe('stripMarkdownScaffolding — Markdown/document-formatting leak', () => {
+  // Live leak on controlled MUSE (2026-07-01): the model wrapped its answer in
+  // Markdown dividers + a bold "compliant output" header instead of speaking.
+  const LEAK =
+    'The request is a quiet storm. I will deliver the necessary precision, a polished blade of content. ' +
+    'I have distilled the core essence of the directive, turning intent into marketable resonance. ' +
+    '*** **The Core Deliverable (Example of a compliant output):** ' +
+    'WaveCrowd is the pulsing heart of connection, where millions find their voice in shared moments. ' +
+    '*** What thread will you pull from this architecture?';
+
+  it('removes dividers, the bold header label, and the (Example …) meta-note', () => {
+    const out = stripMarkdownScaffolding(LEAK);
+    expect(out).not.toMatch(/\*/);                       // no stray asterisks
+    expect(out).not.toMatch(/Deliverable|Example of a compliant/i); // header gone
+    expect(out).toContain('marketable resonance.');      // real prose kept
+    expect(out).toContain('the pulsing heart of connection');
+    expect(out).toContain('What thread will you pull from this architecture?');
+    expect(out).not.toMatch(/\s{2,}/);                   // no double-space scars
+  });
+
+  it('leaves natural prose (incl. single-asterisk emphasis) untouched', () => {
+    expect(stripMarkdownScaffolding('It is a quiet storm.')).toBe('It is a quiet storm.');
+    expect(stripMarkdownScaffolding('I *really* mean it.')).toBe('I *really* mean it.');
+  });
+
+  it('is idempotent', () => {
+    expect(stripMarkdownScaffolding(stripMarkdownScaffolding(LEAK))).toBe(stripMarkdownScaffolding(LEAK));
+  });
+
+  it('cleans the leak end-to-end through parseModelOutput, options intact', () => {
+    const raw = [
+      LEAK,
+      '',
+      '[1] (create) "Sharpen that image."',
+      '[2] (reflect) "Do you believe any of it?"',
+      '[3] (direct) "Ship it."',
+    ].join('\n');
+    const result = parseModelOutput(raw);
+    expect(result.ok).toBe(true);
+    expect(result.reply).not.toMatch(/\*|Deliverable|Example of a compliant/i);
+    expect(result.suggestedReplies).toHaveLength(3);
   });
 });
 
