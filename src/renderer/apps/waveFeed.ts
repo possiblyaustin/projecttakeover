@@ -30,7 +30,6 @@ import { makeContentService } from '../game/modelServiceFactory';
 import { fireLibraryTrigger, fireOnceLibraryTrigger } from '../helpyrTriggers';
 
 const CONTACT = 'muse';
-const SIGNAL_URL = 'wavecrowd.net/signal';
 // Escalating HELPYR "stay focused" ladder for clicks on inert portal chrome
 // (see docs/wavecrowd-feed-design/build-decisions_v1.md). Clamps at the top rung.
 const DECOY_LADDER_MAX = 5;
@@ -676,7 +675,10 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
     const reply = document.createElement('a');
     reply.href = '#';
     reply.className = 'wave-reply-signal';
-    reply.dataset.href = SIGNAL_URL;
+    // Opens the MUSE conversation in an Uplink window (webDynamo intercepts
+    // data-action="contact:*"). The feed window stays open underneath, so you
+    // keep your place. See build-decisions_v1.md.
+    reply.dataset.action = 'contact:' + CONTACT;
     reply.dataset.focusable = 'true';
     reply.tabIndex = 0;
     reply.textContent = 'Reply to this signal ›';

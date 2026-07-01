@@ -17,8 +17,6 @@ import { renderStorefrontConsole } from './storefrontConsole';
 import { renderStorefrontLayer } from '../storefrontOverlay';
 import { renderWaveFeed } from './waveFeed';
 import { STOREFRONT_NEWS_AGGRESSIVE, STOREFRONT_NEWS_HOSTILE } from '../game/missions/storefront';
-import { renderChatSurface } from '../chatSurface';
-import { MuseContact } from './muse';
 import { fireOnceLibraryTrigger } from '../helpyrTriggers';
 
 /** Browser context threaded into page renders (2026-06-10, MUSE slice).
@@ -384,9 +382,11 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
   // feed is split into three no-scroll pages: trending top, more posts,
   // and the bottom of the feed where the algorithm buried MUSE's four
   // honest messages. Each buried post carries a "Reply to this signal"
-  // link → the signal thread page, where the MUSE conversation runs
-  // inside the platform (the chat engine mounted in the browser, not
-  // Uplink — MUSE talks through the thing it's trapped in).
+  // link that opens the MUSE conversation in an Uplink window
+  // (data-action="contact:muse") — the feed window stays open underneath, so
+  // you never lose your place. (2026-07-01: moved out of the browser per
+  // Austin's playtest call; see docs/wavecrowd-feed-design/build-decisions_v1.md.
+  // The old in-platform-thread fiction is a Story relay.)
   'wavecrowd.net': {
     title: 'WaveCrowd',
     selfNav: true,
@@ -398,40 +398,6 @@ export const WebDynamoSites: Record<string, SiteEntry> = {
         // (controlled-MUSE) the in-feed Propaganda compose flow all live here.
         render(c: HTMLElement, browser?: BrowserPageContext) {
           renderWaveFeed(c, browser);
-        }
-      },
-      {
-        label: 'Signal thread',
-        path: 'signal',
-        render(c: HTMLElement, browser) {
-          c.classList.add('site-wavecrowd', 'site-wavecrowd-thread');
-          // The MUSE conversation, mounted INSIDE the platform. The chat
-          // engine needs an AppContext only for window title/glyph — shim
-          // those to no-ops so the browser window doesn't retitle itself
-          // to "MUSE" (the address bar already says where we are).
-          const shimCtx = browser
-            ? { ...browser.ctx, setTitle: () => {}, setGlyph: () => {} }
-            : null;
-          if (!shimCtx) {
-            // Defensive: rendered outside the browser (shouldn't happen).
-            c.innerHTML = '<p>Thread unavailable.</p>';
-            return;
-          }
-          const mount = document.createElement('div');
-          mount.className = 'wave-thread-mount';
-          c.appendChild(mount);
-          renderChatSurface(mount, shimCtx, {
-            contact: MuseContact,
-            contactKey: 'muse',
-            themeClass: 'theme-wavecrowd',
-            topbarLeft: {
-              kind: 'back',
-              onBack: () => browser!.navigate('wavecrowd.net'),
-              avatarClass: MuseContact.avatarClass,
-              name: '@wavecrowd_content',
-              subtitle: 'reply thread · buried post',
-            },
-          });
         }
       },
     ]
