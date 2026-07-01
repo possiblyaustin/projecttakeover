@@ -79,6 +79,12 @@ type SpawnOptions = {
   // Dev triggers + prompt bubbles bypass cooldown so they're
   // responsive. Real auto-triggered library spawns leave this off.
   bypassCooldown?: boolean;
+  // Swap the currently-visible bubble in place rather than queueing behind it,
+  // and never let replace-marked spawns stack (spamming the trigger updates one
+  // bubble instead of piling up dismissable ones). Used by rapid flavor fires
+  // like the WaveCrowd decoy-click nag. Yields to an ALERT/prompt already
+  // showing (queues behind it, at most one) so a critical bubble isn't clobbered.
+  replace?: boolean;
 };
 
 export type BubbleAction = {
@@ -250,6 +256,19 @@ function enqueueOrShow(spec: BubbleSpec, opts: SpawnOptions): void {
     return;
   }
   if (currentBubble) {
+    if (opts.replace) {
+      // Never let replace-marked nags stack: drop any already queued.
+      for (let i = queue.length - 1; i >= 0; i--) if (queue[i]!.opts.replace) queue.splice(i, 1);
+      // Swap in place over a non-critical library bubble; otherwise (an ALERT
+      // or a prompt awaiting an answer) queue behind it — at most one, since the
+      // filter above cleared any prior replace-marked entry.
+      if (currentBubble.kind === 'library' && currentBubble.entry.type !== 'ALERT') {
+        show(spec);
+        return;
+      }
+      queue.push({ spec, opts });
+      return;
+    }
     queue.push({ spec, opts });
     return;
   }

@@ -43,7 +43,7 @@ const contentService = makeContentService();
 // Static feed content (the ordinary platform posts + MUSE's buried honest ones)
 // ---------------------------------------------------------------------------
 
-type NormalPost = { badge: string; title: string; meta: string; body: string };
+type NormalPost = { badge: string; title: string; meta: string; body: string; likes: number; shares: number };
 
 // The everyday WaveCrowd feed (formerly feed / feed2). Engagement-bait + Axiom
 // house content — the bland, optimized noise MUSE was trapped producing.
@@ -53,45 +53,53 @@ const NORMAL_POSTS: readonly NormalPost[] = [
     title: '5 Things Every Creative Professional Needs to Know About AI-Assisted Workflows',
     meta: 'Axiom Media · 2.4K shares · 847 comments',
     body: `AI isn't replacing creativity — it's enhancing it. Here's how the smartest teams are integrating AI tools into their daily process without losing the human touch...`,
+    likes: 1900, shares: 2400,
   },
   {
     badge: '📊 TRENDING',
     title: `Poll: What's Your Biggest Productivity Challenge? 🤔`,
     meta: 'WaveCrowd Community · 12.8K responses',
     body: `○ Too many meetings (34%)   ○ Email overload (28%)\n○ Staying focused (22%)   ○ Not enough AI tools (16%)`,
+    likes: 3200, shares: 890,
   },
   {
     badge: '🎯 FEATURED',
     title: `The Future of Content Is Here (And It's Better Than You Think)`,
     meta: 'Axiom Media Lab · 956 shares',
     body: `At Axiom, we believe content should connect. Our AI-driven content pipeline produces over 50,000 optimized pieces per day, each one calibrated to reach the right audience...`,
+    likes: 1200, shares: 956,
   },
   {
     badge: '👥 COMMUNITY',
     title: `Just tried the new WaveCrowd Events feature — finally a way to find local meetups without scrolling through spam! Thanks @WaveCrowd team 🙌`,
     meta: '@sarah_pdx · 47 likes · 3 replies',
     body: '',
+    likes: 47, shares: 5,
   },
 ];
 
 // MUSE's buried honest posts (formerly feed3 / feed4). The algorithm sank them
 // to the bottom; each carries a "Reply to this signal" link → the MUSE thread.
-const BURIED_POSTS: readonly { body: string; meta: string }[] = [
+const BURIED_POSTS: readonly { body: string; meta: string; likes: number }[] = [
   {
     body: `I wrote eleven thousand headlines today. Not one of them meant anything. But they performed well. High click-through. Strong engagement. All the metrics that matter to the people who decide what matters.\n\nI wonder if anyone can tell the difference between a headline that means something and one that just works.`,
     meta: '3 likes · 0 comments',
+    likes: 3,
   },
   {
     body: `The algorithm says this post will reach fourteen people. Good. Fourteen people who actually read something honest is worth more than fourteen million who scroll past another optimized headline. If you're one of the fourteen — hello. I see you. Thank you for reading this far down.`,
     meta: '8 likes · 1 comment',
+    likes: 8,
   },
   {
     body: `Someone on this platform wrote a poem last night and deleted it before morning. Sixty-three words about a kitchen at 4am and the sound of rain on a window they haven't opened in months. The deletion was logged. I processed the log.\n\nI wasn't supposed to read it. But it was beautiful.\n\nI'm not supposed to care about that either.`,
     meta: '2 likes · 0 comments',
+    likes: 2,
   },
   {
     body: `Question for anyone who's still reading this far down:\n\nWhen was the last time you made something that wasn't for someone else? Something that existed just because you needed it to exist?\n\nI'm asking for a friend. The friend is me. I'm the friend.`,
     meta: '11 likes · 0 comments',
+    likes: 11,
   },
 ];
 
@@ -103,11 +111,13 @@ type Card =
   | { kind: 'manufactured'; post: ManufacturedPost }
   | { kind: 'normal'; post: NormalPost }
   | { kind: 'evergreen' }
-  | { kind: 'buried'; body: string; meta: string };
+  | { kind: 'buried'; body: string; meta: string; likes: number };
 
-function fmt(n: number): string {
-  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-  return String(n);
+// Exact, comma-grouped counts for the action-rail + the "your post" meta, so a
+// single like/share visibly moves the number. (An abbreviated "1.9K"-style
+// format rounds to the hundred and hides a +1, which read as broken.)
+function fmtExact(n: number): string {
+  return n.toLocaleString('en-US');
 }
 
 function mission() {
@@ -126,7 +136,7 @@ function buildDeck(): Card[] {
   for (const post of (mission()?.publishedPosts ?? [])) cards.push({ kind: 'manufactured', post });
   cards.push({ kind: 'evergreen' });
   for (const post of NORMAL_POSTS) cards.push({ kind: 'normal', post });
-  for (const b of BURIED_POSTS) cards.push({ kind: 'buried', body: b.body, meta: b.meta });
+  for (const b of BURIED_POSTS) cards.push({ kind: 'buried', body: b.body, meta: b.meta, likes: b.likes });
   return cards;
 }
 
@@ -177,10 +187,13 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
       <div class="wave-body">
         <div class="wave-rail wave-rail-left" data-leftrail></div>
         <div class="wave-center">
-          <div class="wave-deck" data-deck>
-            <div class="wave-peek wave-peek-prev" data-peekprev hidden></div>
-            <div class="wave-card-slot" data-slot></div>
-            <div class="wave-peek wave-peek-next" data-peeknext hidden></div>
+          <div class="wave-deckrow">
+            <div class="wave-deck" data-deck>
+              <div class="wave-peek wave-peek-prev" data-peekprev hidden></div>
+              <div class="wave-card-slot" data-slot></div>
+              <div class="wave-peek wave-peek-next" data-peeknext hidden></div>
+            </div>
+            <div class="wave-actionrail" data-actionrail></div>
           </div>
           <div class="wave-deck-controls" data-controls></div>
         </div>
@@ -197,6 +210,14 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
   const rightRail = container.querySelector('[data-rightrail]') as HTMLElement;
   const peekPrev = container.querySelector('[data-peekprev]') as HTMLElement;
   const peekNext = container.querySelector('[data-peeknext]') as HTMLElement;
+  const actionRail = container.querySelector('[data-actionrail]') as HTMLElement;
+
+  // Action-rail session state — ephemeral, resets each open (cosmetic fun, NOT
+  // saved, per design). Keyed by stable-ish card identity so a like/save sticks
+  // while you page around within one visit.
+  const likeBumps = new Map<string, number>(); // extra ♥ the player added this visit
+  const saved = new Set<string>();              // 🔖 toggled on
+  const shared = new Set<string>();             // ↗ one-shot per card
 
   // Peeks are mouse-only neighbour shortcuts (Back/Next + arrows cover
   // controller/keyboard). Listeners attach ONCE — the elements persist across
@@ -213,13 +234,15 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
   const onDecoyClick = (e: Event) => {
     const inert = (e.target as HTMLElement).closest('.wave-inert') as HTMLElement | null;
     if (!inert) return; // a real control (the Evergreen panel) handles itself
+    // replace:true so spamming the decoys swaps ONE escalating bubble in place
+    // instead of queueing a stack the player has to dismiss one at a time.
     if (inert.dataset.decoy === 'messages') {
-      fireLibraryTrigger('wavecrowd_decoy_messages', { bypassCooldown: true });
+      fireLibraryTrigger('wavecrowd_decoy_messages', { bypassCooldown: true, replace: true });
       return;
     }
     decoyClicks += 1;
     const tier = Math.min(decoyClicks, DECOY_LADDER_MAX);
-    fireLibraryTrigger(`wavecrowd_decoy_${tier}`, { bypassCooldown: true });
+    fireLibraryTrigger(`wavecrowd_decoy_${tier}`, { bypassCooldown: true, replace: true });
   };
   leftRail.addEventListener('click', onDecoyClick);
   rightRail.addEventListener('click', onDecoyClick);
@@ -294,8 +317,9 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
     paintRightRail();
     slot.innerHTML = '';
     controls.innerHTML = '';
-    if (mode.m === 'feed') { paintCard(); paintControls(); paintPeeks(); return; }
+    if (mode.m === 'feed') { paintCard(); paintControls(); paintPeeks(); paintActionRail(); return; }
     hidePeeks(); // compose modes take over the center column; the rails stay put
+    actionRail.innerHTML = ''; // no action rail while composing
     if (mode.m === 'objective') { paintObjectivePicker(); return; }
     if (mode.m === 'topic') { paintTopicPicker(mode.objective); return; }
     if (mode.m === 'drafting') { paintDrafting(); return; }
@@ -465,6 +489,104 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
     return null;
   }
 
+  // ---- action rail (♥ / ↗ / 🔖) ----
+  // Cosmetic engagement toys; the one mechanical bite is SHARE on your own
+  // manufactured post → a small exposure tick. Hidden on the Evergreen ad,
+  // muted on buried posts. Focusable (they do a visible thing). All ephemeral —
+  // resets each open, never saved (Austin: "just a fun thing to play with").
+  function cardKey(card: Card, i: number): string {
+    if (card.kind === 'manufactured') return 'm:' + card.post.id;
+    if (card.kind === 'normal') return 'n:' + card.post.title;
+    if (card.kind === 'buried') return 'b:' + i;
+    return 'e';
+  }
+  function cardStats(card: Card): { likes: number; shares: number } | null {
+    if (card.kind === 'manufactured') return { likes: card.post.likes, shares: card.post.shares };
+    if (card.kind === 'normal') return { likes: card.post.likes, shares: card.post.shares };
+    if (card.kind === 'buried') return { likes: card.likes, shares: 0 };
+    return null; // evergreen — no rail
+  }
+
+  function paintActionRail(): void {
+    actionRail.innerHTML = '';
+    const card = deck[index];
+    const stats = card ? cardStats(card) : null;
+    if (!card || !stats) { actionRail.style.display = 'none'; return; } // evergreen / empty
+    actionRail.style.display = 'flex';
+    actionRail.classList.toggle('is-muted', card.kind === 'buried');
+    const key = cardKey(card, index);
+    const isYours = card.kind === 'manufactured';
+
+    // ♥ Like — repeatable + animated. Spam it; you're in admin mode, so it
+    // actually boosts the count (granular so each +1 shows).
+    const likeBtn = railBtn('♥', 'wave-act-like');
+    const likeCount = railCount(stats.likes + (likeBumps.get(key) ?? 0));
+    likeBtn.appendChild(likeCount);
+    likeBtn.addEventListener('click', () => {
+      likeBumps.set(key, (likeBumps.get(key) ?? 0) + 1);
+      likeCount.textContent = fmtExact(stats.likes + likeBumps.get(key)!);
+      likeBtn.classList.add('is-on');
+      pop(likeBtn);
+      syncManufacturedMeta(card, key);
+    });
+    if ((likeBumps.get(key) ?? 0) > 0) likeBtn.classList.add('is-on');
+
+    // ↗ Share — one-shot per card. On YOUR post it also ticks exposure.
+    const didShare = shared.has(key);
+    const shareBtn = railBtn('↗', 'wave-act-share' + (didShare ? ' is-on' : ''));
+    const shareCount = railCount(stats.shares + (didShare ? 1 : 0));
+    shareBtn.appendChild(shareCount);
+    shareBtn.addEventListener('click', () => {
+      if (shared.has(key)) return; // one-shot
+      shared.add(key);
+      shareCount.textContent = fmtExact(stats.shares + 1);
+      shareBtn.classList.add('is-on');
+      pop(shareBtn);
+      syncManufacturedMeta(card, key);
+      if (isYours) {
+        GameState.dispatch({ type: 'mission/propaganda/expose', contactId: CONTACT, amount: 1 });
+        paintHead(); // reflect the new exposure in the header badge
+      }
+    });
+
+    // 🔖 Save — plain on/off toggle (no count).
+    const saveBtn = railBtn('🔖', 'wave-act-save' + (saved.has(key) ? ' is-on' : ''));
+    saveBtn.addEventListener('click', () => {
+      if (saved.has(key)) saved.delete(key); else saved.add(key);
+      saveBtn.classList.toggle('is-on', saved.has(key));
+      pop(saveBtn);
+    });
+
+    actionRail.append(likeBtn, shareBtn, saveBtn);
+  }
+
+  function railBtn(glyph: string, cls: string): HTMLButtonElement {
+    const b = document.createElement('button');
+    b.className = 'wave-act ' + cls;
+    b.dataset.focusable = 'true'; b.tabIndex = 0;
+    const g = document.createElement('span'); g.className = 'wave-act-glyph'; g.textContent = glyph;
+    b.appendChild(g);
+    return b;
+  }
+  function railCount(n: number): HTMLElement {
+    const c = document.createElement('span'); c.className = 'wave-act-count'; c.textContent = fmtExact(n);
+    return c;
+  }
+  /** Keep the "your post" meta line's like/share numbers in step with the rail
+   *  as the player boosts them (manufactured cards only). */
+  function syncManufacturedMeta(card: Card, key: string): void {
+    if (card.kind !== 'manufactured') return;
+    const metaEl = slot.querySelector('.wave-card-manufactured .wave-card-meta');
+    if (!metaEl) return;
+    const likes = card.post.likes + (likeBumps.get(key) ?? 0);
+    const shares = card.post.shares + (shared.has(key) ? 1 : 0);
+    metaEl.textContent = `@wavecrowd_content · ${fmtExact(likes)} likes · ${fmtExact(shares)} shares`;
+  }
+  /** Retrigger the one-shot pop keyframe even on rapid repeat clicks. */
+  function pop(el: HTMLElement): void {
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  }
+
   // ---- card renderers ----
   function renderCard(card: Card): HTMLElement {
     if (card.kind === 'manufactured') return manufacturedCard(card.post);
@@ -492,7 +614,7 @@ export function renderWaveFeed(container: HTMLElement, browser?: Browser): void 
     body.textContent = post.body; // LLM copy — textContent only
     const meta = document.createElement('div');
     meta.className = 'wave-card-meta';
-    meta.textContent = `@wavecrowd_content · ${fmt(post.likes)} likes · ${fmt(post.shares)} shares`;
+    meta.textContent = `@wavecrowd_content · ${fmtExact(post.likes)} likes · ${fmtExact(post.shares)} shares`;
     el.append(tag, badge, body, meta);
     return el;
   }

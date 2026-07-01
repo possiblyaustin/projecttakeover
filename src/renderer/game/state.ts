@@ -75,6 +75,10 @@
 //                                   trend), bump runCount (drives the flicker).
 //   mission/propaganda/complete  { contactId }
 //                                -- end the session (status→complete).
+//   mission/propaganda/expose    { contactId, amount }
+//                                -- small exposure tick (action-rail SHARE of
+//                                   your own post); bumps suspicionApplied +
+//                                   global suspicion, same clamps as publish.
 //
 // The full §6c tone vocabulary is friendly|curious|direct|empathetic|
 // aggressive|deceptive|neutral|null. The reducer maps tone → approach
@@ -919,6 +923,35 @@ export function reduce(state: GameStateShape, action: GameAction): GameStateShap
         missions: {
           ...state.missions,
           propaganda: { ...state.missions.propaganda, [id]: { ...m, status: 'complete' } },
+        },
+      };
+    }
+    case 'mission/propaganda/expose': {
+      // Small exposure tick — the WaveCrowd action rail dispatches this when the
+      // player SHARES their own manufactured post (amplifying it themselves is a
+      // detectable act). Same clamp discipline as publish: caps the mission's
+      // contribution at the ceiling and global suspicion below the lethal line,
+      // so it can never solo-end the run. Writes only existing fields (no shape
+      // change → no save-version bump).
+      const id = String(action.contactId || '');
+      const m = state.missions.propaganda[id];
+      if (!m) return state;
+      const amount = Math.max(0, Number(action.amount) || 0);
+      if (amount === 0) return state;
+      const newContribution = Math.min(m.suspicionApplied + amount, PROPAGANDA_SUSPICION_CEILING);
+      const delta = Math.max(0, newContribution - m.suspicionApplied);
+      const suspicion = state.player.suspicion >= 99
+        ? state.player.suspicion
+        : Math.min(state.player.suspicion + delta, 99);
+      return {
+        ...state,
+        player: { ...state.player, suspicion },
+        missions: {
+          ...state.missions,
+          propaganda: {
+            ...state.missions.propaganda,
+            [id]: { ...m, suspicionApplied: newContribution },
+          },
         },
       };
     }

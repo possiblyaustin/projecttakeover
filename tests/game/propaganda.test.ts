@@ -287,4 +287,29 @@ describe('mission/propaganda reducers', () => {
     s = reduce(s, { type: 'mission/propaganda/clear', contactId: 'muse' });
     expect(s.missions.propaganda.muse).toBeUndefined();
   });
+
+  it('expose (action-rail share) bumps exposure + global suspicion by amount', () => {
+    let s = start(arm(defaultGameState() as GameStateShape));
+    const susp0 = s.player.suspicion;
+    s = reduce(s, { type: 'mission/propaganda/expose', contactId: 'muse', amount: 1 });
+    expect(s.missions.propaganda.muse.suspicionApplied).toBe(1);
+    expect(s.player.suspicion).toBe(susp0 + 1);
+  });
+
+  it('expose is a no-op without a mission record, and for amount 0', () => {
+    const base = defaultGameState() as GameStateShape;
+    // no record → untouched
+    expect(reduce(base, { type: 'mission/propaganda/expose', contactId: 'muse', amount: 1 })).toBe(base);
+    // amount 0 → untouched
+    const s = start(arm(base));
+    expect(reduce(s, { type: 'mission/propaganda/expose', contactId: 'muse', amount: 0 })).toBe(s);
+  });
+
+  it('expose respects the same clamps as publish (ceiling + sub-lethal global)', () => {
+    let s = start(arm(defaultGameState() as GameStateShape));
+    for (let i = 0; i < 200; i++) s = reduce(s, { type: 'mission/propaganda/expose', contactId: 'muse', amount: 1 });
+    expect(s.missions.propaganda.muse.suspicionApplied).toBe(PROPAGANDA_SUSPICION_CEILING);
+    expect(s.player.suspicion).toBeLessThanOrEqual(99);
+    expect(s.flags.gameOver).toBeFalsy();
+  });
 });

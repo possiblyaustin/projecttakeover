@@ -411,7 +411,11 @@ export function singlePostFromCopy(
   const live = rawCopy ? parseSinglePost(rawCopy) : null;
   const corpus = FALLBACK_POSTS[objective];
   const body = live ?? corpus[runIndex % corpus.length]!;
-  return { id: idSeed, objective, topic, body, ...engagementFor(runIndex) };
+  // A brand-new post has NO engagement yet — it starts at zero and earns it
+  // (the WaveCrowd action rail lets the player boost it, and the trend it feeds
+  // climbs in the sidebar). Baking in thousands of likes on a just-published
+  // post read as fake; zero is honest and lets the like counter actually move.
+  return { id: idSeed, objective, topic, body, likes: 0, shares: 0 };
 }
 
 // ---------------------------------------------------------------------------

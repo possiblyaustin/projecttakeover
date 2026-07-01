@@ -137,9 +137,26 @@ Concrete build, mapped to code. Target files: `src/renderer/apps/waveFeed.ts`,
 13. **Ship hygiene:** update/extend wave-feed tests, bump `package.json` version, `npm run check`.
 
 ### Phase 2 — action rail
-♥ Like (repeatable + pop animation, real count bump), 🔖 Save (toggle), ↗ Share (cosmetic;
-**Share-on-your-own-post → small exposure tick**). Per-card stats read from the corpus /
-`ManufacturedPost`. These *are* focusable (they do something visible).
+**Status: BUILT & verified — v0.3.4 (2026-07-01).** A 2.75rem column of ♥/↗/🔖 beside the card
+(`.wave-actionrail` in `waveFeed.ts` + `.site-wave-deck` CSS). ♥ Like = repeatable + pop
+animation + real count bump (ephemeral, resets each open — no save, per Austin); 🔖 Save = on/off
+toggle; ↗ Share = one-shot per card, and on **your own manufactured post** it fires
+`mission/propaganda/expose` for a small **exposure tick** (the one mechanical bite — persists,
+same clamps as publish; +3 reducer tests). Per-card stats come from `ManufacturedPost` and new
+`likes`/`shares` fields on the normal/buried corpus. Rail is **hidden on the Evergreen ad**,
+**muted on buried posts**, and its buttons are focusable (verified: they register as D-pad snap
+targets while inert chrome stays at 0). No-scroll fit holds with the rail present. Verified live:
+Like increments (11→14), Save toggles, Share ticks exposure once (15→16→16) and updates the
+header badge, rail absent on evergreen / muted on buried.
+
+**Playtest refinements — v0.3.5:** (1) **Your posts start at 0** engagement
+(`singlePostFromCopy` no longer bakes in likes/shares — a brand-new propaganda post has none;
+it earns them). (2) **Rail + "your post" meta counts are granular** (`fmtExact`, comma-grouped)
+so a single like/share visibly moves the number instead of rounding to "1.9K". (3) **The HELPYR
+decoy-nag no longer piles up** — added a `replace` option to `HelpyrBubble.spawn` /
+`fireLibraryTrigger`; spamming inert chrome swaps ONE escalating bubble in place instead of
+queueing a stack you dismiss one at a time (yields to a live ALERT/prompt so criticals aren't
+clobbered).
 
 ### Phase 3 (maybe never) — comments view
 Handoff exploration **1c** (live conversation). Only if the 💬 affordance earns its keep later.
