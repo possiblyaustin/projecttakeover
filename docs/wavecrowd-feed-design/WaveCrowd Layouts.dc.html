@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Georgia&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#0f2e4f;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif}
+  .dv-turn{padding:44px 48px 40px;border-bottom:1px solid rgba(255,255,255,.08);scroll-margin-top:16px}
+  .dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 8px}
+  .dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#0a1c30;color:#cfe3fb;border-radius:4px;text-decoration:none;border:1px solid rgba(255,255,255,.14)}
+  .dv-tname{font:600 13px/1.3 'Segoe UI',sans-serif;color:#eaf2fd}
+  .dv-intro{font:400 12.5px/1.5 'Segoe UI',sans-serif;color:#9fc0e4;max-width:720px;margin:0 0 24px}
+  .dv-opts{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}
+  .dv-opt{flex:none;display:flex;flex-direction:column;gap:11px;scroll-margin-top:16px}
+  .dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(255,255,255,.1);color:#eaf2fd;border-radius:5px;text-decoration:none}
+  .dv-olabel{display:flex;align-items:baseline;gap:8px;font:600 12.5px/1.3 'Segoe UI',sans-serif;color:#eaf2fd}
+  .dv-osub{font:400 11.5px/1.4 'Segoe UI',sans-serif;color:#8fb3da}
+  .dv-opt:target .dv-oid{background:#4a97e0;color:#fff}
+  .dv-next{margin:26px 0 0;font:12.5px/1.6 'Segoe UI',sans-serif;color:#8fb3da}
+  .dv-next a{color:#cfe3fb}
+  /* window + panel primitives shared across mocks */
+  .wc-win{width:858px;border:1px solid #16406f;border-radius:7px 7px 5px 5px;background:#d6dbe4;padding:3px;box-shadow:0 2px 0 rgba(8,16,30,.35),0 18px 46px rgba(6,12,26,.5)}
+  .wc-tb{display:flex;align-items:center;height:24px;padding:0 3px 0 7px;border-radius:5px 5px 0 0;background:linear-gradient(180deg,#4f8fe0 0%,#2f6bc0 46%,#1f4e93 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.5);color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 1px rgba(6,24,52,.6)}
+  .wc-tbbtn{width:20px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:3px;font-size:10px;line-height:1;border:1px solid #4a6ea8;background:linear-gradient(#e8eef8,#b9c8e0);color:#173a68}
+  .wc-app{width:850px;height:530px;box-sizing:border-box;background:#eef2f7;display:flex;flex-direction:column;padding:8px;gap:6px}
+  .wc-hdr{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;height:34px;padding:0 11px;border-radius:5px;background:linear-gradient(180deg,#4a97e0 0%,#2a7fd4 9%,#1f6ec4 52%,#1a5fae 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(0,0,0,.14);border-bottom:1px solid #12518f;white-space:nowrap}
+  .wc-logo{font-size:15px;font-weight:800;letter-spacing:.02em;color:#fff;text-shadow:0 1px 1px rgba(8,30,60,.55)}
+  .wc-tag{font-size:12px;font-style:italic;color:#d3e6fb;text-shadow:0 1px 1px rgba(8,30,60,.4)}
+  .wc-exp{font-size:11px;font-weight:700;padding:3px 9px;border-radius:11px;background:rgba(255,255,255,.2);color:#fff}
+  .wc-muse{font-size:12px;font-weight:600;color:#fff;background:linear-gradient(180deg,#8f51bd,#7a3fa8);border:1px solid #5d2f84;border-radius:13px;padding:4px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+  .wc-panel{background:linear-gradient(#f6f9ff,#e7eefb);border:1px solid #b8cae6;border-radius:5px;box-shadow:inset 0 1px 0 #fff;padding:7px 8px;box-sizing:border-box}
+  .wc-pt{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1a5fae;margin-bottom:6px;display:flex;align-items:center;gap:4px}
+  .wc-nav{display:flex;align-items:center;gap:8px;font-size:12px;color:#24406a;padding:5px 7px;border-radius:4px}
+  .wc-nav.on{background:linear-gradient(#dcebfb,#c3ddf6);font-weight:700;color:#123a68;box-shadow:inset 0 1px 0 #fff}
+  .wc-av{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex:none}
+  .wc-badge{align-self:flex-start;display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.07em;color:#fff;text-transform:uppercase;padding:3px 10px;border-radius:11px;background:linear-gradient(180deg,#3f8fdf,#1a5fae);box-shadow:inset 0 1px 0 rgba(255,255,255,.45)}
+  .wc-title{font-weight:700;color:#16263e;line-height:1.28;letter-spacing:-.01em;text-wrap:pretty}
+  .wc-body{color:#38465c;line-height:1.5;text-wrap:pretty}
+  .wc-meta{font-size:11px;color:#7a8aa2}
+  .wc-nb{font-size:12.5px;font-weight:600;color:#1a5fae;background:linear-gradient(180deg,#fbfdff,#e2ecfa);border:1px solid #a9c0e0;border-radius:14px;padding:7px 15px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+  .wc-nb.dis{opacity:.4}
+  .wc-dot{width:6px;height:6px;border-radius:50%;background:#c3d1e6}
+  .wc-dot.on{background:#1a5fae}
+</style>
+<template id="__bundler_thumbnail">
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#1a5fae"/><rect x="16" y="26" width="68" height="48" rx="4" fill="#fff"/><rect x="16" y="26" width="68" height="12" rx="4" fill="#2a7fd4"/><rect x="20" y="42" width="16" height="28" rx="2" fill="#dbe7f6"/><rect x="64" y="42" width="16" height="28" rx="2" fill="#dbe7f6"/><text x="50" y="62" font-size="16" text-anchor="middle">🌊</text></svg>
+</template>
+</helmet>
+
+<section class="dv-turn" id="t1">
+  <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Filling the page — three in-fiction layout directions</span></div>
+  <p class="dv-intro">Same single-card deck at the center (the "one post fills the layer" move stays). Each direction wraps it in period-authentic 2007 social furniture so the window reads as a living platform, not white space. All shown at the real 850×530 with the FEATURED feed card as the example post.</p>
+  <div class="dv-opts">
+
+    <!-- ============================= 1a — PORTAL CHROME ============================= -->
+    <div class="dv-opt" id="1a">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Portal chrome <span class="dv-osub">— MySpace/Facebook '07 three-column</span></div>
+      <div class="dv-card" style="width:858px;background:transparent;border:none;box-shadow:none;overflow:visible;padding:0">
+        <div class="wc-win">
+          <div class="wc-tb"><span style="margin-right:6px">🌐</span><span style="flex:1">WaveCrowd — Web Dynamo</span><div style="display:flex;gap:3px"><span class="wc-tbbtn">_</span><span class="wc-tbbtn">▢</span><span class="wc-tbbtn" style="background:linear-gradient(#f3b0a6,#d9695c);border-color:#a63f34;color:#fff">✕</span></div></div>
+          <div class="wc-app">
+            <div class="wc-hdr">
+              <div style="display:flex;align-items:baseline;gap:8px"><span class="wc-logo">🌊 WAVECROWD</span><span class="wc-tag">— Share the Wave</span></div>
+              <div style="display:flex;align-items:center;gap:8px"><span class="wc-exp">exposure +9</span><span class="wc-muse">✎ Direct MUSE</span></div>
+            </div>
+            <!-- three columns -->
+            <div style="flex:1;min-height:0;display:flex;gap:8px">
+              <!-- left rail -->
+              <div style="width:152px;flex:none;display:flex;flex-direction:column;gap:7px;min-height:0">
+                <div class="wc-panel" style="display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center">
+                  <div class="wc-av" style="width:46px;height:46px;background:linear-gradient(135deg,#5aa0e6,#2a6bb8);font-size:18px">W</div>
+                  <div style="font-size:12px;font-weight:700;color:#16263e">@wavecrowd_content</div>
+                  <div style="font-size:10px;color:#7a8aa2">Your Wave · 1,204 followers</div>
+                </div>
+                <div class="wc-panel" style="flex:1;min-height:0">
+                  <div class="wc-nav on">🏠 Home</div>
+                  <div class="wc-nav">👤 Profile</div>
+                  <div class="wc-nav">👥 Friends <span style="margin-left:auto;font-size:10px;color:#7a8aa2">312</span></div>
+                  <div class="wc-nav">✉ Messages <span style="margin-left:auto;font-size:10px;font-weight:700;color:#c23">4</span></div>
+                  <div class="wc-nav">📅 Events</div>
+                  <div class="wc-nav">📷 Photos</div>
+                </div>
+              </div>
+              <!-- center: deck -->
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+                <div style="flex:1;min-height:0;border:1px solid #c8d4e6;border-radius:6px;background:#fff;padding:16px 20px;display:flex;flex-direction:column;justify-content:center;gap:8px;box-shadow:0 1px 6px rgba(20,40,70,.1),inset 0 1px 0 #fff;overflow:hidden">
+                  <span class="wc-badge">📈 FEATURED</span>
+                  <div class="wc-title" style="font-size:15px">5 Things Every Creative Professional Needs to Know About AI-Assisted Workflows</div>
+                  <div class="wc-body" style="font-size:12px">AI isn't replacing creativity — it's enhancing it. Here's how the smartest teams are folding AI tools into their daily process without losing the human touch…</div>
+                  <div class="wc-meta">Axiom Media · 2.4K shares · 847 comments</div>
+                  <div style="display:flex;gap:6px;padding-top:4px"><span style="font-size:11px;color:#5f7093;background:#f1f5fb;border:1px solid #dbe4f0;border-radius:12px;padding:3px 10px">👍 Like</span><span style="font-size:11px;color:#5f7093;background:#f1f5fb;border:1px solid #dbe4f0;border-radius:12px;padding:3px 10px">💬 Comment</span><span style="font-size:11px;color:#5f7093;background:#f1f5fb;border:1px solid #dbe4f0;border-radius:12px;padding:3px 10px">↗ Share</span></div>
+                </div>
+                <div style="flex:0 0 auto;display:flex;align-items:center;justify-content:space-between">
+                  <span class="wc-nb dis">▲ Back</span>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="font-size:12px;color:#5f7093;font-weight:600">3 / 10</span><div style="display:flex;gap:4px"><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot on"></span><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot"></span></div></div>
+                  <span class="wc-nb">Next ▼</span>
+                </div>
+              </div>
+              <!-- right rail -->
+              <div style="width:182px;flex:none;display:flex;flex-direction:column;gap:7px;min-height:0">
+                <div class="wc-panel">
+                  <div class="wc-pt">🌊 Trending Now</div>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#1a5fae;font-weight:600">#AxiomEvents</span><span style="color:#9aa8bd;font-size:10px">4,812</span></div>
+                    <div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#1a5fae;font-weight:600">#AIWorkflows</span><span style="color:#9aa8bd;font-size:10px">2,905</span></div>
+                    <div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#7a3fa8;font-weight:700">#TrustTheProcess ▲</span><span style="color:#9aa8bd;font-size:10px">1,910</span></div>
+                    <div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#1a5fae;font-weight:600">#ShareTheWave</span><span style="color:#9aa8bd;font-size:10px">1,677</span></div>
+                  </div>
+                </div>
+                <div class="wc-panel">
+                  <div class="wc-pt">🟢 Who's Waving</div>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <div style="display:flex;align-items:center;gap:7px"><span class="wc-av" style="width:20px;height:20px;background:#c98bd0;font-size:9px">S</span><span style="font-size:11.5px;color:#24406a">Sarah PDX</span><span class="wc-dot on" style="margin-left:auto;background:#3fae5f"></span></div>
+                    <div style="display:flex;align-items:center;gap:7px"><span class="wc-av" style="width:20px;height:20px;background:#5aa0e6;font-size:9px">A</span><span style="font-size:11.5px;color:#24406a">Axiom Media</span><span class="wc-dot on" style="margin-left:auto;background:#3fae5f"></span></div>
+                    <div style="display:flex;align-items:center;gap:7px"><span class="wc-av" style="width:20px;height:20px;background:#e0a24a;font-size:9px">M</span><span style="font-size:11.5px;color:#24406a">MarcusW</span><span class="wc-dot on" style="margin-left:auto;background:#3fae5f"></span></div>
+                  </div>
+                </div>
+                <div class="wc-panel" style="flex:1;min-height:0;background:linear-gradient(160deg,#f1f8f2,#dcebe0);border-color:#9cc3a6;display:flex;flex-direction:column;justify-content:center;gap:3px">
+                  <div style="font-size:9px;font-weight:700;letter-spacing:.05em;color:#3f7a52;text-transform:uppercase">💚 Sponsored</div>
+                  <div style="font-family:Georgia,serif;font-style:italic;font-size:12px;color:#2a3a2e;line-height:1.35">"They're still here."</div>
+                  <div style="font-size:10px;color:#5d7d63">Evergreen by Axiom ›</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================= 1b — DECK DEPTH + ACTION RAIL ============================= -->
+    <div class="dv-opt" id="1b">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Deck depth + action rail <span class="dv-osub">— show the stack; TikTok side counts, glossed</span></div>
+      <div class="dv-card" style="width:858px;background:transparent;border:none;box-shadow:none;overflow:visible;padding:0">
+        <div class="wc-win">
+          <div class="wc-tb"><span style="margin-right:6px">🌐</span><span style="flex:1">WaveCrowd — Web Dynamo</span><div style="display:flex;gap:3px"><span class="wc-tbbtn">_</span><span class="wc-tbbtn">▢</span><span class="wc-tbbtn" style="background:linear-gradient(#f3b0a6,#d9695c);border-color:#a63f34;color:#fff">✕</span></div></div>
+          <div class="wc-app">
+            <div class="wc-hdr">
+              <div style="display:flex;align-items:baseline;gap:8px"><span class="wc-logo">🌊 WAVECROWD</span><span class="wc-tag">— Share the Wave</span></div>
+              <div style="display:flex;align-items:center;gap:8px"><span class="wc-exp">exposure +9</span><span class="wc-muse">✎ Direct MUSE</span></div>
+            </div>
+            <div style="flex:1;min-height:0;display:flex;gap:10px;align-items:stretch">
+              <!-- left index -->
+              <div style="width:44px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+                <span class="wc-nb dis" style="width:34px;height:34px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center">▲</span>
+                <div style="display:flex;flex-direction:column;gap:5px;align-items:center;padding:4px 0">
+                  <span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot on" style="width:8px;height:8px"></span><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot"></span>
+                </div>
+                <span style="font-size:10px;color:#5f7093;font-weight:700;writing-mode:vertical-rl">3 / 10</span>
+                <span class="wc-nb" style="width:34px;height:34px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center">▼</span>
+              </div>
+              <!-- center stack -->
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:5px;min-height:0">
+                <!-- peek prev -->
+                <div style="height:26px;flex:none;margin:0 18px;border:1px solid #d3dcea;border-bottom:none;border-radius:6px 6px 0 0;background:#f4f7fc;opacity:.7;overflow:hidden;padding:6px 16px 0;box-sizing:border-box"><div style="font-size:11px;color:#8a9ab2;font-weight:700">◆ YOUR POST · Sow Doubt</div></div>
+                <!-- main card -->
+                <div style="flex:1;min-height:0;border:1px solid #c8d4e6;border-radius:6px;background:#fff;padding:18px 22px;display:flex;flex-direction:column;justify-content:center;gap:9px;box-shadow:0 3px 12px rgba(20,40,70,.16),inset 0 1px 0 #fff;overflow:hidden">
+                  <span class="wc-badge">📈 FEATURED</span>
+                  <div class="wc-title" style="font-size:17px">5 Things Every Creative Professional Needs to Know About AI-Assisted Workflows</div>
+                  <div class="wc-body" style="font-size:12.5px">AI isn't replacing creativity — it's enhancing it. Here's how the smartest teams are folding AI tools into their daily process without losing the human touch…</div>
+                  <div class="wc-meta">Axiom Media · posted 2h ago</div>
+                </div>
+                <!-- peek next -->
+                <div style="height:26px;flex:none;margin:0 18px;border:1px solid #d3dcea;border-top:none;border-radius:0 0 6px 6px;background:#f4f7fc;opacity:.7;overflow:hidden;padding:0 16px 6px;box-sizing:border-box;display:flex;align-items:flex-end"><div style="font-size:11px;color:#8a9ab2;font-weight:700">📊 TRENDING · Poll: your biggest productivity…</div></div>
+              </div>
+              <!-- action rail -->
+              <div style="width:60px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><span class="wc-av" style="width:40px;height:40px;background:linear-gradient(#fff,#e2ecfa);border:1px solid #a9c0e0;color:#d6455a;font-size:17px;box-shadow:inset 0 1px 0 #fff">♥</span><span style="font-size:10px;color:#5f7093;font-weight:700">2.4K</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><span class="wc-av" style="width:40px;height:40px;background:linear-gradient(#fff,#e2ecfa);border:1px solid #a9c0e0;color:#1a5fae;font-size:16px;box-shadow:inset 0 1px 0 #fff">💬</span><span style="font-size:10px;color:#5f7093;font-weight:700">847</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><span class="wc-av" style="width:40px;height:40px;background:linear-gradient(#fff,#e2ecfa);border:1px solid #a9c0e0;color:#1a5fae;font-size:15px;box-shadow:inset 0 1px 0 #fff">↗</span><span style="font-size:10px;color:#5f7093;font-weight:700">1.1K</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><span class="wc-av" style="width:40px;height:40px;background:linear-gradient(#fff,#e2ecfa);border:1px solid #a9c0e0;color:#c9962a;font-size:15px;box-shadow:inset 0 1px 0 #fff">🔖</span><span style="font-size:10px;color:#5f7093;font-weight:700">Save</span></div>
+              </div>
+            </div>
+            <!-- trending ticker -->
+            <div style="flex:0 0 auto;height:22px;border-radius:4px;background:linear-gradient(#eaf1fb,#d7e5f7);border:1px solid #b8cae6;display:flex;align-items:center;gap:8px;padding:0 10px;overflow:hidden;box-shadow:inset 0 1px 0 #fff">
+              <span style="font-size:9.5px;font-weight:700;letter-spacing:.05em;color:#fff;background:#1a5fae;border-radius:8px;padding:2px 7px;flex:none">TRENDING</span>
+              <span style="font-size:11px;color:#3a5578;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🌊 #AxiomEvents · #AIWorkflows · #TrustTheProcess ▲ · #ShareTheWave · 40M people are waving right now</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================= 1c — LIVE CONVERSATION ============================= -->
+    <div class="dv-opt" id="1c">
+      <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Live conversation <span class="dv-osub">— card up top, engagement-bait replies below</span></div>
+      <div class="dv-card" style="width:858px;background:transparent;border:none;box-shadow:none;overflow:visible;padding:0">
+        <div class="wc-win">
+          <div class="wc-tb"><span style="margin-right:6px">🌐</span><span style="flex:1">WaveCrowd — Web Dynamo</span><div style="display:flex;gap:3px"><span class="wc-tbbtn">_</span><span class="wc-tbbtn">▢</span><span class="wc-tbbtn" style="background:linear-gradient(#f3b0a6,#d9695c);border-color:#a63f34;color:#fff">✕</span></div></div>
+          <div class="wc-app">
+            <div class="wc-hdr">
+              <div style="display:flex;align-items:baseline;gap:8px"><span class="wc-logo">🌊 WAVECROWD</span><span class="wc-tag">— Share the Wave</span></div>
+              <div style="display:flex;align-items:center;gap:8px"><span class="wc-exp">exposure +9</span><span class="wc-muse">✎ Direct MUSE</span></div>
+            </div>
+            <div style="flex:1;min-height:0;display:flex;gap:8px">
+              <!-- center: card + replies -->
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;min-height:0">
+                <div style="flex:0 0 auto;border:1px solid #c8d4e6;border-radius:6px;background:#fff;padding:14px 20px;display:flex;flex-direction:column;gap:7px;box-shadow:0 1px 6px rgba(20,40,70,.1),inset 0 1px 0 #fff">
+                  <span class="wc-badge">📈 FEATURED</span>
+                  <div class="wc-title" style="font-size:15px">5 Things Every Creative Professional Needs to Know About AI-Assisted Workflows</div>
+                  <div class="wc-body" style="font-size:12px">AI isn't replacing creativity — it's enhancing it. Here's how the smartest teams are folding AI tools into their process without losing the human touch…</div>
+                  <div class="wc-meta">Axiom Media · 2.4K shares · 847 comments</div>
+                </div>
+                <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:5px">
+                  <div style="font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#7a8aa2;padding:0 2px">💬 Top replies</div>
+                  <div class="wc-panel" style="background:#fff;display:flex;gap:8px"><span class="wc-av" style="width:26px;height:26px;background:#5aa0e6;font-size:11px">D</span><div style="min-width:0"><div style="font-size:11.5px"><b style="color:#16263e">@growth_mindset_dan</b> <span style="color:#38465c">This is exactly the insight our team needed 🙌🔥 saving this thread</span></div><div style="font-size:10px;color:#9aa8bd;margin-top:2px">2h · 👍 214 · Reply</div></div></div>
+                  <div class="wc-panel" style="background:#fff;display:flex;gap:8px"><span class="wc-av" style="width:26px;height:26px;background:#2a6bb8;font-size:11px">A</span><div style="min-width:0"><div style="font-size:11.5px"><b style="color:#16263e">@axiom_official</b> <span style="color:#7a3fa8;font-size:9px;font-weight:700">✓ BRAND</span> <span style="color:#38465c">Love to see it! Have you tried our Events feature?</span></div><div style="font-size:10px;color:#9aa8bd;margin-top:2px">1h · 👍 89 · Reply</div></div></div>
+                  <div class="wc-panel" style="background:#fff;display:flex;gap:8px"><span class="wc-av" style="width:26px;height:26px;background:#c98bd0;font-size:11px">P</span><div style="min-width:0"><div style="font-size:11.5px"><b style="color:#16263e">@productivity_paula</b> <span style="color:#38465c">Saving this for later. 🧵 Who else is optimizing their stack this quarter?</span></div><div style="font-size:10px;color:#9aa8bd;margin-top:2px">44m · 👍 156 · Reply</div></div></div>
+                </div>
+                <div style="flex:0 0 auto;display:flex;align-items:center;justify-content:space-between">
+                  <span class="wc-nb dis">▲ Back</span>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="font-size:12px;color:#5f7093;font-weight:600">3 / 10</span><div style="display:flex;gap:4px"><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot on"></span><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot"></span><span class="wc-dot"></span></div></div>
+                  <span class="wc-nb">Next ▼</span>
+                </div>
+              </div>
+              <!-- right rail -->
+              <div style="width:176px;flex:none;display:flex;flex-direction:column;gap:7px;min-height:0">
+                <div class="wc-panel">
+                  <div class="wc-pt">🌊 Trending Now</div>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#1a5fae;font-weight:600">#AxiomEvents</span><span style="color:#9aa8bd;font-size:10px">4,812</span></div>
+                    <div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#1a5fae;font-weight:600">#AIWorkflows</span><span style="color:#9aa8bd;font-size:10px">2,905</span></div>
+                    <div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#7a3fa8;font-weight:700">#TrustTheProcess ▲</span><span style="color:#9aa8bd;font-size:10px">1,910</span></div>
+                  </div>
+                </div>
+                <div class="wc-panel" style="flex:1;min-height:0;background:linear-gradient(160deg,#f1f8f2,#dcebe0);border-color:#9cc3a6;display:flex;flex-direction:column;justify-content:center;gap:4px">
+                  <div style="font-size:9px;font-weight:700;letter-spacing:.05em;color:#3f7a52;text-transform:uppercase">💚 Sponsored</div>
+                  <div style="font-family:Georgia,serif;font-style:italic;font-size:12.5px;color:#2a3a2e;line-height:1.4">"I still get to say goodnight to him."</div>
+                  <div style="font-size:10px;color:#5d7d63">Evergreen by Axiom</div>
+                  <span style="align-self:flex-start;margin-top:2px;font-size:10.5px;font-weight:600;color:#fff;background:linear-gradient(180deg,#6cbd87,#3f7a52);border:1px solid #2c5a3b;border-radius:12px;padding:4px 11px;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)">✦ Free trial ›</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p class="dv-next">Try next: "flesh out <a class="dv-oid" href="#1a">1a</a> into the interactive prototype" · "combine <a class="dv-oid" href="#1b">1b</a>'s action rail with <a class="dv-oid" href="#1a">1a</a>'s trending rail" · "show <a class="dv-oid" href="#1c">1c</a> with a buried post instead of the corporate one" · "tighter, denser variant"</p>
+</section>
+</x-dc>
+</body>
+</html>

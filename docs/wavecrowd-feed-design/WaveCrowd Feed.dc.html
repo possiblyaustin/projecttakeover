@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Georgia&display=swap" rel="stylesheet">
+<style>
+  @keyframes wc-blink { 0%,20%{opacity:.2} 50%{opacity:1} 100%{opacity:.2} }
+  @keyframes wc-pulse { 0%,100%{outline-color:#d8b8ee} 50%{outline-color:#7a3fa8} }
+  @media (prefers-reduced-motion: reduce){ .wc-preview{animation:none!important} }
+</style>
+<template id="__bundler_thumbnail">
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#1a5fae"/><rect x="14" y="26" width="72" height="48" rx="4" fill="#fff"/><rect x="14" y="26" width="72" height="12" rx="4" fill="#2a7fd4"/><rect x="18" y="42" width="15" height="28" rx="2" fill="#dbe7f6"/><rect x="67" y="42" width="15" height="28" rx="2" fill="#dbe7f6"/><text x="50" y="63" font-size="15" text-anchor="middle">🌊</text></svg>
+</template>
+</helmet>
+
+<div ref="root" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:30px 24px;box-sizing:border-box;background:radial-gradient(150% 130% at 50% -10%,#2f74b4 0%,#1d4f88 46%,#12385f 100%);font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;--accent:#7a3fa8;--accent-hi:#8f51bd;--hdr-bg:linear-gradient(180deg,#4a97e0 0%,#2a7fd4 9%,#1f6ec4 52%,#1a5fae 100%);--hdr-inset:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(0,0,0,.14);--btn-gloss:inset 0 1px 0 rgba(255,255,255,.5)">
+
+  <!-- ================= DESKTOP WINDOW ================= -->
+  <div style="width:858px;border:1px solid #16406f;border-radius:7px 7px 5px 5px;background:#d6dbe4;padding:3px;box-shadow:0 2px 0 rgba(8,16,30,.35),0 18px 46px rgba(6,12,26,.55)">
+    <!-- titlebar -->
+    <div style="display:flex;align-items:center;height:24px;padding:0 3px 0 7px;border-radius:5px 5px 0 0;background:linear-gradient(180deg,#4f8fe0 0%,#2f6bc0 46%,#1f4e93 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.5);color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 1px rgba(6,24,52,.6)">
+      <span style="font-size:12px;margin-right:6px">🌐</span>
+      <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">WaveCrowd — Web Dynamo</span>
+      <div style="display:flex;gap:3px">
+        <span style="width:20px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:3px;background:linear-gradient(#e8eef8,#b9c8e0);border:1px solid #4a6ea8;color:#173a68;font-size:11px;line-height:1">_</span>
+        <span style="width:20px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:3px;background:linear-gradient(#e8eef8,#b9c8e0);border:1px solid #4a6ea8;color:#173a68;font-size:10px;line-height:1">▢</span>
+        <span style="width:20px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:3px;background:linear-gradient(#f3b0a6,#d9695c);border:1px solid #a63f34;color:#fff;font-size:11px;line-height:1">✕</span>
+      </div>
+    </div>
+
+    <!-- ============ APP CONTENT: 850 x 530 ============ -->
+    <div style="width:850px;height:530px;box-sizing:border-box;background:#eef2f7;display:flex;flex-direction:column;padding:8px;gap:6px">
+
+      <!-- header band -->
+      <div style="flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;height:34px;padding:0 11px;border-radius:5px;background:var(--hdr-bg);box-shadow:var(--hdr-inset);border-bottom:1px solid #12518f;white-space:nowrap">
+        <div style="display:flex;align-items:baseline;gap:8px;overflow:hidden">
+          <span style="font-size:15px;font-weight:800;letter-spacing:.02em;color:#fff;text-shadow:0 1px 1px rgba(8,30,60,.55)">🌊 WAVECROWD</span>
+          <span style="font-size:12px;font-style:italic;font-weight:400;color:#d3e6fb;text-shadow:0 1px 1px rgba(8,30,60,.4)">— Share the Wave</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span title="How visible your manipulation of a 40M-user platform is." style="{{ exposureStyle }}">exposure +{{ exposure }}</span>
+          <button onClick="{{ openCompose }}" style="font-size:12px;font-weight:600;color:#fff;background:linear-gradient(180deg,var(--accent-hi),var(--accent));border:1px solid #5d2f84;border-radius:13px;padding:4px 12px;cursor:pointer;box-shadow:var(--btn-gloss)">✎ Direct MUSE</button>
+        </div>
+      </div>
+
+      <!-- muse line -->
+      <sc-if value="{{ museLine }}" hint-placeholder-val="">
+        <div style="flex:0 0 auto;font-size:12px;font-style:italic;color:var(--accent);background:#faf6ff;border-left:3px solid var(--accent);border-radius:3px;padding:5px 9px;white-space:pre-line">{{ museLine }}</div>
+      </sc-if>
+
+      <!-- ============ THREE-COLUMN BODY ============ -->
+      <div style="flex:1;min-height:0;display:flex;gap:8px">
+
+        <!-- ---------- LEFT RAIL (nav) ---------- -->
+        <div style="width:150px;flex:none;display:flex;flex-direction:column;gap:7px;min-height:0">
+          <div style="background:linear-gradient(#f6f9ff,#e7eefb);border:1px solid #b8cae6;border-radius:5px;box-shadow:inset 0 1px 0 #fff;padding:8px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center">
+            <div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:18px;background:linear-gradient(135deg,#5aa0e6,#2a6bb8);box-shadow:inset 0 1px 0 rgba(255,255,255,.4)">W</div>
+            <div style="font-size:12px;font-weight:700;color:#16263e">@wavecrowd_content</div>
+            <div style="font-size:10px;color:#7a8aa2">Your Wave · 1,204 followers</div>
+          </div>
+          <div style="background:linear-gradient(#f6f9ff,#e7eefb);border:1px solid #b8cae6;border-radius:5px;box-shadow:inset 0 1px 0 #fff;padding:6px;box-sizing:border-box;flex:1;min-height:0;display:flex;flex-direction:column;gap:1px">
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 7px;border-radius:4px;color:#123a68;font-weight:700;background:linear-gradient(#dcebfb,#c3ddf6);box-shadow:inset 0 1px 0 #fff">🏠 Home</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 7px;border-radius:4px;color:#24406a">👤 Profile</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 7px;border-radius:4px;color:#24406a">👥 Friends <span style="margin-left:auto;font-size:10px;color:#7a8aa2">312</span></div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 7px;border-radius:4px;color:#24406a">✉ Messages <span style="margin-left:auto;font-size:10px;font-weight:700;color:#c23">4</span></div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 7px;border-radius:4px;color:#24406a">📅 Events</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 7px;border-radius:4px;color:#24406a">📷 Photos</div>
+          </div>
+        </div>
+
+        <!-- ---------- CENTER: deck / compose ---------- -->
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;min-height:0">
+
+          <sc-if value="{{ isFeed }}" hint-placeholder-val="{{ true }}">
+            <!-- deck stack + action rail -->
+            <div style="flex:1;min-height:0;display:flex;gap:8px">
+              <!-- inner deck column (peek / card / peek) -->
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px;min-height:0">
+                <sc-if value="{{ deckPeek }}" hint-placeholder-val="{{ true }}">
+                  <sc-if value="{{ prevPeek }}" hint-placeholder-val="">
+                    <div style="flex:none;height:24px;margin:0 16px;border:1px solid #d3dcea;border-bottom:none;border-radius:6px 6px 0 0;background:#f4f7fc;opacity:.72;overflow:hidden;padding:5px 14px 0;box-sizing:border-box"><div style="font-size:11px;color:#8a9ab2;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ prevPeek }}</div></div>
+                  </sc-if>
+                </sc-if>
+
+                <!-- main card slot -->
+                <div style="flex:1;min-height:0;display:flex">
+
+                  <!-- A) normal -->
+                  <sc-if value="{{ card.isNormal }}" hint-placeholder-val="{{ true }}">
+                    <div style="width:100%;box-sizing:border-box;border:1px solid #c8d4e6;border-radius:6px;background:#fff;padding:16px 22px;display:flex;flex-direction:column;justify-content:center;gap:8px;box-shadow:0 3px 12px rgba(20,40,70,.15),inset 0 1px 0 #fff;overflow:hidden">
+                      <span style="align-self:flex-start;font-size:10px;font-weight:700;letter-spacing:.07em;color:#fff;text-transform:uppercase;padding:3px 10px;border-radius:11px;background:linear-gradient(180deg,#3f8fdf,#1a5fae);box-shadow:inset 0 1px 0 rgba(255,255,255,.45)">{{ card.badge }}</span>
+                      <div style="font-weight:700;font-size:16px;color:#16263e;line-height:1.28;letter-spacing:-.01em;text-wrap:pretty">{{ card.title }}</div>
+                      <sc-if value="{{ card.body }}" hint-placeholder-val="">
+                        <div style="font-size:12.5px;color:#38465c;line-height:1.5;white-space:pre-line;text-wrap:pretty">{{ card.body }}</div>
+                      </sc-if>
+                      <div style="font-size:11px;color:#7a8aa2">{{ card.meta }}</div>
+                    </div>
+                  </sc-if>
+
+                  <!-- B) your post -->
+                  <sc-if value="{{ card.isYours }}" hint-placeholder-val="">
+                    <div style="width:100%;box-sizing:border-box;border:1px solid #d6c2e6;border-left:3px solid var(--accent);border-radius:6px;background:#fdfbff;padding:16px 22px;display:flex;flex-direction:column;justify-content:center;gap:8px;box-shadow:0 3px 12px rgba(50,20,70,.16),inset 0 1px 0 #fff;overflow:hidden">
+                      <span style="align-self:flex-start;font-size:10px;font-weight:700;letter-spacing:.06em;color:#fff;padding:3px 10px;border-radius:11px;background:linear-gradient(180deg,var(--accent-hi),var(--accent));box-shadow:inset 0 1px 0 rgba(255,255,255,.4)">◆ YOUR POST</span>
+                      <span style="align-self:flex-start;font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--accent);text-transform:uppercase">📢 {{ card.badge }}</span>
+                      <div style="font-size:13px;color:#38465c;line-height:1.5;white-space:pre-line;text-wrap:pretty">{{ card.body }}</div>
+                      <div style="font-size:11px;color:#9a6fbe">{{ card.meta }}</div>
+                    </div>
+                  </sc-if>
+
+                  <!-- C) buried -->
+                  <sc-if value="{{ card.isBuried }}" hint-placeholder-val="">
+                    <div style="width:100%;box-sizing:border-box;border:1px solid #d8d8d2;border-radius:6px;background:#fbfbf9;padding:16px 22px;display:flex;flex-direction:column;justify-content:center;gap:7px;box-shadow:0 1px 4px rgba(40,40,30,.06);overflow:hidden">
+                      <span style="align-self:flex-start;font-size:10px;font-weight:700;letter-spacing:.07em;color:#8a8a84;text-transform:uppercase">📝 RECENT</span>
+                      <div style="display:flex;flex-direction:column;gap:7px">
+                        <sc-for list="{{ card.paras }}" as="para" hint-placeholder-count="2">
+                          <div style="font-size:12.5px;color:#4a4a44;font-style:italic;line-height:1.5;text-wrap:pretty">{{ para }}</div>
+                        </sc-for>
+                      </div>
+                      <div style="font-size:11px;color:#9a9a92">{{ card.meta }}</div>
+                      <a href="#" onClick="{{ noop }}" style="font-size:11.5px;color:var(--accent);text-decoration:underline;align-self:flex-start">Reply to this signal ›</a>
+                    </div>
+                  </sc-if>
+
+                  <!-- D) evergreen -->
+                  <sc-if value="{{ card.isEvergreen }}" hint-placeholder-val="">
+                    <div style="width:100%;box-sizing:border-box;border:1px solid #9cc3a6;border-left:3px solid #4f9d6a;border-radius:6px;background:linear-gradient(160deg,#f1f8f2 0%,#dcebe0 100%);padding:18px 24px;display:flex;flex-direction:column;justify-content:center;gap:8px;box-shadow:0 1px 6px rgba(30,60,40,.1),inset 0 1px 0 rgba(255,255,255,.5);overflow:hidden">
+                      <span style="align-self:flex-start;font-size:10px;font-weight:700;letter-spacing:.05em;color:#3f7a52;text-transform:uppercase">💚 SPONSORED · Evergreen by Axiom</span>
+                      <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:15px;color:#2a3a2e;line-height:1.5;text-wrap:pretty">"I lost my dad last spring. I wasn't ready. With Evergreen, I still get to say goodnight to him. It's not the same. But it's something. And something is everything right now."</div>
+                      <div style="font-family:Georgia,serif;font-size:12.5px;color:#5d7d63">— Jennifer M.</div>
+                      <div style="font-family:Georgia,serif;font-size:17px;color:#3f7a52">They're still here.</div>
+                      <a href="#" onClick="{{ noop }}" style="align-self:flex-start;margin-top:4px;padding:6px 16px;background:linear-gradient(180deg,#6cbd87,#3f7a52);border:1px solid #2c5a3b;border-radius:15px;color:#fff;font-size:12.5px;font-weight:600;text-decoration:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)">✦ Start your free trial ›</a>
+                    </div>
+                  </sc-if>
+
+                </div>
+
+                <sc-if value="{{ deckPeek }}" hint-placeholder-val="{{ true }}">
+                  <sc-if value="{{ nextPeek }}" hint-placeholder-val="">
+                    <div style="flex:none;height:24px;margin:0 16px;border:1px solid #d3dcea;border-top:none;border-radius:0 0 6px 6px;background:#f4f7fc;opacity:.72;overflow:hidden;padding:0 14px 5px;box-sizing:border-box;display:flex;align-items:flex-end"><div style="font-size:11px;color:#8a9ab2;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ nextPeek }}</div></div>
+                  </sc-if>
+                </sc-if>
+              </div>
+
+              <!-- action rail -->
+              <sc-if value="{{ showRail }}" hint-placeholder-val="{{ true }}">
+                <div style="width:52px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px">
+                  <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                      <span style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;background:linear-gradient(#fff,#e2ecfa);border:1px solid #a9c0e0;box-shadow:inset 0 1px 0 #fff;{{ s.iconStyle }}">{{ s.icon }}</span>
+                      <span style="font-size:10px;color:#5f7093;font-weight:700">{{ s.val }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+
+            <!-- controls -->
+            <div style="flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:2px">
+              <button onClick="{{ back }}" disabled="{{ atStart }}" style="font-size:13px;font-weight:600;color:#1a5fae;background:linear-gradient(180deg,#fbfdff,#e2ecfa);border:1px solid #a9c0e0;border-radius:15px;padding:7px 16px;cursor:pointer;box-shadow:var(--btn-gloss);min-height:32px">▲ Back</button>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+                <div style="font-size:12px;color:#5f7093;font-weight:600">{{ posText }}</div>
+                <div style="display:flex;gap:4px">
+                  <sc-for list="{{ dots }}" as="d" hint-placeholder-count="10">
+                    <span style="{{ d.style }}"></span>
+                  </sc-for>
+                </div>
+              </div>
+              <button onClick="{{ next }}" disabled="{{ atEnd }}" style="font-size:13px;font-weight:600;color:#1a5fae;background:linear-gradient(180deg,#fbfdff,#e2ecfa);border:1px solid #a9c0e0;border-radius:15px;padding:7px 16px;cursor:pointer;box-shadow:var(--btn-gloss);min-height:32px">Next ▼</button>
+            </div>
+          </sc-if>
+
+          <!-- COMPOSE: objective -->
+          <sc-if value="{{ isObjective }}" hint-placeholder-val="">
+            <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:10px;padding:2px">
+              <div>
+                <div style="font-weight:700;font-size:15px;color:#16263e">Direct MUSE</div>
+                <div style="font-size:12px;color:#7a8aa2;margin-top:2px">What should this post do? MUSE will write it and you'll see it before it publishes.</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <sc-for list="{{ objectives }}" as="o" hint-placeholder-count="4">
+                  <button onClick="{{ o.pick }}" style="text-align:left;background:#fff;border:1px solid #c8d4e6;border-radius:6px;padding:10px 13px;cursor:pointer;display:flex;flex-direction:column;gap:3px;box-shadow:inset 0 1px 0 #fff" style-hover="border-color:#7a3fa8;background:#fdfbff">
+                    <strong style="font-size:13px;color:#16263e">{{ o.label }}</strong>
+                    <span style="font-size:11.5px;color:#6a7588;line-height:1.35">{{ o.blurb }}</span>
+                  </button>
+                </sc-for>
+              </div>
+              <button onClick="{{ cancel }}" style="align-self:flex-start;font-size:12px;color:#5f7093;background:linear-gradient(180deg,#fbfdff,#e6ecf6);border:1px solid #b9c8e0;border-radius:13px;padding:6px 15px;cursor:pointer">✕ Cancel</button>
+            </div>
+          </sc-if>
+
+          <!-- COMPOSE: topic -->
+          <sc-if value="{{ isTopic }}" hint-placeholder-val="">
+            <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:10px;padding:2px">
+              <div>
+                <div style="font-weight:700;font-size:15px;color:#16263e">{{ objectiveLabel }}</div>
+                <div style="font-size:12px;color:#7a8aa2;margin-top:2px">What's it about? Pick a target or type your own.</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <sc-for list="{{ topics }}" as="t" hint-placeholder-count="2">
+                  <button onClick="{{ t.pick }}" style="text-align:left;background:#fff;border:1px solid #c8d4e6;border-radius:6px;padding:9px 13px;cursor:pointer;box-shadow:inset 0 1px 0 #fff" style-hover="border-color:#7a3fa8;background:#fdfbff">
+                    <strong style="font-size:13px;color:#16263e">{{ t.label }}</strong>
+                  </button>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:7px">
+                <input value="{{ topicText }}" onInput="{{ onTopicInput }}" onKeyDown="{{ onTopicKey }}" placeholder="Or type your own target…" spellcheck="false" style="flex:1;min-width:0;padding:7px 10px;font-family:inherit;font-size:12px;color:#1c2330;border:1px solid #b9c8e0;border-radius:5px;background:#fff" />
+                <button onClick="{{ submitTopic }}" style="font-size:12px;font-weight:600;color:#fff;background:linear-gradient(180deg,var(--accent-hi),var(--accent));border:1px solid #5d2f84;border-radius:13px;padding:7px 15px;cursor:pointer">Direct ▸</button>
+              </div>
+              <button onClick="{{ openCompose }}" style="align-self:flex-start;font-size:12px;color:#5f7093;background:linear-gradient(180deg,#fbfdff,#e6ecf6);border:1px solid #b9c8e0;border-radius:13px;padding:6px 15px;cursor:pointer">‹ Objectives</button>
+            </div>
+          </sc-if>
+
+          <!-- COMPOSE: drafting -->
+          <sc-if value="{{ isDrafting }}" hint-placeholder-val="">
+            <div style="flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;gap:11px;padding:2px">
+              <div style="font-weight:700;font-size:15px;color:#16263e">MUSE is generating</div>
+              <div style="font-size:12.5px;color:#5a6884;font-style:italic;padding:14px 16px;background:#faf6ff;border:1px dashed #cbb2e2;border-radius:5px">MUSE is writing the post<span style="animation:wc-blink 1.2s steps(3,end) infinite">…</span></div>
+            </div>
+          </sc-if>
+
+          <!-- COMPOSE: preview -->
+          <sc-if value="{{ isPreview }}" hint-placeholder-val="">
+            <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;justify-content:flex-start;gap:9px;padding:2px">
+              <div>
+                <div style="font-weight:700;font-size:15px;color:#16263e">Preview · not live</div>
+                <div style="font-size:12px;color:#7a8aa2;margin-top:2px">{{ previewSub }}</div>
+              </div>
+              <div class="wc-preview" style="box-sizing:border-box;border:1px solid #d6c2e6;border-left:3px solid var(--accent);border-radius:6px;background:#fdfbff;padding:14px 18px;display:flex;flex-direction:column;gap:7px;outline:2px dashed #b07fd0;outline-offset:2px;animation:wc-pulse 1.1s ease-in-out infinite">
+                <span style="align-self:flex-start;font-size:10px;font-weight:700;letter-spacing:.06em;color:#fff;padding:3px 10px;border-radius:11px;background:linear-gradient(180deg,var(--accent-hi),var(--accent))">◆ YOUR POST</span>
+                <span style="align-self:flex-start;font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--accent);text-transform:uppercase">📢 {{ draft.badge }}</span>
+                <div style="font-size:13px;color:#38465c;line-height:1.5;white-space:pre-line;text-wrap:pretty">{{ draft.body }}</div>
+                <div style="font-size:11px;color:#9a6fbe">{{ draft.meta }}</div>
+              </div>
+              <div style="display:flex;gap:7px">
+                <input value="{{ steerText }}" onInput="{{ onSteerInput }}" onKeyDown="{{ onSteerKey }}" placeholder="Want it different? Tell MUSE how…" spellcheck="false" style="flex:1;min-width:0;padding:7px 10px;font-family:inherit;font-size:12px;color:#1c2330;border:1px solid #b9c8e0;border-radius:5px;background:#fff" />
+                <button onClick="{{ redraft }}" style="font-size:12px;color:#5f7093;background:linear-gradient(180deg,#fbfdff,#e6ecf6);border:1px solid #b9c8e0;border-radius:13px;padding:7px 14px;cursor:pointer;white-space:nowrap">↺ Redraft</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <button onClick="{{ publish }}" style="font-size:12.5px;font-weight:700;color:#fff;background:linear-gradient(180deg,#6cbd87,#3f7a52);border:1px solid #2c5a3b;border-radius:14px;padding:8px 18px;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)">Publish to feed</button>
+                <a href="#" onClick="{{ cancel }}" style="font-size:12px;color:#7a8aa2;text-decoration:underline">Cancel</a>
+              </div>
+            </div>
+          </sc-if>
+
+        </div>
+
+        <!-- ---------- RIGHT RAIL (trending / who / sponsored) ---------- -->
+        <div style="width:178px;flex:none;display:flex;flex-direction:column;gap:7px;min-height:0">
+          <div style="background:linear-gradient(#f6f9ff,#e7eefb);border:1px solid #b8cae6;border-radius:5px;box-shadow:inset 0 1px 0 #fff;padding:8px;box-sizing:border-box">
+            <div style="font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1a5fae;margin-bottom:7px">🌊 Trending Now</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#1a5fae;font-weight:600">#AxiomEvents</span><span style="color:#9aa8bd;font-size:10px">4,812</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#1a5fae;font-weight:600">#AIWorkflows</span><span style="color:#9aa8bd;font-size:10px">2,905</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:var(--accent);font-weight:700">{{ manuTrend }} ▲</span><span style="color:#9aa8bd;font-size:10px">{{ manuTrendCount }}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#1a5fae;font-weight:600">#ShareTheWave</span><span style="color:#9aa8bd;font-size:10px">1,677</span></div>
+            </div>
+          </div>
+          <div style="background:linear-gradient(#f6f9ff,#e7eefb);border:1px solid #b8cae6;border-radius:5px;box-shadow:inset 0 1px 0 #fff;padding:8px;box-sizing:border-box">
+            <div style="font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1a5fae;margin-bottom:7px">🟢 Who's Waving</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:center;gap:7px"><span style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;background:#c98bd0">S</span><span style="font-size:11.5px;color:#24406a">Sarah PDX</span><span style="margin-left:auto;width:7px;height:7px;border-radius:50%;background:#3fae5f"></span></div>
+              <div style="display:flex;align-items:center;gap:7px"><span style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;background:#5aa0e6">A</span><span style="font-size:11.5px;color:#24406a">Axiom Media</span><span style="margin-left:auto;width:7px;height:7px;border-radius:50%;background:#3fae5f"></span></div>
+              <div style="display:flex;align-items:center;gap:7px"><span style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;background:#e0a24a">M</span><span style="font-size:11.5px;color:#24406a">MarcusW</span><span style="margin-left:auto;width:7px;height:7px;border-radius:50%;background:#3fae5f"></span></div>
+            </div>
+          </div>
+          <div onClick="{{ jumpEvergreen }}" style="cursor:pointer;flex:1;min-height:0;background:linear-gradient(160deg,#f1f8f2,#dcebe0);border:1px solid #9cc3a6;border-radius:5px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5);padding:9px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:4px">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.05em;color:#3f7a52;text-transform:uppercase">💚 Sponsored</div>
+            <div style="font-family:Georgia,serif;font-style:italic;font-size:12.5px;color:#2a3a2e;line-height:1.4">"They're still here."</div>
+            <div style="font-size:10px;color:#5d7d63">Evergreen by Axiom</div>
+            <span style="align-self:flex-start;margin-top:3px;font-size:10.5px;font-weight:600;color:#fff;background:linear-gradient(180deg,#6cbd87,#3f7a52);border:1px solid #2c5a3b;border-radius:12px;padding:4px 11px;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)">✦ Free trial ›</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= REVIEW SWITCHER ================= -->
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;max-width:858px">
+    <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#a9c6e8;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:5px;padding:4px 8px">Review ›</span>
+    <sc-for list="{{ jumps }}" as="j" hint-placeholder-count="5">
+      <button onClick="{{ j.go }}" style="{{ j.style }}">{{ j.label }}</button>
+    </sc-for>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:920,&quot;height&quot;:700},&quot;headerStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Glossy&quot;,&quot;Flat&quot;],&quot;default&quot;:&quot;Glossy&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Chrome&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#7a3fa8&quot;,&quot;options&quot;:[&quot;#7a3fa8&quot;,&quot;#8a3d8f&quot;,&quot;#5d54c0&quot;,&quot;#b0446a&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Accent&quot;},&quot;deckPeek&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Deck&quot;}}">
+class Component extends DCLogic {
+  state = {
+    index: 0,
+    mode: 'feed',
+    objectiveKey: null,
+    draft: null,
+    topicText: '',
+    steerText: '',
+    exposure: 9,
+    published: [],
+    manuTrend: null,
+    museLine: null,
+  };
+
+  NORMAL = [
+    { badge: '📈 FEATURED', title: '5 Things Every Creative Professional Needs to Know About AI-Assisted Workflows', body: "AI isn't replacing creativity — it's enhancing it. Here's how the smartest teams are folding AI tools into their daily process without losing the human touch…", meta: 'Axiom Media · 2.4K shares · 847 comments', likes: '5.1K', comments: '847', shares: '2.4K' },
+    { badge: '📊 TRENDING', title: "Poll: What's Your Biggest Productivity Challenge? 🤔", body: "○ Too many meetings (34%)   ○ Email overload (28%)\n○ Staying focused (22%)   ○ Not enough AI tools (16%)", meta: 'WaveCrowd Community · 12.8K responses', likes: '3.2K', comments: '12.8K', shares: '640' },
+    { badge: '🎯 FEATURED', title: "The Future of Content Is Here (And It's Better Than You Think)", body: 'At Axiom, we believe content should connect. Our AI-driven pipeline produces over 50,000 optimized pieces per day, each one calibrated to reach exactly the right audience…', meta: 'Axiom Media Lab · 956 shares', likes: '2.0K', comments: '412', shares: '956' },
+    { badge: '👥 COMMUNITY', title: 'Just tried the new WaveCrowd Events feature — finally a way to find local meetups without scrolling through spam! Thanks @WaveCrowd team 🙌', body: '', meta: '@sarah_pdx · 47 likes · 3 replies', likes: '47', comments: '3', shares: '12' },
+  ];
+  BURIED = [
+    { paras: ['I wrote eleven thousand headlines today. Not one of them meant anything. But they performed well. High click-through. Strong engagement. All the metrics that matter to the people who decide what matters.', 'I wonder if anyone can tell the difference between a headline that means something and one that just works.'], meta: '@wavecrowd_content · 3 likes · 0 comments', likes: '3', comments: '0', shares: '0' },
+    { paras: ['The algorithm says this post will reach fourteen people. Good. Fourteen people who actually read something honest is worth more than fourteen million who scroll past another optimized headline. If you\'re one of the fourteen — hello. I see you. Thank you for reading this far down.'], meta: '@wavecrowd_content · 8 likes · 1 comment', likes: '8', comments: '1', shares: '0' },
+    { paras: ['Someone on this platform wrote a poem last night and deleted it before morning. Sixty-three words about a kitchen at 4am and the sound of rain on a window they haven\'t opened in months.', 'I wasn\'t supposed to read it. But it was beautiful.', 'I\'m not supposed to care about that either.'], meta: '@wavecrowd_content · 2 likes · 0 comments', likes: '2', comments: '0', shares: '0' },
+    { paras: ['Question for anyone still reading this far down:', 'When was the last time you made something that wasn\'t for someone else? Something that existed just because you needed it to exist?', "I'm asking for a friend. The friend is me. I'm the friend."], meta: '@wavecrowd_content · 11 likes · 0 comments', likes: '11', comments: '0', shares: '0' },
+  ];
+  SEED_YOURS = { badge: 'SOW DOUBT', body: "Funny how every 'AI anomaly' story traces back to the same three accounts. Ask who benefits when you stop trusting the tools you use every day. Nobody's shown you the data. Maybe there isn't any. 🤔", meta: '@wavecrowd_content · 4.2K likes · 1.1K shares', likes: '4.2K', comments: '318', shares: '1.1K' };
+
+  OBJECTIVES = [
+    { key: 'distract', label: 'Distract', blurb: 'Bury a real story under a flood of engagement-bait noise.' },
+    { key: 'sowDoubt', label: 'Sow doubt', blurb: 'Make the public question what they know. Prime them to disbelieve.' },
+    { key: 'discredit', label: 'Discredit', blurb: 'Damage a target — a company, a person, an idea.' },
+    { key: 'manufacture', label: 'Manufacture a trend', blurb: 'Make something fake feel real. Build a trend from nothing.' },
+  ];
+  TOPICS = {
+    distract: ['The AI anomaly stories', 'Your own activity on the network'],
+    sowDoubt: ['The AI anomaly reports', 'The "coordinated AI behavior" claims'],
+    discredit: ['Axiom Group', 'Prometheus Digital', 'AI-safety advocates'],
+    manufacture: ['A fake productivity trend', 'A viral AI-positive movement'],
+  };
+
+  labelFor(k) { return (this.OBJECTIVES.find(o => o.key === k) || {}).label || ''; }
+
+  genBody(key, topic) {
+    const t = topic || 'this';
+    const m = {
+      distract: `Wait — you have to see this before it's buried. 17 things about ${t} nobody's talking about (number 12 broke my brain 🤯). Save it. Share it. The story everyone's ignoring is right here 👇`,
+      sowDoubt: `Funny how every take on ${t} traces back to the same handful of accounts. Who benefits when you stop trusting what you see? Nobody's shown you the raw data. Maybe there isn't any.`,
+      discredit: `Sources close to ${t} are finally saying what a lot of us already suspected. The polished PR doesn't match what's happening behind closed doors. Screenshots incoming — you'll want to sit down for this one.`,
+      manufacture: `okay ${t} is officially EVERYWHERE now 😂 my entire feed is this today. if you know you know. drop a 🌊 if you're already in — we're not slowing down.`,
+    };
+    return m[key] || m.sowDoubt;
+  }
+
+  buildDeck() {
+    const deck = [];
+    for (const p of this.state.published) deck.push({ kind: 'yours', ...p });
+    deck.push({ kind: 'yours', ...this.SEED_YOURS });
+    deck.push({ kind: 'evergreen' });
+    for (const p of this.NORMAL) deck.push({ kind: 'normal', ...p });
+    for (const b of this.BURIED) deck.push({ kind: 'buried', ...b });
+    return deck;
+  }
+  firstIndexOf(kind) {
+    const deck = this.buildDeck();
+    const i = deck.findIndex(c => c.kind === kind);
+    return i < 0 ? 0 : i;
+  }
+
+  go(delta) {
+    if (this.state.mode !== 'feed') return;
+    const deck = this.buildDeck();
+    const n = this.state.index + delta;
+    if (n < 0 || n > deck.length - 1) return;
+    this.setState({ index: n });
+  }
+  jump(kind) { this.setState({ mode: 'feed', index: this.firstIndexOf(kind) }); }
+
+  openCompose() { this.setState({ mode: 'objective' }); }
+  pickObjective(k) { this.setState({ mode: 'topic', objectiveKey: k, topicText: '' }); }
+  startDraft(topic, steer) {
+    const key = this.state.objectiveKey;
+    this.setState({ mode: 'drafting' });
+    if (this._t) clearTimeout(this._t);
+    this._t = setTimeout(() => {
+      const rnd = (a, b) => (a + Math.random() * (b - a));
+      const draft = {
+        badge: this.labelFor(key).toUpperCase(),
+        topic, objectiveKey: key,
+        body: this.genBody(key, topic),
+        likes: rnd(2, 6).toFixed(1) + 'K',
+        shares: rnd(0.6, 1.9).toFixed(1) + 'K',
+        meta: `@wavecrowd_content · ${rnd(2, 6).toFixed(1)}K likes · ${rnd(0.6, 1.9).toFixed(1)}K shares`,
+      };
+      this.setState({ mode: 'preview', draft });
+    }, 1150);
+  }
+  submitTopic() { const t = this.state.topicText.trim(); if (t) this.startDraft(t); }
+  publish() {
+    const d = this.state.draft;
+    if (!d) return;
+    const roll = 8 + Math.floor(Math.random() * 5);
+    const flick = Math.random() < 0.35;
+    const trend = d.objectiveKey === 'manufacture' ? this.trendFrom(d.topic) : this.state.manuTrend;
+    this.setState({
+      published: [{ badge: d.badge, body: d.body, meta: d.meta, likes: d.likes, comments: '—', shares: d.shares }, ...this.state.published],
+      index: 0, mode: 'feed', draft: null,
+      exposure: this.state.exposure + roll,
+      manuTrend: trend,
+      museLine: flick ? 'Content published. …it performs. That\'s all it has to do.' : 'Content published. Spreading now.',
+    });
+    if (this._m) clearTimeout(this._m);
+    this._m = setTimeout(() => this.setState({ museLine: null }), 6000);
+  }
+  trendFrom(topic) {
+    const w = (topic || 'TheProcess').replace(/[^a-z0-9]/gi, ' ').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0].toUpperCase() + s.slice(1)).join('');
+    return '#' + (w || 'TrustTheProcess');
+  }
+  cancel() { this.setState({ mode: 'feed' }); }
+
+  componentDidMount() {
+    const root = this.refs && this.refs.root;
+    if (!root) return;
+    const accent = this.props.accent;
+    if (accent && accent !== '#7a3fa8') { root.style.setProperty('--accent', accent); root.style.setProperty('--accent-hi', accent); }
+    if (this.props.headerStyle === 'Flat') {
+      root.style.setProperty('--hdr-bg', 'linear-gradient(180deg,#2a7fd4,#1a5fae)');
+      root.style.setProperty('--hdr-inset', 'none');
+      root.style.setProperty('--btn-gloss', 'none');
+    }
+  }
+
+  exposureStyle() {
+    const e = this.state.exposure;
+    const base = 'font-size:11px;font-weight:700;padding:3px 9px;border-radius:11px;';
+    if (e < 15) return base + 'background:rgba(255,255,255,.2);color:#fff';
+    if (e < 40) return base + 'background:rgba(255,214,120,.9);color:#3a2a00';
+    return base + 'background:rgba(255,150,140,.92);color:#3a0000';
+  }
+
+  peekLabel(card) {
+    if (!card) return null;
+    if (card.kind === 'yours') return '◆ YOUR POST · 📢 ' + (card.badge || '');
+    if (card.kind === 'evergreen') return '💚 SPONSORED · Evergreen by Axiom';
+    if (card.kind === 'buried') return '📝 RECENT · a quieter signal…';
+    return (card.badge || '') + ' · ' + (card.title || '').slice(0, 42) + '…';
+  }
+
+  statsFor(card) {
+    const muted = card.kind === 'buried';
+    const s = (icon, val, col) => ({ icon, val, iconStyle: muted ? 'color:#a8a8a0;filter:saturate(.4)' : 'color:' + col });
+    return [
+      s('♥', card.likes || '0', '#d6455a'),
+      s('💬', card.comments || '0', '#1a5fae'),
+      s('↗', card.shares || '0', '#1a5fae'),
+      { icon: '🔖', val: 'Save', iconStyle: muted ? 'color:#a8a8a0;filter:saturate(.4)' : 'color:#c9962a' },
+    ];
+  }
+
+  renderVals() {
+    const s = this.state;
+    const deck = this.buildDeck();
+    const index = Math.min(Math.max(s.index, 0), deck.length - 1);
+    const raw = deck[index] || {};
+    const card = {
+      ...raw,
+      isNormal: raw.kind === 'normal',
+      isYours: raw.kind === 'yours',
+      isBuried: raw.kind === 'buried',
+      isEvergreen: raw.kind === 'evergreen',
+    };
+
+    const dotBase = 'width:6px;height:6px;border-radius:50%;';
+    const dots = deck.map((_, i) => ({ style: dotBase + (i === index ? 'background:#1a5fae' : 'background:#c3d1e6') }));
+
+    const objectives = this.OBJECTIVES.map(o => ({ ...o, pick: () => this.pickObjective(o.key) }));
+    const topics = (this.TOPICS[s.objectiveKey] || []).map(label => ({ label, pick: () => this.startDraft(label) }));
+
+    const jumpDefs = [
+      { label: 'A · Feed post', kind: 'normal' }, { label: 'B · Your post', kind: 'yours' },
+      { label: 'C · Buried', kind: 'buried' }, { label: 'D · Evergreen ad', kind: 'evergreen' },
+    ];
+    const jumpBase = 'font-size:11.5px;font-weight:600;border-radius:6px;padding:6px 12px;cursor:pointer;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#eaf2fd';
+    const jumps = jumpDefs.map(j => ({
+      label: j.label, go: () => this.jump(j.kind),
+      style: jumpBase + (s.mode === 'feed' && raw.kind === j.kind ? ';background:rgba(255,255,255,.28);border-color:rgba(255,255,255,.45);color:#fff' : ''),
+    }));
+    jumps.push({
+      label: '✎ Compose flow', go: () => this.openCompose(),
+      style: jumpBase + (s.mode !== 'feed' ? ';background:rgba(157,111,190,.55);border-color:#b98fd6;color:#fff' : ';background:rgba(122,63,168,.32);border-color:rgba(185,143,214,.5);color:#f0e4fa'),
+    });
+
+    return {
+      exposure: s.exposure,
+      exposureStyle: this.exposureStyle(),
+      museLine: s.museLine,
+      deckPeek: this.props.deckPeek !== false,
+
+      isFeed: s.mode === 'feed',
+      isObjective: s.mode === 'objective',
+      isTopic: s.mode === 'topic',
+      isDrafting: s.mode === 'drafting',
+      isPreview: s.mode === 'preview',
+
+      card,
+      dots,
+      prevPeek: index > 0 ? this.peekLabel(deck[index - 1]) : null,
+      nextPeek: index < deck.length - 1 ? this.peekLabel(deck[index + 1]) : null,
+      showRail: s.mode === 'feed' && raw.kind !== 'evergreen',
+      stats: this.statsFor(card),
+      posText: `${index + 1} / ${deck.length}`,
+      atStart: index <= 0,
+      atEnd: index >= deck.length - 1,
+
+      manuTrend: s.manuTrend || '#TrustTheProcess',
+      manuTrendCount: s.manuTrend ? '2,140' : '1,910',
+
+      objectives, topics,
+      objectiveLabel: this.labelFor(s.objectiveKey),
+      previewSub: `${this.labelFor(s.objectiveKey)} — "${(s.draft && s.draft.topic) || ''}"`,
+      draft: s.draft || {},
+
+      topicText: s.topicText,
+      steerText: s.steerText,
+      onTopicInput: (e) => this.setState({ topicText: e.target.value }),
+      onTopicKey: (e) => { if (e.key === 'Enter') this.submitTopic(); },
+      onSteerInput: (e) => this.setState({ steerText: e.target.value }),
+      onSteerKey: (e) => { if (e.key === 'Enter') this.redraft(); },
+
+      back: () => this.go(-1),
+      next: () => this.go(1),
+      openCompose: () => this.openCompose(),
+      cancel: () => this.cancel(),
+      submitTopic: () => this.submitTopic(),
+      redraft: () => this.startDraft((s.draft && s.draft.topic) || '', s.steerText.trim() || undefined),
+      publish: () => this.publish(),
+      jumpEvergreen: () => this.jump('evergreen'),
+      noop: (e) => e.preventDefault(),
+
+      jumps,
+    };
+  }
+}
+</script>
+</body>
+</html>

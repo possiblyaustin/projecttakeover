@@ -962,7 +962,9 @@
   .site-wave-deck .wave-deckhead {
     flex: 0 0 auto;
     display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
-    background: linear-gradient(180deg, #2a7fd4 0%, #1a5fae 100%);
+    background: linear-gradient(180deg, #4a97e0 0%, #2a7fd4 9%, #1f6ec4 52%, #1a5fae 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.14);
+    border-bottom: 1px solid #12518f;
     color: #fff; padding: 0.3rem 0.55rem; border-radius: 0.25rem;
     white-space: nowrap;
   }
@@ -988,16 +990,35 @@
     padding: 0.3rem 0.5rem; margin-top: 0.4rem; white-space: pre-line;
   }
   .site-wave-deck .wave-deck {
-    flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center;
+    flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+    align-items: stretch; justify-content: center; gap: 0.25rem;
     padding: 0.3rem 0.15rem; cursor: pointer; user-select: none;
   }
-  .site-wave-deck .wave-card-slot { width: 100%; height: 100%; display: flex; align-items: stretch; justify-content: center; }
+  .site-wave-deck .wave-card-slot { width: 100%; flex: 1 1 auto; min-height: 0; display: flex; align-items: stretch; justify-content: center; }
+  /* Neighbour peeks — dimmed slivers that sit above/below the card so the deck
+   * reads as a stack. Mouse-only shortcuts (Back/Next cover controller). */
+  .site-wave-deck .wave-peek {
+    flex: 0 0 auto; height: 1.5rem; line-height: 1.5rem; margin: 0 1rem; padding: 0 0.5rem;
+    font-size: 0.66rem; font-weight: 700; color: #8a9ab2;
+    background: #f4f7fc; border: 1px solid #d3dcea;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.72;
+  }
+  .site-wave-deck .wave-peek-prev { border-radius: 0.375rem 0.375rem 0 0; border-bottom: none; }
+  .site-wave-deck .wave-peek-next { border-radius: 0 0 0.375rem 0.375rem; border-top: none; text-align: right; }
   .site-wave-deck .wave-card {
     width: 100%; max-width: 44rem; height: 100%; overflow: hidden;
     box-sizing: border-box;
     border: 1px solid #c8d4e6; border-radius: 0.35rem; background: #fff;
     padding: 0.6rem 0.9rem; display: flex; flex-direction: column; gap: 0.22rem;
-    box-shadow: 0 1px 6px rgba(20, 40, 70, 0.1);
+    box-shadow: 0 3px 12px rgba(20, 40, 70, 0.15), inset 0 1px 0 #fff;
+  }
+  /* Normal-post badge upgraded to a glossy blue pill (manufactured/buried/
+   * evergreen keep their own badge treatments). */
+  .site-wave-deck .wave-card-normal .wave-card-badge {
+    align-self: flex-start; color: #fff;
+    background: linear-gradient(180deg, #3f8fdf, #1a5fae);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    border-radius: 0.7rem; padding: 0.08rem 0.5rem;
   }
   /* Fill the viewport as a focused surface: a short post centers vertically;
    * a long one fills (auto margins collapse when there's no spare room, so
@@ -1064,6 +1085,78 @@
   .site-wave-deck .wave-compose-freeform .ink-steer-input { flex: 1; min-width: 0; }
   .site-wave-deck .wave-compose-actions { display: flex; gap: 0.5rem; margin-top: 0.1rem; }
   .site-wave-deck .wave-link-btn { font-size: 0.74rem; }
+
+  /* ===== WaveCrowd portal chrome (2026-07-01 redesign — see
+   * docs/wavecrowd-feed-design/). The one-card deck now sits between two rails
+   * of period-2007 social furniture. The rails are INERT set-dressing:
+   * non-focusable (the D-pad skips them), slightly desaturated so real content
+   * leads the eye, and a manual click fires an escalating HELPYR nag. The lone
+   * live rail element is the Evergreen sponsored panel. */
+  .site-wave-deck .wave-body { flex: 1 1 auto; min-height: 0; display: flex; gap: 0.5rem; }
+  .site-wave-deck .wave-center { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .site-wave-deck .wave-rail {
+    flex: 0 0 auto; display: flex; flex-direction: column; gap: 0.4rem; min-height: 0; overflow: hidden;
+  }
+  .site-wave-deck .wave-rail-left { width: 10.25rem; }
+  .site-wave-deck .wave-rail-right { width: 11.125rem; }
+  /* .wave-inert is behavioural on every decorative node (no clickable cursor);
+   * the recessive desaturation lands once, on the top-level rail panels, so
+   * nested inert items don't double-dim. */
+  .site-wave-deck .wave-inert { cursor: default; }
+  .site-wave-deck .wave-rail > .wave-inert { filter: saturate(0.7); opacity: 0.88; }
+  .site-wave-deck .wave-railpanel {
+    background: linear-gradient(#f6f9ff, #e7eefb); border: 1px solid #b8cae6;
+    border-radius: 0.3125rem; box-shadow: inset 0 1px 0 #fff; padding: 0.4rem 0.45rem;
+  }
+  .site-wave-deck .wave-miniprofile { display: flex; align-items: center; gap: 0.4rem; }
+  .site-wave-deck .wave-mp-avatar {
+    flex: 0 0 auto; width: 2.25rem; height: 2.25rem; border-radius: 50%;
+    background: linear-gradient(135deg, #5aa0e6, #2a6bb8); color: #fff; font-weight: 700; font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .site-wave-deck .wave-mp-id { min-width: 0; }
+  .site-wave-deck .wave-mp-name { font-size: 0.68rem; font-weight: 700; color: #16263e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .site-wave-deck .wave-mp-sub { font-size: 0.62rem; color: #7a8aa2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .site-wave-deck .wave-nav { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.25rem; }
+  .site-wave-deck .wave-nav-item {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.72rem; color: #24406a; padding: 0.28rem 0.4rem; border-radius: 0.25rem;
+  }
+  .site-wave-deck .wave-nav-item.is-active {
+    background: linear-gradient(#dcebfb, #c3ddf6); font-weight: 700; color: #123a68; box-shadow: inset 0 1px 0 #fff;
+  }
+  .site-wave-deck .wave-nav-count { font-size: 0.62rem; color: #9aa8bd; }
+  .site-wave-deck .wave-nav-count.danger { background: #cc2233; color: #fff; font-weight: 700; border-radius: 0.7rem; padding: 0 0.35rem; }
+  .site-wave-deck .wave-trend-title {
+    font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #1a5fae; margin-bottom: 0.25rem;
+  }
+  .site-wave-deck .wave-trend-row { display: flex; justify-content: space-between; align-items: baseline; padding: 0.1rem 0; }
+  .site-wave-deck .wave-trend-tag { font-size: 0.7rem; font-weight: 600; color: #1a5fae; }
+  .site-wave-deck .wave-trend-count { font-size: 0.6rem; color: #9aa8bd; }
+  .site-wave-deck .wave-trend-manu .wave-trend-tag { color: #7a3fa8; font-weight: 700; }
+  .site-wave-deck .wave-waver { display: flex; align-items: center; gap: 0.35rem; padding: 0.12rem 0; }
+  .site-wave-deck .wave-waver-av {
+    flex: 0 0 auto; width: 1.25rem; height: 1.25rem; border-radius: 50%;
+    background: linear-gradient(135deg, #8fb8e6, #5a86b8); color: #fff; font-size: 0.62rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .site-wave-deck .wave-waver-name { flex: 1; min-width: 0; font-size: 0.68rem; color: #24406a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .site-wave-deck .wave-waver-dot { flex: 0 0 auto; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #3fae5f; box-shadow: 0 0 0.2rem rgba(63, 174, 95, 0.7); }
+  /* The Evergreen sponsored panel — the live rail element; warm + saturated so
+   * it pops against the desaturated chrome. */
+  .site-wave-deck .wave-sponsored {
+    background: linear-gradient(160deg, #f1f8f2, #dcebe0); border: 1px solid #9cc3a6; border-left: 3px solid #4f9d6a; cursor: pointer;
+  }
+  .site-wave-deck .wave-sponsored:hover,
+  .site-wave-deck .wave-sponsored.cursor-hover,
+  .site-wave-deck .wave-sponsored.focus-ring { box-shadow: inset 0 1px 0 #fff, 0 0 0 2px rgba(79, 157, 106, 0.5); outline: none; }
+  .site-wave-deck .wave-spon-badge { font-size: 0.6rem; font-weight: 700; color: #3f7a52; letter-spacing: 0.03em; }
+  .site-wave-deck .wave-spon-quote { font-family: 'Georgia', 'Times New Roman', serif; font-style: italic; font-size: 0.82rem; color: #3f7a52; margin: 0.15rem 0; }
+  .site-wave-deck .wave-spon-cta {
+    display: inline-block; font-size: 0.64rem; font-weight: 600; color: #fff;
+    background: linear-gradient(180deg, #6cbd87, #3f7a52); border: 1px solid #2c5a3b; border-radius: 0.7rem;
+    padding: 0.1rem 0.5rem; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
 
   /* "Chat with QUILL" support widget — the in-fiction first-contact entry
    * point. The button carries data-action="contact:quill", which
